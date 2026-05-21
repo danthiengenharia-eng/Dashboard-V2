@@ -1938,6 +1938,39 @@ function parseRow(r,i){
     ord:P(r[ci('item',0)])
   };
 }
+// Mapeamento canônico campo → índice padrão (default quando CFG.COLS não tem o campo).
+// Espelha exatamente o parseRow para garantir simetria entre leitura e escrita.
+const _COL_DEFAULTS={
+  item:0,os:1,aceita:2,atv:3,tv:4,polo:5,mun:6,bairro:7,tip:8,end:9,area:10,cep:11,
+  mes:12,siopi:13,pept:14,ent:15,vis:16,lau:17,vos:20,fich:21,vd:22,vt:23,
+  st:24,va:25,rsm:26,rev:27,abr:28,prz:29
+};
+// Recebe um objeto {campo: valor} e devolve um array de células posicionadas exatamente
+// nas colunas que a empresa configurou via CFG.COLS (ou nos defaults).
+// Posições não usadas viram string vazia. O tamanho do array vai até a maior coluna.
+function _osDataToRow(data){
+  const C=CFG.COLS||{};
+  const ci=campo=>C[campo]!=null?C[campo]:_COL_DEFAULTS[campo];
+  // Determina o índice máximo considerando todas as colunas que podem ser escritas
+  // (incluindo as não preenchidas, para garantir consistência de tamanho)
+  let max=0;
+  Object.keys(_COL_DEFAULTS).forEach(k=>{const idx=ci(k);if(idx!=null&&idx>max)max=idx;});
+  const row=new Array(max+1).fill('');
+  Object.entries(data).forEach(([k,v])=>{
+    const idx=ci(k);
+    if(idx!=null&&v!==undefined&&v!==null)row[idx]=v;
+  });
+  return row;
+}
+// Converte um índice numérico para letra de coluna estilo Sheets (0→A, 25→Z, 26→AA, ...)
+function _idxToColLetter(i){let s='';let n=i;while(n>=0){s=String.fromCharCode(65+(n%26))+s;n=Math.floor(n/26)-1;}return s;}
+// Devolve a LETRA da coluna para um campo, respeitando CFG.COLS configurado pela empresa.
+// Use sempre que precisar montar um range A1 (ex: U10 → _campoToCol('vos')+'10').
+function _campoToCol(campo){
+  const C=CFG.COLS||{};
+  const idx=C[campo]!=null?C[campo]:_COL_DEFAULTS[campo];
+  return idx!=null?_idxToColLetter(idx):null;
+}
 function stCfg(r){if(r.rev)return{cls:'st-revisao',bg:'#9333ea',lbl:'Em revisão'};return STCFG[r.st]||{cls:'',bg:'#475569',lbl:r.st||'—'};}
 function badge(r){const c=stCfg(r);return`<span class="badge" style="background:${c.bg}">${c.lbl}</span>`;}
 function rsm2(r){const a=parseFloat((r.area||'').replace(/[^\d,]/g,'').replace(',','.'));if(!a||a<=0||!r.va||r.va<=0)return'—';return'R$ '+(r.va/a).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
@@ -2578,10 +2611,13 @@ async function saveDrawerEdits(){
   const inputs=document.querySelectorAll('.dv-input:not([readonly])');
   const updates=[];
   inputs.forEach(inp=>{
-    const col=inp.dataset.col;if(!col)return;
+    // Prioridade: campo configurado em CFG.COLS (via _campoToCol). Fallback: data-col hardcoded.
+    const field=inp.dataset.field;
+    const col=(field&&_campoToCol(field))||inp.dataset.col;
+    if(!col)return;
     let val=inp.value.trim();
-    if(inp.dataset.field=='mes'){val=normalizaMes(val)||val;}
-    if(inp.dataset.field=='va'){val=val===''?'':(`R$ ${parseFloat(val||0).toFixed(2).replace('.',',')}`);updates.push({range:`${CFG.SHT}!${col}${COS.ri}`,values:[[val]]});return;}
+    if(field=='mes'){val=normalizaMes(val)||val;}
+    if(field=='va'){val=val===''?'':(`R$ ${parseFloat(val||0).toFixed(2).replace('.',',')}`);updates.push({range:`${CFG.SHT}!${col}${COS.ri}`,values:[[val]]});return;}
     if(val)updates.push({range:`${CFG.SHT}!${col}${COS.ri}`,values:[[val]]});
   });
 
@@ -2601,9 +2637,10 @@ async function saveDrawerEdits(){
     if(baseMun){
       // Mun: salva com ou sem sufixo de deslocamento especial
       const finalMunNm=isEsp?`${baseMun} (Deslocamento especial)`:baseMun;
-      const munUpdIdx=updates.findIndex(u=>u.range.endsWith(`!G${COS.ri}`));
+      const munColLetter=_campoToCol('mun');
+      const munUpdIdx=updates.findIndex(u=>u.range.endsWith(`!${munColLetter}${COS.ri}`));
       if(munUpdIdx>=0)updates[munUpdIdx].values=[[finalMunNm]];
-      else updates.push({range:`${CFG.SHT}!G${COS.ri}`,values:[[finalMunNm]]});
+      else updates.push({range:`${CFG.SHT}!${munColLetter}${COS.ri}`,values:[[finalMunNm]]});
       // vOS determinado pela atividade (ATV); fallback para valor já salvo se atividade desconhecida
       let vOS=COS.vos||0;
       const cfgAtv=ATV[atvNow];
@@ -2618,9 +2655,9 @@ async function saveDrawerEdits(){
         }
       }
       const fmt=v=>`R$ ${v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
-      updates.push({range:`${CFG.SHT}!U${COS.ri}`,values:[[fmt(vOS)]]});
-      updates.push({range:`${CFG.SHT}!W${COS.ri}`,values:[[fmt(vDesloc)]]});
-      updates.push({range:`${CFG.SHT}!X${COS.ri}`,values:[[fmt(vOS+vDesloc)]]});
+      updates.push({range:`${CFG.SHT}!${_campoToCol('vos')}${COS.ri}`,values:[[fmt(vOS)]]});
+      updates.push({range:`${CFG.SHT}!${_campoToCol('vd')}${COS.ri}`,values:[[fmt(vDesloc)]]});
+      updates.push({range:`${CFG.SHT}!${_campoToCol('vt')}${COS.ri}`,values:[[fmt(vOS+vDesloc)]]});
     }
   }
   try{
@@ -2717,9 +2754,8 @@ async function enriquecerComSIOPI(){
         novoEnd=endAtual?`${endAtual}, ${compl}`:compl;
       }
       if(novoEnd!==endAtual){
-        // Coluna do endereço: precisamos descobrir. Usando 'e-end' como referência: data-col
-        const endInput=document.querySelector('.dv-input[data-field="end"]');
-        const endCol=endInput?endInput.dataset.col:'G'; // G é o padrão de endereço
+        // Coluna do endereço respeita CFG.COLS configurado pela empresa
+        const endCol=_campoToCol('end')||'J';
         updates.push({range:`${CFG.SHT}!${endCol}${COS.ri}`,values:[[novoEnd]]});
         COS.end=novoEnd;
         setDV('d-end',novoEnd);
@@ -2731,8 +2767,7 @@ async function enriquecerComSIOPI(){
       const areaAtual=(COS.area||'').toString().trim();
       const novaArea=result.area_privativa;
       if(novaArea&&novaArea!==areaAtual){
-        const areaInput=document.querySelector('.dv-input[data-field="area"]');
-        const areaCol=areaInput?areaInput.dataset.col:'K'; // K é o padrão
+        const areaCol=_campoToCol('area')||'K';
         updates.push({range:`${CFG.SHT}!${areaCol}${COS.ri}`,values:[[novaArea]]});
         COS.area=novaArea;
         setDV('d-area',fmtArea(novaArea));
@@ -2748,8 +2783,7 @@ async function enriquecerComSIOPI(){
       const sorted=[...TIP_OPTS].sort((a,b)=>b.length-a.length);
       const matched=sorted.find(o=>raw.includes(nrm(o)));
       if(matched&&matched!==COS.tip){
-        const tipInput=document.querySelector('.dv-input[data-field="tip"]');
-        const tipCol=tipInput?tipInput.dataset.col:'L';
+        const tipCol=_campoToCol('tip')||'I';
         updates.push({range:`${CFG.SHT}!${tipCol}${COS.ri}`,values:[[matched]]});
         COS.tip=matched;
         setDV('d-tip',matched);
@@ -3218,7 +3252,7 @@ function parseTxt(txt, r){
         // Usar then(onOk, onErr) ao invés de .then().catch() para evitar TypeError.
         gapi.client.sheets.spreadsheets.values.update({
           spreadsheetId: CFG.SID,
-          range: `${CFG.SHT}!L${r.ri}`,
+          range: `${CFG.SHT}!${_campoToCol('cep')}${r.ri}`,
           valueInputOption: 'USER_ENTERED',
           resource: { values: [[res.cep]] }
         }).then(()=>{}, e => console.warn('Erro ao auto-salvar CEP:', e));
@@ -4340,40 +4374,39 @@ async function salvar(){
   const osp=os.replace(/\//g,'');
   const mes=converterMesParaSalvar(mesInput);
   const dataEntrega=document.getElementById('nent').value;
-  // Ordem das colunas (layout atualizado): A=Item, B=OS, C=OS Aceita, D=Atividade, E=Tipo Vistoria, F=Polo, G=Município, H=Bairro, I=Tipologia, J=Endereço, K=Área, L=CEP, M=Mês, N=Entrada SIOPI, O=PEPT, P=Entrega, Q=Vistoria, R=Laudo, S=(reservado), T=(reservado), U=Valor OS, V=Ficha, W=Valor Desloc, X=Valor Total, Y=Status OS, Z=Valor avaliado, AA=R$/m², AB=Revisão, AC=Abertura, AD=Prazo
+  // Monta a linha respeitando o mapeamento de colunas configurado pela empresa (CFG.COLS).
+  // Cada campo vai para a coluna que o usuário mapeou no wizard — funciona para qualquer layout.
   const polo=document.getElementById('npolo').value||'';
-  const row=[
-    novoItem,                                                  // A — Item
-    os,                                                        // B — OS
-    'TRUE',                                                    // C — OS Aceita
-    atv,                                                       // D — Atividade
-    document.getElementById('ntv').value,                      // E — Tipo Vistoria
-    polo,                                                      // F — Polo
-    munNm,                                                     // G — Município
-    bairro,                                                    // H — Bairro
-    document.getElementById('ntip').value,                     // I — Tipologia
-    end,                                                       // J — Endereço
-    area,                                                      // K — Área
-    cep,                                                       // L — CEP
-    mes,                                                       // M — Mês
-    siopi,                                                     // N — Entrada SIOPI
-    'FALSE',                                                   // O — PEPT
-    dataEntrega,                                               // P — Entrega
-    'FALSE',                                                   // Q — Vistoria
-    'FALSE',                                                   // R — Laudo
-    '',                                                        // S — (reservado)
-    '',                                                        // T — (reservado)
-    `R$ ${vo.toFixed(2).replace('.',',')}`,                    // U — Valor OS
-    'FALSE',                                                   // V — Ficha
-    `R$ ${vd.toFixed(2).replace('.',',')}`,                    // W — Valor Desloc
-    `R$ ${(vo+vd).toFixed(2).replace('.',',')}`,               // X — Valor Total
-    'Sem vistoria - não agendado',                             // Y — Status OS
-    '',                                                        // Z — Valor avaliado
-    '',                                                        // AA — R$/m²
-    'FALSE',                                                   // AB — Revisão
-    '',                                                        // AC — Abertura
-    ''                                                         // AD — Prazo
-  ];
+  const row=_osDataToRow({
+    item:novoItem,
+    os:os,
+    aceita:'TRUE',
+    atv:atv,
+    tv:document.getElementById('ntv').value,
+    polo:polo,
+    mun:munNm,
+    bairro:bairro,
+    tip:document.getElementById('ntip').value,
+    end:end,
+    area:area,
+    cep:cep,
+    mes:mes,
+    siopi:siopi,
+    pept:'FALSE',
+    ent:dataEntrega,
+    vis:'FALSE',
+    lau:'FALSE',
+    vos:`R$ ${vo.toFixed(2).replace('.',',')}`,
+    fich:'FALSE',
+    vd:`R$ ${vd.toFixed(2).replace('.',',')}`,
+    vt:`R$ ${(vo+vd).toFixed(2).replace('.',',')}`,
+    st:'Sem vistoria - não agendado',
+    va:'',
+    rsm:'',
+    rev:'FALSE',
+    abr:'',
+    prz:''
+  });
   try{
     console.log('=== DEBUG SALVAR OS ===');
     console.log('Spreadsheet ID:', CFG.SID);
@@ -4382,10 +4415,12 @@ async function salvar(){
     console.log('Row ('+row.length+' colunas):', row);
     console.log('Tentando append em nova linha...');
     
-    // Usar range específico A2:AD para forçar append em nova linha
+    // Calcula a coluna final dinamicamente baseado no tamanho da linha
+    const _colLetter=i=>{let s='';let n=i;while(n>=0){s=String.fromCharCode(65+(n%26))+s;n=Math.floor(n/26)-1;}return s;};
+    const ultimaCol=_colLetter(row.length-1);
     const result=await gapi.client.sheets.spreadsheets.values.append({
       spreadsheetId:CFG.SID,
-      range:`${CFG.SHT}!A2:AD`,
+      range:`${CFG.SHT}!A2:${ultimaCol}`,
       valueInputOption:'USER_ENTERED',
       insertDataOption:'INSERT_ROWS',
       resource:{values:[row]}
@@ -4451,17 +4486,18 @@ async function updSt(ns){
       vDeslocFmt = `R$ ${vDesloc.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
       vTotalFmt = `R$ ${vTotal.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
     }
-    // Atualiza U:X (vos, vd, vt, st) e Z:AA (rsm, rev) em batch — PRESERVA Y (valor avaliado)
+    // Atualiza vos, vd, vt, st (e zera rsm + rev) usando o mapeamento configurado pela empresa
     await gapi.client.sheets.spreadsheets.values.batchUpdate({
       spreadsheetId: CFG.SID,
       resource:{
         valueInputOption:'USER_ENTERED',
         data:[
-          {range:`${CFG.SHT}!U${COS.ri}`, values:[[vOSFmt]]},
-          {range:`${CFG.SHT}!W${COS.ri}`, values:[[vDeslocFmt]]},
-          {range:`${CFG.SHT}!X${COS.ri}`, values:[[vTotalFmt]]},
-          {range:`${CFG.SHT}!Y${COS.ri}`, values:[[ns]]},
-          {range:`${CFG.SHT}!AA${COS.ri}:AB${COS.ri}`, values:[['', 'FALSE']]}
+          {range:`${CFG.SHT}!${_campoToCol('vos')}${COS.ri}`, values:[[vOSFmt]]},
+          {range:`${CFG.SHT}!${_campoToCol('vd')}${COS.ri}`,  values:[[vDeslocFmt]]},
+          {range:`${CFG.SHT}!${_campoToCol('vt')}${COS.ri}`,  values:[[vTotalFmt]]},
+          {range:`${CFG.SHT}!${_campoToCol('st')}${COS.ri}`,  values:[[ns]]},
+          {range:`${CFG.SHT}!${_campoToCol('rsm')}${COS.ri}`, values:[['']]},
+          {range:`${CFG.SHT}!${_campoToCol('rev')}${COS.ri}`, values:[['FALSE']]}
         ]
       }
     });
@@ -4954,7 +4990,7 @@ async function batchUpdateCeps() {
         
         await gapi.client.sheets.spreadsheets.values.update({
           spreadsheetId: CFG.SID,
-          range: `${CFG.SHT}!L${r.ri}`,
+          range: `${CFG.SHT}!${_campoToCol('cep')}${r.ri}`,
           valueInputOption: 'USER_ENTERED',
           resource: { values: [[cepVal]] }
         });
@@ -5311,8 +5347,9 @@ function _aplicarEspecial(val){
   return Math.round(val*0.21*100)/100;
 }
 
-// Gera chave de polo a partir do nome: remove acentos, converte para uppercase, espaços viram '_'
-function _polo2key(nome){return String(nome||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase().replace(/[^A-Z0-9]+/g,'_').replace(/^_|_$/g,'');}
+// Chave do polo = o próprio nome (apenas normaliza espaços). Sem transformação uppercase/underscore —
+// isso aparecia feio na UI ("VOLTA_REDONDA"). O nome legível É o identificador.
+function _polo2key(nome){return String(nome||'').trim().replace(/\s+/g,' ');}
 // Garante que todos os polos referenciados pelos municípios estejam cadastrados na tabela de polos.
 // Recebe lista de municípios parseados {nm, val, polo} e cores opcionais. Retorna mapeamento nome→key.
 function _setupGarantirPolos(municipios){
@@ -6824,8 +6861,8 @@ async function gerarFichaPDF(){
 
 async function _marcarFichaGerada(r){
   try{
-    const colIdx=20; // índice coluna 'fich' no Sheets (col U = índice 20)
-    const range=`${CFG.SHT}!U${r.ri}`;
+    // Usa a coluna 'fich' mapeada via CFG.COLS (sem hardcode)
+    const range=`${CFG.SHT}!${_campoToCol('fich')}${r.ri}`;
     await gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId:CFG.SID,range,valueInputOption:'RAW',
       resource:{values:[['TRUE']]}
