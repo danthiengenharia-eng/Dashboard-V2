@@ -563,6 +563,44 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
   .nav-ico svg{width:16px;height:16px}
 }
 
+/* ── DESKTOP SIDEBAR (≥769px) ── */
+@media (min-width:769px){
+  .topbar{
+    position:fixed;left:0;top:0;bottom:0;width:210px;height:100vh;
+    flex-direction:column;align-items:stretch;
+    padding:0 8px 16px;gap:2px;
+    border-right:1px solid var(--mica-border);border-bottom:none;
+    overflow-y:auto;overflow-x:hidden;
+  }
+  .brand-logo-fallback{
+    padding:16px 8px 14px;border-bottom:1px solid var(--mica-border);
+    margin:0 -8px 10px;flex-shrink:0;display:flex!important;
+  }
+  .nav-sep{display:none}
+  .nav-ico{
+    width:100%;height:40px;border-radius:8px;
+    justify-content:flex-start;padding:0 10px;gap:10px;flex-shrink:0;
+  }
+  .nav-ico svg{flex-shrink:0}
+  .nav-ico .tip{
+    position:static;opacity:1;background:none;color:inherit;
+    font-size:12px;transform:none;pointer-events:none;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis;padding:0;border-radius:0;box-shadow:none;
+  }
+  .nav-ico:hover .tip{opacity:1}
+  .split-wrap{width:100%}
+  .split-wrap .nav-ico{width:100%}
+  .split-menu{left:210px;top:auto;bottom:auto;right:auto}
+  .spacer{flex:1}
+  .auth-info{display:block;font-size:10px;opacity:.6;padding:0 10px;margin-bottom:4px}
+  .btn-auth{width:calc(100% - 16px);margin:0 8px 4px;padding:6px 10px;text-align:center;border-radius:7px}
+  .btn-auto-cep{display:none}
+  .btn-dark{width:calc(100% - 16px);margin:0 8px;padding:6px 10px;border-radius:7px;justify-content:center;border:1px solid var(--mica-border)}
+  .fbar-wrap{margin-left:210px;top:0}
+  .main{margin-left:210px}
+  .overlay,.drawer{z-index:400}
+}
+
 /* ══════════════════════════════════════
    SETUP WIZARD — white-label
    ══════════════════════════════════════ */
@@ -1620,14 +1658,17 @@ function applyBranding(c){
   if(nm)nm.textContent=c.emp||'Dashboard';
   if(sb)sb.textContent=c.empSub||'CEF';
   document.title=(c.emp||'Dashboard')+' — OS CEF';
-  // Logo: exibe na barra de nav se existir
+  // Garante que o bloco de marca fique visível
+  const fb=document.getElementById('brand-fallback');
+  if(fb)fb.style.display='flex';
+  // Logo: exibe acima/antes do nome na sidebar/topbar
   let logoEl=document.getElementById('brand-logo');
   if(c.logo){
     if(!logoEl){
       logoEl=document.createElement('img');
       logoEl.id='brand-logo';
-      logoEl.style.cssText='height:24px;max-width:80px;object-fit:contain;margin-right:6px;border-radius:3px';
-      if(nm)nm.parentElement.insertBefore(logoEl,nm);
+      logoEl.className='brand-logo';
+      if(fb)fb.insertBefore(logoEl,fb.firstChild);
     }
     logoEl.src=c.logo;
     logoEl.style.display='block';
@@ -3111,10 +3152,20 @@ async function loadDrive(r){
   if(!pf){warnD(ld,ct,pt,fl,wn,`Mês "${r.mes}" inválido.`,np,'?');return;}
   if(!AUTH){warnD(ld,ct,pt,fl,wn,'Entre com Google para acessar os documentos.',np,pf);return;}
   try{
-    const r1=await gapi.client.drive.files.list({q:`name='${pf}' and '${CFG.DID}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,fields:'files(id,name)',pageSize:5});
-    const fp=r1.result.files||[];
+    let r1=await gapi.client.drive.files.list({q:`name='${pf}' and '${CFG.DID}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,fields:'files(id,name)',pageSize:5});
+    let fp=r1.result.files||[];
+    // Fallback: busca por partes do nome (ano + mês abreviado) caso o formato da pasta seja diferente
     if(!fp.length){
-      warnD(ld,ct,pt,fl,wn,`Pasta "${pf}" não encontrada.`,np,pf);
+      const partes=r.mes?r.mes.split('-'):[];
+      if(partes.length===2){
+        const ano=partes[1].length===2?'20'+partes[1]:partes[1];
+        const r1b=await gapi.client.drive.files.list({q:`name contains '${ano}' and '${CFG.DID}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,fields:'files(id,name)',pageSize:20});
+        const mesNum=MES_MAP[partes[0].toLowerCase()]||'';
+        fp=(r1b.result.files||[]).filter(f=>{const n=f.name.toLowerCase();return n.includes(partes[0].toLowerCase())||n.includes('-'+mesNum)||n.includes('/'+mesNum);});
+      }
+    }
+    if(!fp.length){
+      warnD(ld,ct,pt,fl,wn,`Pasta do mês "${pf}" não encontrada. Verifique se o ID do Drive está correto e se a pasta existe.`,np,pf);
       buscarTxtDireto(r.item,r,null).then(c=>{if(c)showContato(c.nome,c.tel);});
       return;
     }
@@ -4898,7 +4949,8 @@ function _parseCSV(text){
 
 function _parseBRL(v){
   if(!v)return 0;
-  const s=String(v).replace(/[^0-9,\.]/g,'').replace(',','.');
+  // Remove separador de milhar (ponto), troca vírgula decimal por ponto
+  const s=String(v).replace(/\./g,'').replace(',','.').replace(/[^0-9\.]/g,'');
   return parseFloat(s)||0;
 }
 
@@ -5049,6 +5101,20 @@ function setupLogoRemover(){
   document.getElementById('s-logo-file').value='';
 }
 
+function setupPreviewCores(){
+  const cor=(document.getElementById('s-cor-txt')?.value||'#00478E').trim();
+  const corEsc=(document.getElementById('s-cor-esc-txt')?.value||cor).trim();
+  if(/^#[0-9a-fA-F]{6}$/.test(cor))document.documentElement.style.setProperty('--accent',cor);
+  if(/^#[0-9a-fA-F]{6}$/.test(corEsc))document.documentElement.style.setProperty('--accent-wine',corEsc);
+}
+function setupAplicarPreset(cor,corEsc){
+  document.getElementById('s-cor-pick').value=cor;
+  document.getElementById('s-cor-txt').value=cor;
+  document.getElementById('s-cor-esc-pick').value=corEsc;
+  document.getElementById('s-cor-esc-txt').value=corEsc;
+  setupPreviewCores();
+}
+
 // ── Passo 5: Atividades ───────────────────────────────────────────────────
 function setupAddAtv(cod='', val='', prz=''){
   const tbody=document.getElementById('s-atv-tbody');
@@ -5167,6 +5233,7 @@ function setupCarregarExistente(){
     if(document.getElementById('s-emp-sub'))document.getElementById('s-emp-sub').value=c.empSub||'';
     if(document.getElementById('s-origem'))document.getElementById('s-origem').value=c.origem||'';
     if(document.getElementById('s-cor-pick')){document.getElementById('s-cor-pick').value=c.cor||'#00478E';document.getElementById('s-cor-txt').value=c.cor||'#00478E';}
+    if(document.getElementById('s-cor-esc-pick')){document.getElementById('s-cor-esc-pick').value=c.corEsc||'#03347a';document.getElementById('s-cor-esc-txt').value=c.corEsc||'#03347a';}
     // Step 2
     if(document.getElementById('s-key'))document.getElementById('s-key').value=c.key||'';
     if(document.getElementById('s-cid'))document.getElementById('s-cid').value=c.cid||'';
@@ -5210,7 +5277,7 @@ async function setupConcluir(){
     emp:document.getElementById('s-emp').value.trim(),
     empSub:document.getElementById('s-emp-sub').value.trim()||'CEF',
     cor:document.getElementById('s-cor-txt').value.trim()||'#00478E',
-    corEsc:document.getElementById('s-cor-txt').value.trim()||'#00478E',
+    corEsc:document.getElementById('s-cor-esc-txt').value.trim()||document.getElementById('s-cor-txt').value.trim()||'#03347a',
     origem:document.getElementById('s-origem').value.trim(),
     // Credenciais
     key:document.getElementById('s-key').value.trim(),
@@ -6049,10 +6116,25 @@ async function _uploadFotoParaDrive(file, nome, folderId, barId){
         <div class="setup-field">
           <label>Cor principal</label>
           <div class="setup-color-row">
-            <input type="color" id="s-cor-pick" value="#00478E" oninput="document.getElementById('s-cor-txt').value=this.value">
-            <input type="text" id="s-cor-txt" value="#00478E" placeholder="#00478E" oninput="document.getElementById('s-cor-pick').value=this.value">
+            <input type="color" id="s-cor-pick" value="#00478E" oninput="document.getElementById('s-cor-txt').value=this.value;setupPreviewCores()">
+            <input type="text" id="s-cor-txt" value="#00478E" placeholder="#00478E" oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value))document.getElementById('s-cor-pick').value=this.value;setupPreviewCores()">
           </div>
-          <div class="hint">Cor usada nos botões, nav ativo e destaques visuais</div>
+          <div class="hint" style="margin-bottom:8px">Cor primária — botões, nav ativo e destaques</div>
+          <label style="margin-bottom:4px">Cor de sombra / gradiente</label>
+          <div class="setup-color-row">
+            <input type="color" id="s-cor-esc-pick" value="#03347a" oninput="document.getElementById('s-cor-esc-txt').value=this.value;setupPreviewCores()">
+            <input type="text" id="s-cor-esc-txt" value="#03347a" placeholder="#03347a" oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value))document.getElementById('s-cor-esc-pick').value=this.value;setupPreviewCores()">
+          </div>
+          <div class="hint" style="margin-bottom:10px">Tom mais escuro para gradientes e hover</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <span style="font-size:10px;color:var(--text-muted);align-self:center">Presets:</span>
+            <button type="button" class="setup-add-btn" onclick="setupAplicarPreset('#00478E','#03347a')" style="background:linear-gradient(135deg,#00478E,#03347a);color:#fff;border-color:transparent">Azul CEF</button>
+            <button type="button" class="setup-add-btn" onclick="setupAplicarPreset('#16a34a','#14532d')" style="background:linear-gradient(135deg,#16a34a,#14532d);color:#fff;border-color:transparent">Verde</button>
+            <button type="button" class="setup-add-btn" onclick="setupAplicarPreset('#7c3aed','#4c1d95')" style="background:linear-gradient(135deg,#7c3aed,#4c1d95);color:#fff;border-color:transparent">Roxo</button>
+            <button type="button" class="setup-add-btn" onclick="setupAplicarPreset('#b91c1c','#7f1d1d')" style="background:linear-gradient(135deg,#b91c1c,#7f1d1d);color:#fff;border-color:transparent">Vermelho</button>
+            <button type="button" class="setup-add-btn" onclick="setupAplicarPreset('#0e7490','#164e63')" style="background:linear-gradient(135deg,#0e7490,#164e63);color:#fff;border-color:transparent">Petróleo</button>
+            <button type="button" class="setup-add-btn" onclick="setupAplicarPreset('#d97706','#92400e')" style="background:linear-gradient(135deg,#d97706,#92400e);color:#fff;border-color:transparent">Âmbar</button>
+          </div>
         </div>
       </div>
 
@@ -6221,7 +6303,7 @@ async function _uploadFotoParaDrive(file, nome, folderId, barId){
             Adicione <code>;sim</code> ao final para marcar como especial — o valor será calculado como 21% do normal.<br>
             Ex: <code>Santa Luzia;45;BH;sim</code> → especial = R$ 9,45
           </div>
-          <div id="s-mun-csv-preview"></div>
+          <div id="s-mun-csv-preview" style="max-height:180px;overflow-y:auto"></div>
         </div>
 
         <!-- Edital / lista colada -->
@@ -6235,7 +6317,7 @@ async function _uploadFotoParaDrive(file, nome, folderId, barId){
             <button class="setup-add-btn" onclick="setupExtrairMunDaLista()">🔍 Importar lista</button>
             <span id="s-mun-edital-badge"></span>
           </div>
-          <div id="s-mun-edital-preview" style="margin-top:8px;max-height:180px;overflow-y:auto"></div>
+          <div id="s-mun-edital-preview" style="margin-top:8px;max-height:160px;overflow-y:auto;border:1px solid var(--mica-border);border-radius:6px"></div>
         </div>
 
         <!-- Regra deslocamento especial -->
