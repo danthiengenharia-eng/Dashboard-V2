@@ -1732,6 +1732,9 @@ function setupLoader(){
     };
     // Visual
     applyBranding(c);
+    // Repopula selects do form (Nova OS / edição) com ATV e MUN agora carregados.
+    // É feito em microtask para garantir que os elementos do DOM já estejam montados.
+    Promise.resolve().then(()=>{try{if(typeof _refreshFormSelects==='function')_refreshFormSelects();}catch(_){}});
     return true;
   }catch(e){console.error('Erro ao carregar config:',e);showSetup();return false;}
 }
@@ -5308,6 +5311,44 @@ function _aplicarEspecial(val){
   return Math.round(val*0.21*100)/100;
 }
 
+// Gera chave de polo a partir do nome: remove acentos, converte para uppercase, espaços viram '_'
+function _polo2key(nome){return String(nome||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase().replace(/[^A-Z0-9]+/g,'_').replace(/^_|_$/g,'');}
+// Garante que todos os polos referenciados pelos municípios estejam cadastrados na tabela de polos.
+// Recebe lista de municípios parseados {nm, val, polo} e cores opcionais. Retorna mapeamento nome→key.
+function _setupGarantirPolos(municipios){
+  const tbody=document.getElementById('s-polo-tbody');
+  if(!tbody)return {};
+  // Mapeia polos já existentes na tabela: por nome (case-insensitive) e por key
+  const existentesPorNome={},existentesPorKey={};
+  Array.from(tbody.querySelectorAll('tr')).forEach(tr=>{
+    const inps=tr.querySelectorAll('input');
+    const nm=(inps[0]?.value||'').trim();
+    const k=(inps[1]?.value||'').trim().toUpperCase();
+    if(nm)existentesPorNome[nm.toLowerCase()]={key:k,nome:nm};
+    if(k)existentesPorKey[k]={key:k,nome:nm};
+  });
+  // Coleta polos únicos dos municípios
+  const polosUnicos=new Set();
+  municipios.forEach(m=>{if(m.polo&&m.polo.trim())polosUnicos.add(m.polo.trim());});
+  // Paleta de cores rotativa para polos novos
+  const cores=['#dc2626','#2563eb','#16a34a','#d97706','#7c3aed','#0e7490','#db2777','#65a30d'];
+  let idx=Array.from(tbody.querySelectorAll('tr')).length;
+  const nomeParaKey={};
+  polosUnicos.forEach(nomePolo=>{
+    const k=_polo2key(nomePolo);
+    if(existentesPorNome[nomePolo.toLowerCase()]){
+      nomeParaKey[nomePolo]=existentesPorNome[nomePolo.toLowerCase()].key;
+    } else if(existentesPorKey[k]){
+      nomeParaKey[nomePolo]=k;
+    } else {
+      setupAddPolo(nomePolo,k,cores[idx%cores.length]);
+      nomeParaKey[nomePolo]=k;
+      idx++;
+    }
+  });
+  return nomeParaKey;
+}
+
 function setupImportarCSVMun(file){
   if(!file)return;
   const reader=new FileReader();
@@ -5332,11 +5373,15 @@ function setupImportarCSVMun(file){
       if(especial)val=_aplicarEspecial(val);
       return{nm:(especial?nm+' (especial)':nm),val,polo};
     }).filter(Boolean);
+    // Auto-cria polos referenciados e converte nome→key nos municípios
+    const mapPolo=_setupGarantirPolos(parsed);
+    parsed.forEach(p=>{if(p.polo&&mapPolo[p.polo])p.polo=mapPolo[p.polo];});
     _renderPreviewMun(parsed,'s-mun-csv-preview');
     const tbody=document.getElementById('s-mun-tbody');
     tbody.innerHTML='';
     parsed.forEach(p=>setupAddMun(p.nm,p.val,p.polo));
-    showToast(`✅ ${parsed.length} município(s) importado(s)`);
+    const polosNovos=Object.keys(mapPolo).length;
+    showToast(`✅ ${parsed.length} município(s) importado(s)${polosNovos?` + ${polosNovos} polo(s) auto-cadastrado(s)`:''}`);
   };
   reader.readAsText(file,'utf-8');
 }
@@ -5361,11 +5406,15 @@ function setupExtrairMunDaLista(){
   const badge=document.getElementById('s-mun-edital-badge');
   if(!parsed.length){badge.className='setup-preview-badge warn';badge.textContent='Nenhum município encontrado';return;}
   badge.className='setup-preview-badge ok';badge.textContent=`${parsed.length} importado(s)`;
+  // Auto-cria polos referenciados e converte nome→key nos municípios
+  const mapPolo=_setupGarantirPolos(parsed);
+  parsed.forEach(p=>{if(p.polo&&mapPolo[p.polo])p.polo=mapPolo[p.polo];});
   _renderPreviewMun(parsed,'s-mun-edital-preview');
   const tbody=document.getElementById('s-mun-tbody');
   tbody.innerHTML='';
   parsed.forEach(p=>setupAddMun(p.nm,p.val,p.polo));
-  showToast(`✅ ${parsed.length} município(s) importado(s)`);
+  const polosNovos=Object.keys(mapPolo).length;
+  showToast(`✅ ${parsed.length} município(s) importado(s)${polosNovos?` + ${polosNovos} polo(s) auto-cadastrado(s)`:''}`);
 }
 
 function _renderPreviewMun(parsed,containerId){
@@ -5436,11 +5485,38 @@ function setupGetATV(){
   document.querySelectorAll('#s-atv-tbody tr').forEach(tr=>{
     const inps=tr.querySelectorAll('input');
     const cod=(inps[0]?.value||'').trim().toUpperCase();
-    const v=parseFloat(inps[1]?.value||0)||0;
+    const v=_parseBRL(inps[1]?.value||'')||0;
     const p=inps[2]?.value?parseInt(inps[2].value):null;
     if(cod)atv[cod]={v,p};
   });
   return atv;
+}
+
+// Repopula todos os <select> que dependem de ATV/MUN — chamado após o wizard salvar
+function _refreshFormSelects(){
+  // Nova OS: atividade
+  const selNa=document.getElementById('na');
+  if(selNa){
+    const cur=selNa.value;
+    selNa.innerHTML='<option value="">Selecione...</option>';
+    Object.keys(ATV).sort().forEach(k=>{const o=document.createElement('option');o.value=k;o.textContent=k;selNa.appendChild(o);});
+    if(cur&&ATV[cur])selNa.value=cur;
+  }
+  // Edição: atividade
+  const eAtv=document.getElementById('e-atv');
+  if(eAtv){
+    const cur=eAtv.value;
+    eAtv.innerHTML='<option value="">—</option>';
+    Object.keys(ATV).sort().forEach(k=>{const o=document.createElement('option');o.value=k;o.textContent=k;eAtv.appendChild(o);});
+    if(cur&&ATV[cur])eAtv.value=cur;
+  }
+  // Datalist de municípios (autocomplete em Nova OS e drawer)
+  ['ml','ml-drawer'].forEach(id=>{
+    const dl=document.getElementById(id);
+    if(!dl)return;
+    dl.innerHTML='';
+    Object.keys(MUN).sort().forEach(m=>{const o=document.createElement('option');o.value=m;dl.appendChild(o);});
+  });
 }
 
 // ── Passo 6: Polos & Municípios ─────────────────────────────────────────
@@ -5622,6 +5698,8 @@ async function setupConcluir(){
   showToast('✅ Configuração salva! Carregando...');
   hideSetup();
   setupLoader();
+  // Repopula os selects de Nova OS / edição com ATV e MUN atualizados
+  try{_refreshFormSelects();}catch(_){}
   // Inicia o cliente Google
   if(typeof gapi!=='undefined'&&gapi.client){
     try{await gapi.client.init({apiKey:CFG.KEY,discoveryDocs:['https://sheets.googleapis.com/$discovery/rest?version=v4','https://www.googleapis.com/discovery/v1/apis/drive/v3/rest']});}
