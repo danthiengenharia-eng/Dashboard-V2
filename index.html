@@ -3244,24 +3244,57 @@ function chaveUnicaOS(item,osp){
 function qEsc(s){return String(s||'').replace(/'/g,"\\'");}
 // Busca a pasta da OS dentro de uma pasta de mês.
 // Estratégia: 1) exact match no nome canônico; 2) fallback por chave única (contains).
+// Lista TODAS as pastas filhas e filtra no JS — evita as armadilhas de tokenização
+// do operador `contains` do Drive Search (que não casa subprefixos como "977" em "S977-...").
+window._DRIVE_FOLDERS_CACHE=window._DRIVE_FOLDERS_CACHE||{};
+async function listarPastasFilhas(parentId){
+  if(window._DRIVE_FOLDERS_CACHE[parentId])return window._DRIVE_FOLDERS_CACHE[parentId];
+  const all=[];
+  let pageToken=null;
+  do{
+    const res=await gapi.client.drive.files.list({
+      q:`'${parentId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+      fields:'nextPageToken,files(id,name)',
+      pageSize:1000,
+      pageToken:pageToken||undefined,
+      supportsAllDrives:true,
+      includeItemsFromAllDrives:true
+    });
+    (res.result.files||[]).forEach(f=>all.push(f));
+    pageToken=res.result.nextPageToken;
+  }while(pageToken);
+  window._DRIVE_FOLDERS_CACHE[parentId]=all;
+  // Invalida cache após 60s para refletir mudanças no Drive
+  setTimeout(()=>{delete window._DRIVE_FOLDERS_CACHE[parentId];},60000);
+  return all;
+}
 async function acharPastaOS(mesFolderId, r){
   const np=nomePasta(r.item,r.atv,r.osp);
-  // 1) exact match no nome canônico
-  let res=await gapi.client.drive.files.list({
-    q:`name='${qEsc(np)}' and '${mesFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
-    fields:'files(id,name)',pageSize:1
-  });
-  if(res.result.files&&res.result.files.length) return res.result.files[0];
-  // 2) fallback: contains da chave única (item + prefixo do osp). Específico o suficiente
-  // para NÃO casar com outra OS do mesmo polo.
+  const folders=await listarPastasFilhas(mesFolderId);
+  if(!folders.length)return null;
+  const norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();
+  const npN=norm(np);
+  // 1) Match exato (case-insensitive, sem acentos)
+  let m=folders.find(f=>norm(f.name)===npN);
+  if(m)return m;
+  // 2) Match por chave única (item + prefixo da OS antes da "/")
   const chave=chaveUnicaOS(r.item,r.osp);
   if(chave&&chave!==`${r.item}-`){
-    res=await gapi.client.drive.files.list({
-      q:`name contains '${qEsc(chave)}' and '${mesFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
-      fields:'files(id,name)',pageSize:5
-    });
-    const cand=(res.result.files||[]).filter(f=>f.name.includes(chave));
-    if(cand.length) return cand[0];
+    const chaveN=norm(chave);
+    m=folders.find(f=>norm(f.name).includes(chaveN));
+    if(m)return m;
+  }
+  // 3) Match por número do item com limites de palavra
+  const itemStr=String(r.item||'').trim();
+  if(itemStr){
+    const itemRe=new RegExp(`(^|[^0-9])${itemStr}([^0-9]|$)`);
+    m=folders.find(f=>itemRe.test(f.name));
+    if(m)return m;
+  }
+  // 4) Último recurso: substring do número do item em qualquer posição
+  if(itemStr){
+    m=folders.find(f=>f.name.includes(itemStr));
+    if(m)return m;
   }
   return null;
 }
@@ -3272,39 +3305,40 @@ async function loadDrive(r){
   if(!pf){warnD(ld,ct,pt,fl,wn,`Mês "${r.mes}" inválido.`,np,'?');return;}
   if(!AUTH){warnD(ld,ct,pt,fl,wn,'Entre com Google para acessar os documentos.',np,pf);return;}
   try{
-    let r1=await gapi.client.drive.files.list({q:`name='${pf}' and '${CFG.DID}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,fields:'files(id,name)',pageSize:5});
-    let fp=r1.result.files||[];
-    // Fallback: busca por partes do nome (ano + mês abreviado) caso o formato da pasta seja diferente
+    // Lista TODAS as pastas da raiz (DID) e busca o mês client-side
+    const pastasRaiz=await listarPastasFilhas(CFG.DID).catch(()=>[]);
+    const norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();
+    const pfN=norm(pf);
+    let fp=pastasRaiz.filter(f=>norm(f.name)===pfN);
+    // Fallback: tenta casar por ano + mês independentemente do formato
     if(!fp.length){
       const partes=r.mes?r.mes.split('-'):[];
       if(partes.length===2){
         const ano=partes[1].length===2?'20'+partes[1]:partes[1];
-        const r1b=await gapi.client.drive.files.list({q:`name contains '${ano}' and '${CFG.DID}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,fields:'files(id,name)',pageSize:20});
         const mesNum=MES_MAP[partes[0].toLowerCase()]||'';
-        fp=(r1b.result.files||[]).filter(f=>{const n=f.name.toLowerCase();return n.includes(partes[0].toLowerCase())||n.includes('-'+mesNum)||n.includes('/'+mesNum);});
+        const mesNm=partes[0].toLowerCase();
+        fp=pastasRaiz.filter(f=>{const n=norm(f.name);return n.includes(ano)&&(n.includes(mesNm)||n.includes('-'+mesNum)||n.includes('/'+mesNum)||n.includes(mesNum+'-')||n.includes(mesNum+'/'));});
       }
     }
     if(!fp.length){
-      warnD(ld,ct,pt,fl,wn,`Pasta do mês "${pf}" não encontrada. Verifique se o ID do Drive está correto e se a pasta existe.`,np,pf);
+      const amostras=pastasRaiz.slice(0,5).map(f=>`"${f.name}"`).join(', ');
+      const dica=pastasRaiz.length
+        ? `Encontradas ${pastasRaiz.length} pastas na raiz. Exemplos: ${amostras}. Verifique o formato em ⚙️→Reconfigurar (passo 4).`
+        : `A raiz do Drive está vazia ou o ID está incorreto.`;
+      warnD(ld,ct,pt,fl,wn,`Pasta do mês "${pf}" não encontrada. ${dica}`,np,pf);
       buscarTxtDireto(r.item,r,null).then(c=>{if(c)showContato(c.nome,c.tel);});
       return;
     }
     const fid=fp[0].id;
-    let osFolder=await acharPastaOS(fid,r);
-    // Fallback agressivo: busca apenas por número do item
+    const osFolder=await acharPastaOS(fid,r);
     if(!osFolder){
-      try{
-        const r3=await gapi.client.drive.files.list({q:`name contains '${r.item}' and '${fid}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,fields:'files(id,name)',pageSize:10});
-        const matches=r3.result.files||[];
-        if(matches.length===1)osFolder=matches[0];
-        else if(matches.length>1){
-          // Tenta achar match exato por número (separado por hífen ou início)
-          osFolder=matches.find(f=>new RegExp(`(^|[-_\\s])${r.item}([-_\\s.]|$)`).test(f.name))||matches[0];
-        }
-      }catch(_){}
-    }
-    if(!osFolder){
-      warnD(ld,ct,pt,fl,wn,`Pasta não encontrada. Buscado: "${np}" em "${pf}". Confira o formato em ⚙️→Reconfigurar.`,np,pf);
+      // Diagnóstico: lista o que existe na pasta do mês
+      const todas=await listarPastasFilhas(fid).catch(()=>[]);
+      const amostras=todas.slice(0,5).map(f=>`"${f.name}"`).join(', ');
+      const dica=todas.length
+        ? `Encontradas ${todas.length} pastas em "${pf}". Exemplos: ${amostras}. Buscou: "${np}" (item ${r.item})`
+        : `A pasta "${pf}" está vazia ou sem permissão de acesso.`;
+      warnD(ld,ct,pt,fl,wn,`Pasta da OS não encontrada. ${dica}`,np,pf);
       buscarTxtDireto(r.item,r,null).then(c=>{if(c)showContato(c.nome,c.tel);});
       return;
     }
