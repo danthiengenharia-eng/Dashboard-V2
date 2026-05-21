@@ -3387,39 +3387,68 @@ async function lerArquivoDrive(fileId){
   if(!resp.ok)throw new Error(`Erro ao ler arquivo Drive: HTTP ${resp.status}`);
   return resp.text();
 }
-async function buscarArquivoTxtNaPasta(folderId){
-  // Query 1: nome exato padrão (todos os arquivos renomeados para convocacao.txt)
-  const r1=await gapi.client.drive.files.list({
+async function _buscarTxtEmPasta(folderId){
+  // Busca um arquivo .txt diretamente em UMA pasta (sem recursão)
+  // 1) Nome exato
+  let r=await gapi.client.drive.files.list({
     q:`'${folderId}' in parents and name='convocacao.txt' and trashed=false`,
-    fields:'files(id,name,mimeType,webViewLink)',
-    pageSize:5
+    fields:'files(id,name,mimeType,webViewLink)',pageSize:5,
+    supportsAllDrives:true,includeItemsFromAllDrives:true
   });
-  if(r1.result.files&&r1.result.files.length) return r1.result.files;
-  // Fallback 1: qualquer arquivo text/plain na pasta
-  const r2=await gapi.client.drive.files.list({
+  if(r.result.files&&r.result.files.length) return r.result.files;
+  // 2) mimeType text/plain
+  r=await gapi.client.drive.files.list({
     q:`'${folderId}' in parents and mimeType='text/plain' and trashed=false`,
-    fields:'files(id,name,mimeType,webViewLink)',
-    pageSize:10
+    fields:'files(id,name,mimeType,webViewLink)',pageSize:10,
+    supportsAllDrives:true,includeItemsFromAllDrives:true
   });
-  if(r2.result.files&&r2.result.files.length) return r2.result.files;
-  // Fallback 2: qualquer arquivo cujo nome contenha .txt (cobre uploads sem mimeType correto)
-  const r3=await gapi.client.drive.files.list({
+  if(r.result.files&&r.result.files.length) return r.result.files;
+  // 3) Nome contém .txt
+  r=await gapi.client.drive.files.list({
     q:`'${folderId}' in parents and name contains '.txt' and trashed=false and mimeType!='application/vnd.google-apps.folder'`,
-    fields:'files(id,name,mimeType,webViewLink)',
-    pageSize:10
+    fields:'files(id,name,mimeType,webViewLink)',pageSize:10,
+    supportsAllDrives:true,includeItemsFromAllDrives:true
   });
-  if(r3.result.files&&r3.result.files.length){
-    // Filtra apenas arquivos que terminam com .txt (evita falso-positivo tipo "fotos-txt-export.pdf")
-    const filtrados=r3.result.files.filter(f=>/\.txt$/i.test(f.name));
+  if(r.result.files&&r.result.files.length){
+    const filtrados=r.result.files.filter(f=>/\.txt$/i.test(f.name));
     if(filtrados.length) return filtrados;
   }
-  // Fallback 3: busca por conteúdo (fullText) — pega arquivos com "Telefone contato" mesmo sem extensão .txt
-  const r4=await gapi.client.drive.files.list({
+  // 4) fullText — pega conteúdo "Telefone contato"
+  r=await gapi.client.drive.files.list({
     q:`'${folderId}' in parents and fullText contains 'Telefone contato' and trashed=false and mimeType!='application/vnd.google-apps.folder'`,
-    fields:'files(id,name,mimeType,webViewLink)',
-    pageSize:5
+    fields:'files(id,name,mimeType,webViewLink)',pageSize:5,
+    supportsAllDrives:true,includeItemsFromAllDrives:true
   });
-  return r4.result.files||[];
+  return r.result.files||[];
+}
+async function buscarArquivoTxtNaPasta(folderId){
+  // 1) Busca direta na pasta raiz da OS
+  const direto=await _buscarTxtEmPasta(folderId);
+  if(direto.length) return direto;
+  // 2) Não achou — lista subpastas e busca recursivamente
+  let subs=[];
+  try{
+    const sr=await gapi.client.drive.files.list({
+      q:`'${folderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+      fields:'files(id,name)',pageSize:50,
+      supportsAllDrives:true,includeItemsFromAllDrives:true
+    });
+    subs=sr.result.files||[];
+  }catch(_){}
+  if(!subs.length)return [];
+  // Prioriza subpasta com role='txt' configurada no wizard
+  const cfgTxt=(SUBP||[]).find(s=>s.role==='txt');
+  if(cfgTxt){
+    const match=subs.find(s=>s.name.toLowerCase()===cfgTxt.nm.toLowerCase());
+    if(match){
+      const r=await _buscarTxtEmPasta(match.id);
+      if(r.length) return r;
+    }
+  }
+  // Senão, busca em TODAS as subpastas em paralelo, retorna o primeiro hit
+  const results=await Promise.all(subs.map(s=>_buscarTxtEmPasta(s.id).catch(()=>[])));
+  for(const r of results){if(r.length) return r;}
+  return [];
 }
 async function loadContatoTxt(folderId, ros){
   try{
