@@ -1859,7 +1859,7 @@ window.onload=()=>{
 
 function loadGAPI(){
   const s=document.createElement('script');s.src='https://apis.google.com/js/api.js';s.onload=()=>gapi.load('client',initClient);document.head.appendChild(s);
-  const s2=document.createElement('script');s2.src='https://accounts.google.com/gsi/client';s2.onload=initGSI;document.head.appendChild(s2);
+  const s2=document.createElement('script');s2.src='https://accounts.google.com/gsi/client';s2.onload=()=>{window._GSI_READY=true;if(window._CFG_READY)initGSI();};document.head.appendChild(s2);
 }
 // Persistência de token em localStorage para evitar re-autenticação a cada visita
 const Auth={
@@ -1898,6 +1898,9 @@ async function initClient(){
   // Carrega config do localStorage; se não houver, exibe setup wizard
   if(!setupLoader()){return;}
   await gapi.client.init({apiKey:CFG.KEY,discoveryDocs:['https://sheets.googleapis.com/$discovery/rest?version=v4','https://www.googleapis.com/discovery/v1/apis/drive/v3/rest']});
+  // Inicializa GSI agora que CFG.CID já foi carregado
+  window._CFG_READY=true;
+  if(window._GSI_READY)initGSI();
   // Tenta usar token salvo antes de carregar dados
   const saved=Auth.load();
   if(saved){
@@ -5990,9 +5993,13 @@ async function _uploadFotoParaDrive(file, nome, folderId, barId){
     <textarea id="cfg-msg-med" rows="5" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--mica-border);background:var(--mica-surface);color:var(--text-primary);font-size:11px;margin-bottom:4px;resize:vertical;box-sizing:border-box"></textarea>
     <div style="font-size:10px;color:var(--text-muted);margin-bottom:20px">Chaves disponíveis: <b>{{saudacao}}</b>, <b>{{osNum}}</b>, <b>{{endereco}}</b>, <b>{{data}}</b>, <b>{{hora}}</b>, <b>{{resp}}</b></div>
     
-    <div style="display:flex;gap:8px;justify-content:flex-end">
-      <button onclick="document.getElementById('modal-config').style.display='none'" style="padding:8px 16px;border-radius:6px;border:1px solid var(--mica-border);background:transparent;color:var(--text-muted);font-size:12px;cursor:pointer">Cancelar</button>
-      <button onclick="salvarConfig()" style="margin-right:8px" style="padding:8px 16px;border-radius:6px;border:none;background:var(--accent);color:#fff;font-weight:600;font-size:12px;cursor:pointer">Salvar e Aplicar</button>
+    <hr style="border:none;border-top:1px solid var(--mica-border);margin-bottom:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+      <button id="btn-reconfig" onclick="document.getElementById('modal-config').style.display='none';reconfigurar()">⚙️ Reconfigurar sistema</button>
+      <div style="display:flex;gap:8px">
+        <button onclick="document.getElementById('modal-config').style.display='none'" style="padding:8px 16px;border-radius:6px;border:1px solid var(--mica-border);background:transparent;color:var(--text-muted);font-size:12px;cursor:pointer">Cancelar</button>
+        <button onclick="salvarConfig()" style="padding:8px 16px;border-radius:6px;border:none;background:var(--accent);color:#fff;font-weight:600;font-size:12px;cursor:pointer">Salvar e Aplicar</button>
+      </div>
     </div>
   </div>
 </div>
