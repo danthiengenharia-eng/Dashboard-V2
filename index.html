@@ -4168,6 +4168,7 @@ function parseTxtOS(txt){
   };
 
   const get=(pattern)=>{const m=txt.match(pattern);return m?m[1].trim():null;};
+  const getAny=(...patterns)=>{for(const p of patterns){const v=get(p);if(v)return v;}return null;};
   // Extract common fields from Caixa OS TXT, using '.' for accented characters to tolerate file encoding issues
   const osNum=get(/(?:n[úu]mero|OS|ordem|n.mero)[^\n]*?:\s*([0-9]+\.[0-9]+\.[0-9]+\/[0-9.]+)/i)||get(/([0-9]{4}\.[0-9]{4}\.[0-9]{9,}\/[0-9.]+)/);
   let endRaw=get(/endere.o[^\n]*?:\s*(.+)/i);
@@ -4188,9 +4189,24 @@ function parseTxtOS(txt){
   const municipioRaw=get(/munic.pio[^\n]*?:\s*(.+)/i)||get(/cidade[^\n]*?:\s*(.+)/i);
   const municipio=municipioRaw ? toTitleCase(municipioRaw.replace(/\s*[\/-]\s*RJ\s*$/i, '').trim()) : null;
   const cep=get(/cep[^\n]*?:\s*([\d]{5}-?[\d]{3})/i);
-  const dtOS=get(/ordem de servi.o[^:\n]*:\s*([\d]{2}\/[\d]{2}\/[\d]{4})/i);
-  const atv=get(/atividade[^\n]*?:\s*([\w\d]+)/i)||get(/c.digo[^\n]*?:\s*([\w\d]+)/i);
-  const tipologia=toTitleCase(get(/(?:tipologia|tipo de im.vel)[^\n]*?:\s*(.+)/i));
+  // Múltiplos rótulos para data de abertura/SIOPI
+  const dtOS=getAny(
+    /ordem de servi.o[^:\n]*:\s*([\d]{2}\/[\d]{2}\/[\d]{4})/i,
+    /data\s*(?:de\s*)?abertura[^:\n]*:\s*([\d]{2}\/[\d]{2}\/[\d]{4})/i,
+    /data\s*(?:de\s*)?atribui.[aã]o[^:\n]*:\s*([\d]{2}\/[\d]{2}\/[\d]{4})/i,
+    /data\s*siopi[^:\n]*:\s*([\d]{2}\/[\d]{2}\/[\d]{4})/i,
+    /data\s*(?:de\s*)?envio[^:\n]*:\s*([\d]{2}\/[\d]{2}\/[\d]{4})/i,
+    /data\s*entrada[^:\n]*:\s*([\d]{2}\/[\d]{2}\/[\d]{4})/i
+  );
+  // Múltiplos rótulos para código de atividade — captura inclui hífens, pontos
+  const atvRaw=getAny(
+    /atividade[^\n]*?:\s*([A-Za-z0-9._\-]+)/i,
+    /c.digo[\s]*(?:da\s*)?atividade[^\n]*?:\s*([A-Za-z0-9._\-]+)/i,
+    /c.digo[^\n]*?:\s*([A-Za-z0-9._\-]+)/i,
+    /atv[^\n]*?:\s*([A-Za-z0-9._\-]+)/i
+  );
+  const atv=atvRaw?atvRaw.toUpperCase().replace(/[\s.\-]/g,''):null;
+  const tipologia=toTitleCase(get(/(?:tipologia|tipo de im.vel|tipo do im.vel)[^\n]*?:\s*(.+)/i));
   const area=get(/.rea[^\n]*?:\s*([\d,.]+\s*m[²2]?)/i);
   if(osNum)document.getElementById('nos').value=osNum;
   if(endFull)document.getElementById('nend').value=endFull;
@@ -4202,8 +4218,14 @@ function parseTxtOS(txt){
   if(cep)document.getElementById('ncep').value=cep;
   if(atv){
     const selAtv=document.getElementById('na');
-    const optMatch=[...selAtv.options].find(o=>o.value.toLowerCase()===atv.toLowerCase());
+    const norm=s=>String(s||'').toUpperCase().replace(/[\s.\-]/g,'');
+    // 1) Match exato normalizado, 2) prefixo, 3) contém
+    const opts=[...selAtv.options];
+    let optMatch=opts.find(o=>norm(o.value)===atv);
+    if(!optMatch)optMatch=opts.find(o=>norm(o.value).startsWith(atv));
+    if(!optMatch)optMatch=opts.find(o=>norm(o.value).includes(atv));
     if(optMatch){selAtv.value=optMatch.value;onAtv();}
+    else console.warn(`[parseTxtOS] Atividade "${atv}" não encontrada nas opções.`);
   }
   if(tipologia){
     const selTip=document.getElementById('ntip');
@@ -6552,9 +6574,11 @@ function coletarDadosFicha(){
   const tipKey=_FICHA_TIPOLOGIA_ATUAL||_fichaTipologia(FICHA_OS?.tip);
   const schema=_FICHA_SCHEMA[tipKey]||_FICHA_SCHEMA.casa;
   const estado=_coletarEstadoFicha();
-  // Estrutura para PDF: dados organizados por tab → sections → fields com label
+  // Estrutura para PDF: mantém todas as sections; em cada section preenche valores
+  // (campos vazios viram "—" no render do PDF). Isso garante que o PDF sempre
+  // reflete a estrutura completa do laudo, não só o que foi preenchido.
   const tabs=schema.tabs.map(tab=>({
-    id:tab.id,
+    id:tab.id||tab.tabId,
     label:tab.label,
     sections:tab.sections.map(sec=>({
       title:sec.title,
@@ -6562,10 +6586,10 @@ function coletarDadosFicha(){
         let value=estado[f.key];
         if(Array.isArray(value))value=value.join(', ');
         if(value===true)value='Sim';
-        if(value===false)value='Não';
+        if(value===false)value='';
         return {key:f.key,label:f.label,type:f.type,value:value||''};
-      }).filter(x=>x.value!=='')
-    })).filter(s=>s.fields.length>0)
+      })
+    }))
   }));
   return {
     tipologia:tipKey,
@@ -6659,18 +6683,6 @@ async function gerarFichaPDF(){
       body:form
     });
     if(!upRes.ok) throw new Error('Erro no upload: '+(await upRes.text()).slice(0,120));
-
-    // 5. Salva também o JSON de dados ao lado (backup editável)
-    try{
-      const jsonArq=nomeArq.replace(/\.pdf$/i,'.json');
-      const jsonBlob=new Blob([JSON.stringify(dados,null,2)],{type:'application/json'});
-      const form2=new FormData();
-      form2.append('metadata',new Blob([JSON.stringify({name:jsonArq,mimeType:'application/json',parents:[destFolderId]})],{type:'application/json'}));
-      form2.append('file',jsonBlob);
-      await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true',{
-        method:'POST',headers:{'Authorization':'Bearer '+TOKEN},body:form2
-      });
-    }catch(_){/* JSON é apenas backup, ignora falha */}
 
     resultado.textContent='✅ Ficha gerada e enviada ao Drive!';
     showToast('✅ Ficha de Vistoria salva no Drive!');
