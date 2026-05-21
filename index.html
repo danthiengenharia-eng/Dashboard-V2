@@ -4225,7 +4225,10 @@ function parseTxtOS(txt){
     if(!optMatch)optMatch=opts.find(o=>norm(o.value).startsWith(atv));
     if(!optMatch)optMatch=opts.find(o=>norm(o.value).includes(atv));
     if(optMatch){selAtv.value=optMatch.value;onAtv();}
-    else console.warn(`[parseTxtOS] Atividade "${atv}" não encontrada nas opções.`);
+    else {
+      console.warn(`[parseTxtOS] Atividade "${atv}" não encontrada nas opções.`);
+      showToast(`⚠️ Atividade "${atv}" não está cadastrada. Adicione em ⚙️ Reconfigurar → passo 5 (Atividades) para que o valor e o prazo sejam calculados.`);
+    }
   }
   if(tipologia){
     const selTip=document.getElementById('ntip');
@@ -5226,19 +5229,32 @@ function setupImportarCSVAtv(file){
     // Detecta se primeira linha é cabeçalho
     const firstIsHeader=/[a-zA-Záéíóú]{3,}/.test(rows[0]?.[0]||'')&&isNaN(_parseBRL(rows[0]?.[1]||''));
     const data=firstIsHeader?rows.slice(1):rows;
-    // Tenta mapear colunas: [cod, (desc,) valor, prazo]
+    if(!data.length){showToast('❌ Nenhum dado encontrado no CSV');return;}
+    // Detecta posições de colunas: identifica qual é o valor (R$) e qual é o prazo (dias)
+    const sample=data[0]||[];
+    const looksLikeValue=v=>{const n=_parseBRL(v);return n>0;};
+    const looksLikePrazo=v=>{const n=parseInt(v,10);return !isNaN(n)&&n>0&&n<3650;}; // até 10 anos em dias
+    const looksLikeDesc=v=>{return /[a-zA-Záéíóú]{4,}/.test(String(v||''));};
+    // Estratégia: cod é sempre coluna 0. Procura valor e prazo nas outras posições.
+    let idxVal=-1,idxPrz=-1;
+    for(let i=1;i<sample.length;i++){
+      if(idxVal<0&&looksLikeValue(sample[i])&&!looksLikeDesc(sample[i]))idxVal=i;
+      else if(idxPrz<0&&looksLikePrazo(sample[i])&&!looksLikeDesc(sample[i]))idxPrz=i;
+    }
+    // Fallback se não detectou
+    if(idxVal<0)idxVal=sample.length>=3?2:1;
     const parsed=data.map(r=>{
-      if(r.length>=4){return{cod:r[0].toUpperCase(),val:_parseBRL(r[2]),prz:parseInt(r[3])||null};}
-      if(r.length>=3){const v=_parseBRL(r[1]);const p=parseInt(r[2])||null;return{cod:r[0].toUpperCase(),val:v,prz:p};}
-      if(r.length>=2){return{cod:r[0].toUpperCase(),val:_parseBRL(r[1]),prz:null};}
-      return null;
-    }).filter(x=>x&&x.cod&&x.val>0);
+      if(r.length<2||!r[0])return null;
+      const cod=r[0].toUpperCase().trim();
+      const val=_parseBRL(r[idxVal]||'');
+      const prz=idxPrz>=0?parseInt(r[idxPrz],10)||null:null;
+      return cod&&val>0?{cod,val,prz}:null;
+    }).filter(Boolean);
     _renderPreviewAtv(parsed,'s-atv-csv-preview');
-    // Popula tabela manual automaticamente
     const tbody=document.getElementById('s-atv-tbody');
     tbody.innerHTML='';
     parsed.forEach(p=>setupAddAtv(p.cod,p.val,p.prz));
-    showToast(`✅ ${parsed.length} atividade(s) importada(s)`);
+    showToast(`✅ ${parsed.length} atividade(s) importada(s) (col. valor=${idxVal}${idxPrz>=0?`, prazo=${idxPrz}`:', sem prazo'})`);
   };
   reader.readAsText(file,'utf-8');
 }
@@ -7253,7 +7269,7 @@ async function _uploadFotoParaDrive(file, nome, folderId, barId){
             ou <b>CÓDIGO ; DESCRIÇÃO ; VALOR ; PRAZO</b> — Ex: <code>G401;Avaliação Residencial;650,00;30</code><br>
             A primeira linha pode ser cabeçalho (será ignorada automaticamente).
           </div>
-          <div id="s-atv-csv-preview"></div>
+          <div id="s-atv-csv-preview" style="max-height:200px;overflow-y:auto;border:1px solid var(--mica-border);border-radius:6px;margin-top:8px"></div>
         </div>
 
         <!-- Modo edital -->
