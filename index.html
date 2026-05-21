@@ -4269,7 +4269,7 @@ function onMun(){
   const key=findMunKey(mn);if(!key)return;
   // Normaliza para o nome canônico (com acentos)
   if(document.getElementById('nmun').value!==key)document.getElementById('nmun').value=key;
-  const cfg=MUN[key];document.getElementById('npolo').value=cfg.polo;
+  const cfg=MUN[key];document.getElementById('npolo').value=(POLO_NOME&&POLO_NOME[cfg.polo])||cfg.polo||'';
   const curAtv=document.getElementById('na').value;
   // G402 e G402A não possuem valor de deslocamento
   let vd=0;
@@ -5317,7 +5317,7 @@ function _polo2key(nome){return String(nome||'').normalize('NFD').replace(/[̀-�
 // Recebe lista de municípios parseados {nm, val, polo} e cores opcionais. Retorna mapeamento nome→key.
 function _setupGarantirPolos(municipios){
   const tbody=document.getElementById('s-polo-tbody');
-  if(!tbody)return {};
+  if(!tbody){console.warn('[Polos] tbody s-polo-tbody não encontrado');return {};}
   // Mapeia polos já existentes na tabela: por nome (case-insensitive) e por key
   const existentesPorNome={},existentesPorKey={};
   Array.from(tbody.querySelectorAll('tr')).forEach(tr=>{
@@ -5329,11 +5329,12 @@ function _setupGarantirPolos(municipios){
   });
   // Coleta polos únicos dos municípios
   const polosUnicos=new Set();
-  municipios.forEach(m=>{if(m.polo&&m.polo.trim())polosUnicos.add(m.polo.trim());});
+  municipios.forEach(m=>{if(m.polo&&String(m.polo).trim())polosUnicos.add(String(m.polo).trim());});
   // Paleta de cores rotativa para polos novos
   const cores=['#dc2626','#2563eb','#16a34a','#d97706','#7c3aed','#0e7490','#db2777','#65a30d'];
   let idx=Array.from(tbody.querySelectorAll('tr')).length;
   const nomeParaKey={};
+  let novos=0;
   polosUnicos.forEach(nomePolo=>{
     const k=_polo2key(nomePolo);
     if(existentesPorNome[nomePolo.toLowerCase()]){
@@ -5341,11 +5342,14 @@ function _setupGarantirPolos(municipios){
     } else if(existentesPorKey[k]){
       nomeParaKey[nomePolo]=k;
     } else {
-      setupAddPolo(nomePolo,k,cores[idx%cores.length]);
-      nomeParaKey[nomePolo]=k;
-      idx++;
+      try{
+        setupAddPolo(nomePolo,k,cores[idx%cores.length]);
+        nomeParaKey[nomePolo]=k;
+        idx++;novos++;
+      }catch(e){console.error('[Polos] erro ao adicionar',nomePolo,e);}
     }
   });
+  console.log(`[Polos] ${novos} novo(s) cadastrado(s). Tabela tem ${tbody.querySelectorAll('tr').length} linha(s). Mapeamento:`,nomeParaKey);
   return nomeParaKey;
 }
 
@@ -5658,6 +5662,26 @@ function setupCarregarExistente(){
 // ── Concluir setup ───────────────────────────────────────────────────────
 async function setupConcluir(){
   if(!setupValidateStep(_setupStep))return;
+  // Rede de segurança: se municípios referenciam polos não cadastrados, auto-cria
+  // antes de coletar. Isso protege contra cenários em que o usuário editou manualmente
+  // ou onde a auto-criação no import falhou por algum motivo.
+  const munTemp=Array.from(document.querySelectorAll('#s-mun-tbody tr')).map(tr=>{
+    const inps=tr.querySelectorAll('input');
+    const sel=tr.querySelector('select');
+    return {nm:(inps[0]?.value||'').trim(),polo:(sel?.value||'').trim()};
+  }).filter(m=>m.nm&&m.polo);
+  if(munTemp.length){
+    const mapPolo=_setupGarantirPolos(munTemp);
+    // Atualiza selects de polo dos municípios para incluir polos recém-criados
+    document.querySelectorAll('#s-mun-tbody tr').forEach(tr=>{
+      const sel=tr.querySelector('select');if(!sel)return;
+      const cur=sel.value;
+      const polosNow=setupGetPolos();
+      sel.innerHTML='<option value="">—</option>';
+      polosNow.forEach(p=>{const o=document.createElement('option');o.value=p.key;o.textContent=p.nome||p.key;sel.appendChild(o);});
+      if(cur)sel.value=cur;
+    });
+  }
   const polos=setupGetPolos();
   const cfg={
     // Empresa
