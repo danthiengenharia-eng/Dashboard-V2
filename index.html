@@ -5226,35 +5226,41 @@ function setupImportarCSVAtv(file){
   const reader=new FileReader();
   reader.onload=e=>{
     const rows=_parseCSV(e.target.result);
-    // Detecta se primeira linha é cabeçalho
-    const firstIsHeader=/[a-zA-Záéíóú]{3,}/.test(rows[0]?.[0]||'')&&isNaN(_parseBRL(rows[0]?.[1]||''));
+    if(!rows.length){showToast('❌ Nenhuma linha encontrada no CSV');return;}
+    // Detecta cabeçalho de forma robusta: linha 0 tem letras E linha 1 começa com um código (letra+dígito)
+    const r0=rows[0]||[],r1=rows[1]||[];
+    const has3Letras=s=>/[a-zA-Záéíóú]{3,}/.test(String(s||''));
+    const pareceCodigo=s=>/^[A-Za-z]{1,3}\d{2,5}$/i.test(String(s||'').trim());
+    const firstIsHeader=has3Letras(r0[0])&&(pareceCodigo(r1[0])||!pareceCodigo(r0[0]));
     const data=firstIsHeader?rows.slice(1):rows;
-    if(!data.length){showToast('❌ Nenhum dado encontrado no CSV');return;}
-    // Detecta posições de colunas: identifica qual é o valor (R$) e qual é o prazo (dias)
+    if(!data.length){showToast('❌ Nenhum dado válido no CSV');return;}
+    // Detecção de colunas baseada em padrões claros:
+    //   • Valor: contém "R$" OU vírgula decimal (",dd")
+    //   • Prazo: integer puro, 1-4 dígitos
     const sample=data[0]||[];
-    const looksLikeValue=v=>{const n=_parseBRL(v);return n>0;};
-    const looksLikePrazo=v=>{const n=parseInt(v,10);return !isNaN(n)&&n>0&&n<3650;}; // até 10 anos em dias
-    const looksLikeDesc=v=>{return /[a-zA-Záéíóú]{4,}/.test(String(v||''));};
-    // Estratégia: cod é sempre coluna 0. Procura valor e prazo nas outras posições.
+    const ehMoeda=s=>{const v=String(s||'').trim();return /R\$|,\d{2}/.test(v)&&_parseBRL(v)>0;};
+    const ehInteiro=s=>/^\d{1,4}$/.test(String(s||'').trim());
     let idxVal=-1,idxPrz=-1;
-    for(let i=1;i<sample.length;i++){
-      if(idxVal<0&&looksLikeValue(sample[i])&&!looksLikeDesc(sample[i]))idxVal=i;
-      else if(idxPrz<0&&looksLikePrazo(sample[i])&&!looksLikeDesc(sample[i]))idxPrz=i;
-    }
-    // Fallback se não detectou
-    if(idxVal<0)idxVal=sample.length>=3?2:1;
+    // Passo 1: identifica coluna de valor por padrão monetário
+    for(let i=1;i<sample.length;i++){if(idxVal<0&&ehMoeda(sample[i]))idxVal=i;}
+    // Passo 2: identifica prazo por integer puro (excluindo coluna já marcada como valor)
+    for(let i=1;i<sample.length;i++){if(idxPrz<0&&i!==idxVal&&ehInteiro(sample[i]))idxPrz=i;}
+    // Passo 3: fallback se padrões claros não bateram (CSV sem R$, sem vírgula)
+    if(idxVal<0){for(let i=1;i<sample.length;i++){if(i!==idxPrz&&_parseBRL(sample[i])>0){idxVal=i;break;}}}
+    if(idxVal<0){showToast('❌ Não foi possível identificar a coluna de Valor no CSV');return;}
     const parsed=data.map(r=>{
       if(r.length<2||!r[0])return null;
-      const cod=r[0].toUpperCase().trim();
+      const cod=String(r[0]).toUpperCase().trim();
       const val=_parseBRL(r[idxVal]||'');
-      const prz=idxPrz>=0?parseInt(r[idxPrz],10)||null:null;
-      return cod&&val>0?{cod,val,prz}:null;
+      const prz=idxPrz>=0?(parseInt(r[idxPrz],10)||null):null;
+      if(!cod||!/^[A-Z0-9]+$/i.test(cod)||val<=0)return null;
+      return {cod,val,prz};
     }).filter(Boolean);
     _renderPreviewAtv(parsed,'s-atv-csv-preview');
     const tbody=document.getElementById('s-atv-tbody');
     tbody.innerHTML='';
     parsed.forEach(p=>setupAddAtv(p.cod,p.val,p.prz));
-    showToast(`✅ ${parsed.length} atividade(s) importada(s) (col. valor=${idxVal}${idxPrz>=0?`, prazo=${idxPrz}`:', sem prazo'})`);
+    showToast(`✅ ${parsed.length} atividade(s) importada(s) — col. CÓDIGO=0, VALOR=${idxVal}${idxPrz>=0?`, PRAZO=${idxPrz}`:', sem prazo'}`);
   };
   reader.readAsText(file,'utf-8');
 }
