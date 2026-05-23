@@ -1655,11 +1655,11 @@ body.light-mode .ficha-single-cbox{border-color:rgba(0,0,0,0.12);background:rgba
 
 <div class="toast" id="toast"></div>
 
+<!-- Wrapper para Ficha PDF — posição fixa no viewport para html2canvas capturar corretamente -->
+<div id="ficha-pdf-wrapper" style="position:fixed;top:0;left:0;width:794px;opacity:0.001;pointer-events:none;z-index:99999;background:#fff;color:#000;"></div>
+
 <!-- GABARITO DO COMPROVANTE PDF (Invisível) -->
 <div id="pdf-template-wrapper" style="display:none; position:absolute; left:-9999px; top:-9999px;">
-
-<!-- Wrapper para Ficha de Vistoria PDF — visibility:hidden mantém no layout sem mostrar ao usuário -->
-<div id="ficha-pdf-wrapper" style="position:absolute;left:-9999px;top:0;width:794px;background:#fff;color:#000;visibility:hidden;overflow:hidden;"></div>
   <div id="pdf-template" style="padding:38px 46px 38px 48px; font-family:Arial,sans-serif; font-size:10.5px; color:#000; background:#fff; width:627px; height:886px; box-sizing:border-box; line-height:1.1;">
     
     <script>
@@ -7095,27 +7095,28 @@ async function gerarFichaPDF(){
   const dados=coletarDadosFicha();
 
   try{
-    // 1. Injeta o HTML da ficha no wrapper estático (visibility:hidden → o browser pinta mas não mostra)
+    // 1. Injeta o HTML no wrapper fixo. O wrapper usa opacity:0.001 + position:fixed top:0,left:0
+    //    para que o browser PINTE o elemento no viewport mas o usuário não veja.
+    //    html2canvas IGNORA elementos com visibility:hidden ou fora do viewport (left:-9999px).
     const wrapper=document.getElementById('ficha-pdf-wrapper');
     wrapper.innerHTML=_fichaHtmlContent(FICHA_OS,dados);
-    wrapper.style.visibility='visible';
 
-    // Aguarda browser fazer layout completo
-    await new Promise(r=>requestAnimationFrame(()=>setTimeout(r,150)));
+    // Aguarda dois frames + timeout para o browser completar layout e pintura
+    await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>setTimeout(r,200))));
 
     const nomeArq=`Ficha_Vistoria_${(FICHA_OS.osp||FICHA_OS.os).replace(/[\/\\]/g,'-')}.pdf`;
     const opt={
       margin:[10,10,10,10],
       filename:nomeArq,
       image:{type:'jpeg',quality:0.95},
-      html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff',logging:false},
+      html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff',logging:false,windowWidth:794},
       jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}
     };
 
     const worker=html2pdf().set(opt).from(wrapper);
     const pdfBlob=await worker.outputPdf('blob');
-    wrapper.style.visibility='hidden';
     wrapper.innerHTML='';
+    wrapper.style.visibility='hidden';
 
     resultado.textContent='⏳ Localizando pasta no Drive...';
 
