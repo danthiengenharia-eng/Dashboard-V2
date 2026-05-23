@@ -126,7 +126,7 @@ body.light-mode .fbar-wrap{background:rgba(240,240,243,0.9)}
 /* Split view */
 .main.split-mode{display:flex;gap:10px;align-items:flex-start}
 .main.split-mode>[id^="tab-"]{flex:1 1 0;min-width:0;max-width:calc(50% - 5px);overflow:hidden}
-.main.split-mode>[id^="tab-"] .twrap{max-height:calc(100vh - 160px)}
+.main.split-mode>[id^="tab-"] .twrap{max-height:calc(100vh - 132px)}
 .main.split-mode>[id^="tab-"] .charts-row{grid-template-columns:1fr}
 .main.split-mode>[id^="tab-"] .metrics-grid{grid-template-columns:repeat(2,1fr)}
 .main.split-mode>[id^="tab-"] .rota-layout{flex-direction:column}
@@ -176,8 +176,9 @@ body.light-mode .sf-popover{background:#fff;box-shadow:0 6px 24px rgba(0,0,0,0.1
 
 /* ── MAIN CONTENT ── */
 .main{padding:.65rem}
-.card{background:var(--mica-surface);border:1px solid var(--mica-border);border-radius:var(--radius-md)}
-.twrap{overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 140px)}
+.card{background:var(--mica-surface);border:1px solid var(--mica-border);border-radius:var(--radius-lg);box-shadow:0 4px 24px rgba(0,0,0,0.15)}
+body.light-mode .card{box-shadow:0 4px 24px rgba(0,0,0,0.04)}
+.twrap{overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 112px)}
 table{width:100%;border-collapse:collapse;font-size:12px}
 thead th{position:sticky;top:0;z-index:5;text-align:left;padding:8px 10px;border-bottom:1px solid var(--mica-border);
   font-weight:600;color:var(--text-muted);white-space:nowrap;background:rgba(14,14,16,0.98);backdrop-filter:blur(20px);
@@ -209,6 +210,22 @@ td{padding:8px 10px;vertical-align:middle;white-space:nowrap;font-weight:500;col
 .st-pept-v:hover     { background: linear-gradient(90deg, rgba(249,115,22,0.15) 0%, var(--mica-surface-hover) 100%); }
 .st-vistoriada:hover { background: linear-gradient(90deg, rgba(234,179,8,0.15) 0%, var(--mica-surface-hover) 100%); }
 .st-revisao:hover    { background: linear-gradient(90deg, rgba(168,85,247,0.15) 0%, var(--mica-surface-hover) 100%); }
+
+body.no-row-colors tbody tr.st-concluida,
+body.no-row-colors tbody tr.st-cancelada,
+body.no-row-colors tbody tr.st-semvist,
+body.no-row-colors tbody tr.st-semvist-nao-agend,
+body.no-row-colors tbody tr.st-semvist-agend,
+body.no-row-colors tbody tr.st-pept-n,
+body.no-row-colors tbody tr.st-pept-v,
+body.no-row-colors tbody tr.st-vistoriada,
+body.no-row-colors tbody tr.st-revisao,
+body.no-row-colors tbody tr.st-andamento {
+  background: transparent !important;
+}
+body.no-row-colors tbody tr:hover {
+  background: var(--mica-surface-hover) !important;
+}
 
 .badge{display:inline-block;font-size:10px;padding:3px 9px;border-radius:12px;font-weight:600;white-space:nowrap;transition:all 0.15s ease}
 
@@ -364,17 +381,18 @@ body.light-mode .dv-input[readonly]{background:#e5e5ea;color:var(--text-muted)}
 .prev-overlay.open{display:flex}
 .prev-box{background:var(--mica-surface);border:1px solid var(--mica-border);border-radius:var(--radius-lg);width:min(900px,96vw);
   height:min(700px,90vh);display:flex;flex-direction:column;overflow:hidden}
-.prev-hd{background:rgba(14,14,16,0.95);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);color:var(--text-primary);
+.prev-hd{background:rgba(20,20,22,0.95);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);color:var(--text-primary);
   padding:.7rem 1rem;display:flex;align-items:center;gap:8px;font-family:'Figtree',sans-serif;font-size:12px;font-weight:600;
   border-bottom:1px solid var(--mica-border)}
+body.light-mode .prev-hd{background:rgba(255,255,255,0.95)}
 .prev-hd span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .prev-body{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;background:var(--mica-bg)}
 .prev-body iframe{width:100%;height:100%;border:none}
 .prev-body .prev-fallback{color:var(--text-secondary);font-size:13px;text-align:center;padding:2rem;line-height:1.7}
 .prev-body .prev-fallback a{color:rgba(var(--accent-rgb),0.8)}
-.nav-doc-btn{background:rgba(255,255,255,0.08);border:1px solid var(--mica-border);color:var(--text-primary);width:26px;height:26px;
+.nav-doc-btn{background:var(--mica-surface);border:1px solid var(--mica-border);color:var(--text-primary);width:26px;height:26px;
   border-radius:5px;cursor:pointer;font-size:12px;display:none;align-items:center;justify-content:center;transition:.15s;margin-right:4px}
-.nav-doc-btn:hover:not(:disabled){background:rgba(255,255,255,0.15)}
+.nav-doc-btn:hover:not(:disabled){background:var(--mica-surface-hover)}
 .nav-doc-btn:disabled{opacity:0.3;cursor:not-allowed}
 
 /* ── FORMS / NOVA OS ── */
@@ -634,7 +652,7 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
   .cc{padding:.7rem}
 
   /* Tabela OS — fonte menor mas legível */
-  .twrap{max-height:calc(100vh - 130px)}
+  .twrap{max-height:calc(100vh - 105px)}
   table{font-size:11px}
   thead th{font-size:9px;padding:6px 6px;letter-spacing:.04em}
   td{padding:6px 6px}
@@ -1013,11 +1031,11 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
     <span class="tip">Nova OS</span>
   </button>
-  <button class="nav-ico" id="ico-foto" onclick="abrirFotoTab(null)">
+  <button class="nav-ico" id="ico-foto" onclick="abrirFotoTab(null)" style="display:none !important">
     <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="15" rx="2"/><circle cx="12" cy="12.5" r="3.5"/><path d="M9 5l1.5-2h3L15 5"/></svg>
     <span class="tip">Relatório Fotográfico</span>
   </button>
-  <button class="nav-ico" id="ico-ficha" onclick="abrirFichaTab(null)">
+  <button class="nav-ico" id="ico-ficha" onclick="abrirFichaTab(null)" style="display:none !important">
     <svg viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/></svg>
     <span class="tip">Ficha de Vistoria</span>
   </button>
@@ -1569,8 +1587,8 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
       <button class="nav-doc-btn" id="btn-prev-doc" onclick="navDoc(-1)">◀</button>
       <button class="nav-doc-btn" id="btn-next-doc" onclick="navDoc(1)" style="margin-right:8px">▶</button>
       <span id="prev-title">Documento</span>
-      <a id="prev-extlink" href="#" target="_blank" rel="noopener" style="color:rgba(var(--accent-rgb),0.8);font-size:11px;text-decoration:none;margin-right:8px">↗ Abrir no Drive</a>
-      <button onclick="closePreview()" style="background:rgba(255,255,255,.08);border:1px solid var(--mica-border);color:var(--text-primary);width:26px;height:26px;border-radius:5px;cursor:pointer;font-size:14px">✕</button>
+      <a id="prev-extlink" href="#" target="_blank" rel="noopener" style="color:var(--accent);font-size:11px;text-decoration:none;margin-right:8px;font-weight:600">↗ Abrir no Drive</a>
+      <button class="nav-doc-btn" onclick="closePreview()" style="display:flex;font-size:14px">✕</button>
     </div>
     <div class="prev-body" id="prev-body"><div class="prev-fallback">Carregando...</div></div>
   </div>
@@ -1836,7 +1854,8 @@ function setupLoader(){
     CONFIG_USER={
       emp:c.emp||'',resp:c.resp||'',crea:c.crea||'',
       tel:c.tel||'',logo:c.logo||'',
-      msg_av:c.msg_av||MSG_AV_DEFAULT,msg_med:c.msg_med||MSG_MED_DEFAULT
+      msg_av:c.msg_av||MSG_AV_DEFAULT,msg_med:c.msg_med||MSG_MED_DEFAULT,
+      colorRows:c.colorRows!==undefined?c.colorRows:true
     };
     // Visual
     applyBranding(c);
@@ -1852,6 +1871,8 @@ const MSG_MED_DEFAULT='{{saudacao}}\n\nQuem fala é o {{resp}}, engenheiro respo
 
 function hexToRgb(hex){try{const h=hex.replace('#','');return`${parseInt(h.slice(0,2),16)},${parseInt(h.slice(2,4),16)},${parseInt(h.slice(4,6),16)}`;}catch(e){return'0,71,142';}}
 function applyBranding(c){
+  const colorRows = c.colorRows!==undefined ? c.colorRows : true;
+  document.body.classList.toggle('no-row-colors', !colorRows);
   const cor=c.cor||'#00478E';
   const corEsc=c.corEsc||cor;
   const rgb=hexToRgb(cor);
@@ -1902,6 +1923,7 @@ function salvarConfig(){
   CONFIG_USER.crea=document.getElementById('cfg-crea').value;
   CONFIG_USER.msg_av=document.getElementById('cfg-msg-av').value;
   CONFIG_USER.msg_med=document.getElementById('cfg-msg-med').value;
+  CONFIG_USER.colorRows=document.getElementById('cfg-color-rows').checked;
   const cor=document.getElementById('cfg-cor-txt').value.trim()||'#00478E';
   const corEsc=document.getElementById('cfg-cor-esc-txt').value.trim()||'#03347a';
   // Persiste junto com o resto do config
@@ -1914,6 +1936,7 @@ function salvarConfig(){
       c.crea=CONFIG_USER.crea;
       c.msg_av=CONFIG_USER.msg_av;
       c.msg_med=CONFIG_USER.msg_med;
+      c.colorRows=CONFIG_USER.colorRows;
       c.cor=cor;
       c.corEsc=corEsc;
       localStorage.setItem(_DCEF_KEY,JSON.stringify(c));
@@ -1930,6 +1953,7 @@ function abrirConfig(){
   document.getElementById('cfg-crea').value=CONFIG_USER.crea;
   document.getElementById('cfg-msg-av').value=CONFIG_USER.msg_av;
   document.getElementById('cfg-msg-med').value=CONFIG_USER.msg_med;
+  document.getElementById('cfg-color-rows').checked=CONFIG_USER.colorRows!==false;
   
   const raw=localStorage.getItem(_DCEF_KEY);
   let cor='#00478E', corEsc='#03347a';
@@ -2972,6 +2996,7 @@ async function enriquecerComSIOPI(){
       showToast('✅ Dados do SIOPI aplicados');
       // Recarrega lista de pastas do drawer
       loadDrive(COS);
+      renderTable();
     }else{
       setStatus('ℹ️ Nenhum dado novo encontrado no SIOPI','var(--text-muted)');
     }
@@ -3007,6 +3032,8 @@ async function acharPasta02Documentos(os){
     const osFolderId=r2.result.files[0].id;
     
 
+    const docsFolderId = await findFolderByRole(osFolderId, 'docs');
+    if (docsFolderId) return docsFolderId;
     const r3=await gapi.client.drive.files.list({q:`'${osFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,fields:'files(id,name)',pageSize:50});
     const subfolders=r3.result.files||[];
     const docFolder=subfolders.find(f=>f.name==='DOCUMENTO');
@@ -3246,19 +3273,22 @@ async function gerarComprovante(){
     
     const osFolderId=osFolderRes.result.files[0].id;
     
-    // Buscar pasta "04 - Produtos"
-    let produtosFolderRes=await gapi.client.drive.files.list({
-      q:`name='PRODUTO' and '${osFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
-      fields:'files(id)',
-      pageSize:1
-    });
-
-    if(!produtosFolderRes.result.files.length){
-      showToast('❌ Pasta "PRODUTO" não encontrada.');
+    // Buscar pasta "04 - Produtos" (role 'pdf' ou nome 'PRODUTO')
+    let produtosFolderId = await findFolderByRole(osFolderId, 'pdf');
+    if(!produtosFolderId){
+      let produtosFolderRes=await gapi.client.drive.files.list({
+        q:`name='PRODUTO' and '${osFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+        fields:'files(id)',
+        pageSize:1
+      });
+      if(produtosFolderRes.result.files.length){
+        produtosFolderId=produtosFolderRes.result.files[0].id;
+      }
+    }
+    if(!produtosFolderId){
+      showToast('❌ Pasta de destino (PDF/PRODUTO) não encontrada.');
       return;
     }
-    
-    const produtosFolderId=produtosFolderRes.result.files[0].id;
     
     // 6. Fazer upload do PDF para a pasta "04 - Produtos"
     showToast('💾 Salvando no Drive...');
@@ -3692,7 +3722,7 @@ async function criarPastasDrive(item,atv,osp,mes){
     const osCr=await gapi.client.drive.files.create({fields:'id',resource:{name:np,mimeType:'application/vnd.google-apps.folder',parents:[mesFolderId]}});
     const osFolderId=osCr.result.id;
     // Create subfolders
-    const subNomes=['DOCUMENTO','FICHA DE PESQUISA','PRODUTO','RELATORIO FOTOGRAFICO'];
+    const subNomes=(SUBP && SUBP.length) ? SUBP.map(s=>s.nm) : ['DOCUMENTO','FICHA DE PESQUISA','PRODUTO','RELATORIO FOTOGRAFICO'];
     const subfolders=await Promise.all(subNomes.map(nm=>gapi.client.drive.files.create({fields:'id',resource:{name:nm,mimeType:'application/vnd.google-apps.folder',parents:[osFolderId]}})));
     
     // Salvar arquivo .txt diretamente na pasta da OS
@@ -3747,15 +3777,19 @@ async function openFolderPreview(folderId,nome){
     if(!PREV_FILES.length){body.innerHTML=`<div class="prev-fallback">Pasta vazia.</div>`;return;}
     const viewable=['application/pdf','image/jpeg','image/png','image/gif','image/webp'];
     if(PREV_FILES.length===1&&viewable.includes(PREV_FILES[0].mimeType)){openFilePreview(0);return;}
-    const grid=document.createElement('div');grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;padding:16px;overflow-y:auto;width:100%;align-content:start;background:var(--mica-bg)';
+    const grid=document.createElement('div');
+    grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(115px,1fr));gap:12px;padding:16px;overflow-y:auto;width:100%;align-content:start;background:var(--mica-bg)';
     for(let i=0;i<PREV_FILES.length;i++){
       const f=PREV_FILES[i],card=document.createElement('div');
-      card.style.cssText='background:var(--mica-surface);border:1px solid var(--mica-border);border-radius:8px;padding:10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;transition:.15s';
+      card.style.cssText='background:var(--mica-surface);border:1px solid var(--mica-border);border-radius:10px;padding:8px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:space-between;gap:8px;transition:.15s;aspect-ratio:1/1;position:relative;overflow:hidden';
       card.onmouseenter=()=>card.style.background='var(--mica-surface-hover)';card.onmouseleave=()=>card.style.background='var(--mica-surface)';
       const isImg=f.mimeType.startsWith('image/'),isPdf=f.mimeType==='application/pdf';
       const ico=isImg?'🖼️':isPdf?'📄':f.mimeType.includes('word')?'📝':'📎';
-      const thumb=f.thumbnailLink?`<img src="${f.thumbnailLink}" style="width:80px;height:60px;object-fit:cover;border-radius:4px">`:`<div style="font-size:32px">${ico}</div>`;
-      card.innerHTML=`${thumb}<div style="font-size:10px;text-align:center;color:var(--text-primary);word-break:break-all;line-height:1.3">${f.name}</div>`;
+      const hqThumb = f.thumbnailLink ? f.thumbnailLink.replace(/=s\d+/, '=s220') : null;
+      const thumb = hqThumb 
+        ? `<div style="width:100%;height:72px;border-radius:6px;overflow:hidden;background:#000;display:flex;align-items:center;justify-content:center"><img src="${hqThumb}" style="width:100%;height:100%;object-fit:cover"></div>`
+        : `<div style="width:100%;height:72px;border-radius:6px;background:rgba(var(--accent-rgb),0.06);display:flex;align-items:center;justify-content:center;font-size:28px">${ico}</div>`;
+      card.innerHTML=`${thumb}<div style="font-size:10px;font-weight:500;text-align:center;color:var(--text-primary);width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.2" title="${f.name}">${f.name}</div>`;
       card.onclick=()=>openFilePreview(i);grid.appendChild(card);
     }
     body.innerHTML='';body.style.overflow='auto';body.appendChild(grid);
@@ -4328,7 +4362,16 @@ function handleTxtFile(file){
   if(!file)return;
   TXT_FILE_CONVOCACAO=file; // Armazena para salvar depois
   const reader=new FileReader();
-  reader.onload=e=>parseTxtOS(e.target.result);
+  reader.onload=e=>{
+    const txt=e.target.result;
+    if(txt.includes('\uFFFD')){
+      const fallback=new FileReader();
+      fallback.onload=ev=>parseTxtOS(ev.target.result);
+      fallback.readAsText(file,'ISO-8859-1');
+    }else{
+      parseTxtOS(txt);
+    }
+  };
   reader.readAsText(file,'UTF-8');
 }
 function parseTxtOS(txt){
@@ -5028,10 +5071,13 @@ async function gerarComprovantePDF(){
       return;
     }
     
-    // 2. Procurar pasta Produto Final
-    const r3=await gapi.client.drive.files.list({q:`'${osFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,fields:'files(id,name)'});
-    const pasta04=(r3.result.files||[]).find(f=>f.name==='PRODUTO');
-    const subFolderId = pasta04 ? pasta04.id : osFolderId;
+    // 2. Procurar pasta Produto Final (role 'pdf' ou fallback 'PRODUTO')
+    let subFolderId = await findFolderByRole(osFolderId, 'pdf');
+    if(!subFolderId){
+      const r3=await gapi.client.drive.files.list({q:`'${osFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,fields:'files(id,name)'});
+      const pasta04=(r3.result.files||[]).find(f=>f.name==='PRODUTO');
+      subFolderId = pasta04 ? pasta04.id : osFolderId;
+    }
 
     const metadata = {
       name: `Comprovante_Vistoria_${AGENDA_SEL.item}.pdf`,
@@ -5402,44 +5448,54 @@ function setupImportarCSVAtv(file){
   if(!file)return;
   const reader=new FileReader();
   reader.onload=e=>{
-    const rows=_parseCSV(e.target.result);
-    if(!rows.length){showToast('❌ Nenhuma linha encontrada no CSV');return;}
-    // Detecta cabeçalho de forma robusta: linha 0 tem letras E linha 1 começa com um código (letra+dígito)
-    const r0=rows[0]||[],r1=rows[1]||[];
-    const has3Letras=s=>/[a-zA-Záéíóú]{3,}/.test(String(s||''));
-    const pareceCodigo=s=>/^[A-Za-z]{1,3}\d{2,5}$/i.test(String(s||'').trim());
-    const firstIsHeader=has3Letras(r0[0])&&(pareceCodigo(r1[0])||!pareceCodigo(r0[0]));
-    const data=firstIsHeader?rows.slice(1):rows;
-    if(!data.length){showToast('❌ Nenhum dado válido no CSV');return;}
-    // Detecção de colunas baseada em padrões claros:
-    //   • Valor: contém "R$" OU vírgula decimal (",dd")
-    //   • Prazo: integer puro, 1-4 dígitos
-    const sample=data[0]||[];
-    const ehMoeda=s=>{const v=String(s||'').trim();return /R\$|,\d{2}/.test(v)&&_parseBRL(v)>0;};
-    const ehInteiro=s=>/^\d{1,4}$/.test(String(s||'').trim());
-    let idxVal=-1,idxPrz=-1;
-    // Passo 1: identifica coluna de valor por padrão monetário
-    for(let i=1;i<sample.length;i++){if(idxVal<0&&ehMoeda(sample[i]))idxVal=i;}
-    // Passo 2: identifica prazo por integer puro (excluindo coluna já marcada como valor)
-    for(let i=1;i<sample.length;i++){if(idxPrz<0&&i!==idxVal&&ehInteiro(sample[i]))idxPrz=i;}
-    // Passo 3: fallback se padrões claros não bateram (CSV sem R$, sem vírgula)
-    if(idxVal<0){for(let i=1;i<sample.length;i++){if(i!==idxPrz&&_parseBRL(sample[i])>0){idxVal=i;break;}}}
-    if(idxVal<0){showToast('❌ Não foi possível identificar a coluna de Valor no CSV');return;}
-    const parsed=data.map(r=>{
-      if(r.length<2||!r[0])return null;
-      const cod=String(r[0]).toUpperCase().trim();
-      const val=_parseBRL(r[idxVal]||'');
-      const prz=idxPrz>=0?(parseInt(r[idxPrz],10)||null):null;
-      if(!cod||!/^[A-Z0-9]+$/i.test(cod)||val<=0)return null;
-      return {cod,val,prz};
-    }).filter(Boolean);
-    _renderPreviewAtv(parsed,'s-atv-csv-preview');
-    const tbody=document.getElementById('s-atv-tbody');
-    tbody.innerHTML='';
-    parsed.forEach(p=>setupAddAtv(p.cod,p.val,p.prz));
-    showToast(`✅ ${parsed.length} atividade(s) importada(s) — col. CÓDIGO=0, VALOR=${idxVal}${idxPrz>=0?`, PRAZO=${idxPrz}`:', sem prazo'}`);
+    const txt=e.target.result;
+    if(txt.includes('\uFFFD')){
+      const fallback=new FileReader();
+      fallback.onload=ev=>setupProcessarCSVAtv(ev.target.result);
+      fallback.readAsText(file,'ISO-8859-1');
+    }else{
+      setupProcessarCSVAtv(txt);
+    }
   };
   reader.readAsText(file,'utf-8');
+}
+function setupProcessarCSVAtv(csvText){
+  const rows=_parseCSV(csvText);
+  if(!rows.length){showToast('❌ Nenhuma linha encontrada no CSV');return;}
+  // Detecta cabeçalho de forma robusta: linha 0 tem letras E linha 1 começa com um código (letra+dígito)
+  const r0=rows[0]||[],r1=rows[1]||[];
+  const has3Letras=s=>/[a-zA-Záéíóú]{3,}/.test(String(s||''));
+  const pareceCodigo=s=>/^[A-Za-z]{1,3}\d{2,5}$/i.test(String(s||'').trim());
+  const firstIsHeader=has3Letras(r0[0])&&(pareceCodigo(r1[0])||!pareceCodigo(r0[0]));
+  const data=firstIsHeader?rows.slice(1):rows;
+  if(!data.length){showToast('❌ Nenhum dado válido no CSV');return;}
+  // Detecção de colunas baseada em padrões claros:
+  //   • Valor: contém "R$" OU vírgula decimal (",dd")
+  //   • Prazo: integer puro, 1-4 dígitos
+  const sample=data[0]||[];
+  const ehMoeda=s=>{const v=String(s||'').trim();return /R\$|,\d{2}/.test(v)&&_parseBRL(v)>0;};
+  const ehInteiro=s=>/^\d{1,4}$/.test(String(s||'').trim());
+  let idxVal=-1,idxPrz=-1;
+  // Passo 1: identifica coluna de valor por padrão monetário
+  for(let i=1;i<sample.length;i++){if(idxVal<0&&ehMoeda(sample[i]))idxVal=i;}
+  // Passo 2: identifica prazo por integer puro (excluindo coluna já marcada como valor)
+  for(let i=1;i<sample.length;i++){if(idxPrz<0&&i!==idxVal&&ehInteiro(sample[i]))idxPrz=i;}
+  // Passo 3: fallback se padrões claros não bateram (CSV sem R$, sem vírgula)
+  if(idxVal<0){for(let i=1;i<sample.length;i++){if(i!==idxPrz&&_parseBRL(sample[i])>0){idxVal=i;break;}}}
+  if(idxVal<0){showToast('❌ Não foi possível identificar a coluna de Valor no CSV');return;}
+  const parsed=data.map(r=>{
+    if(r.length<2||!r[0])return null;
+    const cod=String(r[0]).toUpperCase().trim();
+    const val=_parseBRL(r[idxVal]||'');
+    const prz=idxPrz>=0?(parseInt(r[idxPrz],10)||null):null;
+    if(!cod||!/^[A-Z0-9]+$/i.test(cod)||val<=0)return null;
+    return {cod,val,prz};
+  }).filter(Boolean);
+  _renderPreviewAtv(parsed,'s-atv-csv-preview');
+  const tbody=document.getElementById('s-atv-tbody');
+  tbody.innerHTML='';
+  parsed.forEach(p=>setupAddAtv(p.cod,p.val,p.prz));
+  showToast(`✅ ${parsed.length} atividade(s) importada(s) — col. CÓDIGO=0, VALOR=${idxVal}${idxPrz>=0?`, PRAZO=${idxPrz}`:', sem prazo'}`);
 }
 
 function setupExtrairAtvDoEdital(){
@@ -5532,37 +5588,47 @@ function setupImportarCSVMun(file){
   if(!file)return;
   const reader=new FileReader();
   reader.onload=e=>{
-    const rows=_parseCSV(e.target.result);
-    // Detecta cabeçalho: se a última coluna não tem valor numérico, é cabeçalho
-    const primeiraRow=rows[0]||[];
-    const lastCell=primeiraRow[primeiraRow.length-1]||'';
-    const firstIsHeader=_parseBRL(lastCell)===0&&/[a-zA-ZÀ-ÿ]/.test(lastCell);
-    const data=firstIsHeader?rows.slice(1):rows;
-    // Detecta ordem: se r[1] contém texto (polo), senão contém valor
-    const sample=data[0]||[];
-    const colPoloFirst=sample.length>=3&&_parseBRL(sample[1])===0&&/[a-zA-ZÀ-ÿ]/.test(sample[1]||'');
-    const parsed=data.map(r=>{
-      if(r.length<2)return null;
-      const nm=r[0].trim();
-      if(!nm)return null;
-      let polo='', val=0;
-      if(colPoloFirst){polo=(r[1]||'').trim();val=_parseBRL(r[2]);}
-      else{val=_parseBRL(r[1]);polo=(r[2]||'').trim();}
-      const especial=/sim|yes|true|1|especial/i.test(r[3]||'');
-      if(especial)val=_aplicarEspecial(val);
-      return{nm:(especial?nm+' (especial)':nm),val,polo};
-    }).filter(Boolean);
-    // Auto-cria polos referenciados e converte nome→key nos municípios
-    const mapPolo=_setupGarantirPolos(parsed);
-    parsed.forEach(p=>{if(p.polo&&mapPolo[p.polo])p.polo=mapPolo[p.polo];});
-    _renderPreviewMun(parsed,'s-mun-csv-preview');
-    const tbody=document.getElementById('s-mun-tbody');
-    tbody.innerHTML='';
-    parsed.forEach(p=>setupAddMun(p.nm,p.val,p.polo));
-    const polosNovos=Object.keys(mapPolo).length;
-    showToast(`✅ ${parsed.length} município(s) importado(s)${polosNovos?` + ${polosNovos} polo(s) auto-cadastrado(s)`:''}`);
+    const txt=e.target.result;
+    if(txt.includes('\uFFFD')){
+      const fallback=new FileReader();
+      fallback.onload=ev=>setupProcessarCSVMun(ev.target.result);
+      fallback.readAsText(file,'ISO-8859-1');
+    }else{
+      setupProcessarCSVMun(txt);
+    }
   };
   reader.readAsText(file,'utf-8');
+}
+function setupProcessarCSVMun(csvText){
+  const rows=_parseCSV(csvText);
+  // Detecta cabeçalho: se a última coluna não tem valor numérico, é cabeçalho
+  const primeiraRow=rows[0]||[];
+  const lastCell=primeiraRow[primeiraRow.length-1]||'';
+  const firstIsHeader=_parseBRL(lastCell)===0&&/[a-zA-ZÀ-ÿ]/.test(lastCell);
+  const data=firstIsHeader?rows.slice(1):rows;
+  // Detecta ordem: se r[1] contém texto (polo), senão contém valor
+  const sample=data[0]||[];
+  const colPoloFirst=sample.length>=3&&_parseBRL(sample[1])===0&&/[a-zA-ZÀ-ÿ]/.test(sample[1]||'');
+  const parsed=data.map(r=>{
+    if(r.length<2)return null;
+    const nm=r[0].trim();
+    if(!nm)return null;
+    let polo='', val=0;
+    if(colPoloFirst){polo=(r[1]||'').trim();val=_parseBRL(r[2]);}
+    else{val=_parseBRL(r[1]);polo=(r[2]||'').trim();}
+    const especial=/sim|yes|true|1|especial/i.test(r[3]||'');
+    if(especial)val=_aplicarEspecial(val);
+    return{nm:(especial?nm+' (especial)':nm),val,polo};
+  }).filter(Boolean);
+  // Auto-cria polos referenciados e converte nome→key nos municípios
+  const mapPolo=_setupGarantirPolos(parsed);
+  parsed.forEach(p=>{if(p.polo&&mapPolo[p.polo])p.polo=mapPolo[p.polo];});
+  _renderPreviewMun(parsed,'s-mun-csv-preview');
+  const tbody=document.getElementById('s-mun-tbody');
+  tbody.innerHTML='';
+  parsed.forEach(p=>setupAddMun(p.nm,p.val,p.polo));
+  const polosNovos=Object.keys(mapPolo).length;
+  showToast(`✅ ${parsed.length} município(s) importado(s)${polosNovos?` + ${polosNovos} polo(s) auto-cadastrado(s)`:''}`);
 }
 
 function setupExtrairMunDaLista(){
@@ -5878,6 +5944,7 @@ async function setupConcluir(){
     fmtPasta:document.getElementById('s-fmt-pasta')?.value||'MMMM YYYY',
     fmtPastaOS:document.getElementById('s-fmt-pasta-os')?.value||'{nr}-{osb}',
     subp:setupGetSubpastas(),
+    colorRows:true,
     // Dados operacionais
     atv:setupGetATV(),
     mun:setupGetMUN(),
@@ -6648,10 +6715,7 @@ function _mostrarFichaArea(){
 }
 
 function voltarFichaSel(){
-  document.getElementById('ficha-sel-area').style.display='block';
-  document.getElementById('ficha-form-area').style.display='none';
-  FICHA_OS=null;
-  renderFichaOS();
+  sw('os', document.getElementById('ico-os'));
 }
 
 function abrirFichaTab(r){
@@ -7147,11 +7211,7 @@ function _mostrarUploadArea(){
 }
 
 function voltarFotoSel(){
-  document.getElementById('foto-sel-area').style.display='block';
-  document.getElementById('foto-upload-area').style.display='none';
-  FOTO_OS=null;
-  _fotoFiles=[];
-  renderFotoOS();
+  sw('os', document.getElementById('ico-os'));
 }
 
 function abrirFotoTab(r){
@@ -7224,11 +7284,13 @@ async function uploadFotos(){
     // 2. Localiza subpasta de fotos (role='fotos' ou nome fallback)
     resultado.textContent='⏳ Localizando subpasta de fotos...';
     let fotoFolderId=await findFolderByRole(osFolderId,'fotos');
+    const targetSubp = (SUBP||[]).find(s=>s.role==='fotos');
+    const fotoFolderName = targetSubp ? targetSubp.nm : 'RELATORIO FOTOGRAFICO';
 
     if(!fotoFolderId){
       // Tenta fallback pelo nome canônico
       const fbRes=await gapi.client.drive.files.list({
-        q:`name='RELATORIO FOTOGRAFICO' and '${osFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+        q:`name='${fotoFolderName}' and '${osFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
         fields:'files(id)',pageSize:1
       });
       fotoFolderId=fbRes.result.files[0]?.id||null;
@@ -7236,11 +7298,11 @@ async function uploadFotos(){
     if(!fotoFolderId){
       // Cria a pasta automaticamente
       const cr=await gapi.client.drive.files.create({
-        resource:{name:'RELATORIO FOTOGRAFICO',mimeType:'application/vnd.google-apps.folder',parents:[osFolderId]},
+        resource:{name:fotoFolderName,mimeType:'application/vnd.google-apps.folder',parents:[osFolderId]},
         fields:'id'
       });
       fotoFolderId=cr.result.id;
-      showToast('📁 Pasta "RELATORIO FOTOGRAFICO" criada');
+      showToast(`📁 Pasta "${fotoFolderName}" criada`);
     }
 
     // 3. Upload de cada foto com barra de progresso
@@ -7356,6 +7418,10 @@ async function _uploadFotoParaDrive(file, nome, folderId, barId){
           <input id="cfg-cor-esc-txt" type="text" style="flex:1;padding:8px;border-radius:6px;border:1px solid var(--mica-border);background:var(--mica-surface);color:var(--text-primary);font-size:12px;box-sizing:border-box" placeholder="#03347a" oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value))document.getElementById('cfg-cor-esc-pick').value=this.value">
         </div>
       </div>
+      <div style="grid-column:1 / -1; display:flex; align-items:center; gap:8px; margin-top:4px">
+        <input type="checkbox" id="cfg-color-rows" style="width:16px; height:16px; cursor:pointer">
+        <label for="cfg-color-rows" style="font-size:12px; font-weight:600; color:var(--text-secondary); cursor:pointer">Pintar linhas das OS com as cores dos status</label>
+      </div>
     </div>
     
     <hr style="border:none;border-top:1px solid var(--mica-border-light);margin-bottom:16px">
@@ -7407,6 +7473,18 @@ async function _uploadFotoParaDrive(file, nome, folderId, barId){
       <div class="setup-step-content" id="stp-1">
         <h2>1 — Empresa &amp; Identidade Visual</h2>
         <p>Configure o nome e as cores do sistema para sua empresa.</p>
+
+        <!-- Opção de Importação Rápida -->
+        <div class="setup-info-box" style="margin-bottom:14px; border:1px dashed var(--accent); background:rgba(var(--accent-rgb),0.04); display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap">
+          <div>
+            <strong>📥 Já possui uma configuração salva?</strong>
+            <div style="font-size:10px;color:var(--text-secondary);margin-top:2px">Importe o arquivo de configuração (.json) para preencher todos os campos.</div>
+          </div>
+          <label class="setup-add-btn" style="cursor:pointer; margin:0">
+            📥 Importar Configuração
+            <input type="file" accept=".json" style="display:none" onchange="setupImportar(event)">
+          </label>
+        </div>
         <div class="setup-field-row">
           <div class="setup-field">
             <label>Nome da empresa</label>
