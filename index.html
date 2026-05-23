@@ -970,8 +970,8 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
 .ficha-grid.cols1{grid-template-columns:1fr}
 .ficha-grid.cols3{grid-template-columns:1fr 1fr 1fr}
 .ficha-field label{display:block;font-size:11px;color:var(--text-secondary);margin-bottom:3px}
-.ficha-field input,.ficha-field select,.ficha-field textarea{width:100%;padding:8px 10px;border-radius:7px;border:1px solid rgba(255,255,255,0.24);background:#121214;color:var(--text-primary);font-size:13px;box-sizing:border-box;font-family:inherit;transition:border-color .15s,box-shadow .15s}
-body.light-mode .ficha-field input,body.light-mode .ficha-field select,body.light-mode .ficha-field textarea{background:var(--mica-bg);border-color:var(--mica-border-light)}
+.ficha-field input,.ficha-field select,.ficha-field textarea{width:100%;padding:8px 10px;border-radius:7px;border:1px solid rgba(255,255,255,0.22);background:#1c1c1e;color:#ffffff;font-size:13px;box-sizing:border-box;font-family:inherit;transition:border-color .15s,box-shadow .15s}
+body.light-mode .ficha-field input,body.light-mode .ficha-field select,body.light-mode .ficha-field textarea{background:#ffffff;color:#000000;border-color:rgba(0,0,0,0.18)}
 .ficha-field textarea{resize:vertical;min-height:72px}
 .ficha-field input:focus,.ficha-field select:focus,.ficha-field textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(var(--accent-rgb),0.25)}
 .ficha-send-btn{width:100%;padding:12px;border-radius:10px;background:#7c3aed;color:#fff;border:none;font-size:15px;cursor:pointer;margin-top:14px;font-weight:600}
@@ -995,12 +995,17 @@ body.light-mode .ficha-field input,body.light-mode .ficha-field select,body.ligh
 .ficha-tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);background:rgba(var(--accent-rgb),0.08)}
 .ficha-section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--accent);padding:14px 0 6px;margin-top:8px;border-bottom:1px solid var(--mica-border);margin-bottom:10px}
 .ficha-section-title:first-child{margin-top:0;padding-top:0}
-.ficha-radio-list{display:flex;flex-direction:column;gap:2px;padding:4px 6px;border:1px solid var(--mica-border-light);border-radius:7px;background:var(--mica-surface-hover)}
-.ficha-radio-list label,.ficha-cbox-grid label,.ficha-field-cb label,.ficha-single-cbox{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-primary);cursor:pointer;padding:5px 7px;border-radius:6px;transition:.12s;line-height:1.3}
-.ficha-radio-list label:hover,.ficha-cbox-grid label:hover,.ficha-field-cb label:hover,.ficha-single-cbox:hover{background:rgba(var(--accent-rgb),0.15)!important}
+/* Radio list: grid layout for horizontal flow */
+.ficha-radio-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:2px;padding:4px 6px;border:1px solid rgba(255,255,255,0.18);border-radius:7px;background:rgba(255,255,255,0.06)}
+body.light-mode .ficha-radio-list{border-color:rgba(0,0,0,0.12);background:rgba(0,0,0,0.04)}
+.ficha-radio-list label,.ficha-cbox-grid label,.ficha-field-cb label,.ficha-single-cbox{display:flex;align-items:center;gap:8px;font-size:12px;color:#ffffff;cursor:pointer;padding:5px 7px;border-radius:6px;transition:.12s;line-height:1.3}
+body.light-mode .ficha-radio-list label,body.light-mode .ficha-cbox-grid label,body.light-mode .ficha-field-cb label,body.light-mode .ficha-single-cbox{color:#000000}
+.ficha-radio-list label:hover,.ficha-cbox-grid label:hover,.ficha-field-cb label:hover,.ficha-single-cbox:hover{background:rgba(var(--accent-rgb),0.18)!important}
 .ficha-radio-list input[type=radio],.ficha-cbox-grid input[type=checkbox],.ficha-field-cb input[type=checkbox],.ficha-single-cbox input[type=checkbox]{accent-color:var(--accent);width:14px;height:14px;flex-shrink:0;cursor:pointer;margin:0}
-.ficha-cbox-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:2px;padding:4px;border:1px solid var(--mica-border-light);border-radius:7px;background:var(--mica-surface-hover)}
-.ficha-single-cbox{border:1px solid var(--mica-border-light);border-radius:7px;background:var(--mica-surface-hover);padding:8px 10px}
+.ficha-cbox-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:2px;padding:4px;border:1px solid rgba(255,255,255,0.18);border-radius:7px;background:rgba(255,255,255,0.06)}
+body.light-mode .ficha-cbox-grid{border-color:rgba(0,0,0,0.12);background:rgba(0,0,0,0.04)}
+.ficha-single-cbox{border:1px solid rgba(255,255,255,0.18);border-radius:7px;background:rgba(255,255,255,0.06);padding:8px 10px}
+body.light-mode .ficha-single-cbox{border-color:rgba(0,0,0,0.12);background:rgba(0,0,0,0.04)}
 .ficha-tab-content{display:none;animation:fade-in .15s ease}
 .ficha-tab-content.active{display:block}
 @keyframes fade-in{from{opacity:0;transform:translateY(2px)}to{opacity:1;transform:none}}
@@ -6265,50 +6270,34 @@ const _SEC_EMPREENDIMENTO_FULL={
       {key:'empOcupacaoTerreno', label:'Ocupação do Terreno', type:'checkbox-group',
        options:['Prédio(s)','Unidades Isoladas','Lazer','Garagens/Estacionamentos','Arruamento','Comércio','Lotes Vagos','Outras, Vide Inform. Compl.']}
     ]},
-    {title:'Estado de Conservação (Empreendimento)', cols:1, fields:[
-      {key:'empConservacao', label:'Estado de Conservação', type:'radio', options:_OPTS_CONSERVACAO}
-    ]},
-    {title:'Infra-Estrutura', cols:1, fields:[
+    {title:'Estado de Conservação / Infra-Estrutura', cols:2, fields:[
+      {key:'empConservacao', label:'Estado de Conservação', type:'radio', options:_OPTS_CONSERVACAO},
       {key:'empInfra', label:'Infra-Estrutura', type:'checkbox-group',
        options:['Água Potável','Esgoto Sanitário','Energia Elétrica','Telefone','Iluminação Pública','Pavimentação','Esgoto Pluvial','Outras, Vide Inform. Compl.']}
     ]},
-    {title:'Padrão Empreendimento', cols:1, fields:[
-      {key:'empPadrao', label:'Padrão', type:'radio', options:_OPTS_PADRAO}
-    ]},
-    {title:'Dimensões do Terreno', cols:3, fields:[
-      {key:'empArea', label:'Área (m²)', type:'number'},
+    {title:'Dimens\u00f5es do Terreno', cols:3, fields:[
+      {key:'empArea', label:'\u00c1rea (m\u00b2)', type:'number'},
       {key:'empTestada', label:'Testada (m)', type:'number'},
       {key:'empProfundidadeEq', label:'Profundidade Eq. (m)', type:'number'}
     ]},
-    {title:'Posição', cols:1, fields:[
-      {key:'empPosicao', label:'Posição', type:'radio', options:_OPTS_POS}
-    ]},
-    {title:'Cota/Greide', cols:1, fields:[
+    {title:'Padr\u00e3o / Posi\u00e7\u00e3o / Cota-Greide', cols:3, fields:[
+      {key:'empPadrao', label:'Padr\u00e3o Empreendimento', type:'radio', options:_OPTS_PADRAO},
+      {key:'empPosicao', label:'Posi\u00e7\u00e3o', type:'radio', options:_OPTS_POS},
       {key:'empCota', label:'Cota/Greide', type:'radio', options:_OPTS_COTA}
     ]},
-    {title:'Cercamento', cols:1, fields:[
-      {key:'empCercamento', label:'Cercamento', type:'radio', options:_OPTS_CERCAMENTO}
+    {title:'Cercamento', cols:3, fields:[
+      {key:'empCercamento', label:'Cercamento', type:'radio', options:_OPTS_CERCAMENTO},
+      {key:'empCercFrente', label:'Tipo - Frente', type:'radio', options:_OPTS_CERC_TIPO},
+      {key:'empCercLaterais', label:'Tipo - Laterais/Fundo', type:'radio', options:_OPTS_CERC_TIPO}
     ]},
-    {title:'Tipo Cercamento - Frente', cols:1, fields:[
-      {key:'empCercFrente', label:'Frente', type:'radio', options:_OPTS_CERC_TIPO}
-    ]},
-    {title:'Tipo Cercamento - Laterais/Fundo', cols:1, fields:[
-      {key:'empCercLaterais', label:'Laterais/Fundo', type:'radio', options:_OPTS_CERC_TIPO}
-    ]},
-    {title:'Controle Acesso', cols:1, fields:[
-      {key:'empControleAcesso', label:'Controle de Acesso', type:'radio', options:['Sim','Não']}
-    ]},
-    {title:'Patologias - Vícios de Construções Graves', cols:1, fields:[
+    {title:'Controle de Acesso / Patologias', cols:2, fields:[
+      {key:'empControleAcesso', label:'Controle de Acesso', type:'radio', options:['Sim','Não']},
       {key:'patViciosGraves', label:'Vícios de Construções Graves', type:'radio', options:_OPTS_PATOLOGIA}
     ]},
-    {title:'Patologias - Outros Danos Graves', cols:1, fields:[
-      {key:'patOutrosDanos', label:'Outros Danos Graves', type:'radio', options:_OPTS_PATOLOGIA}
-    ]},
-    {title:'Patologias - Estabilidade e Solidez', cols:1, fields:[
+    {title:'Patologias (continuação)', cols:3, fields:[
+      {key:'patOutrosDanos', label:'Outros Danos Graves', type:'radio', options:_OPTS_PATOLOGIA},
       {key:'patEstabilidade', label:'Estabilidade e Solidez', type:'radio',
-       options:['Aparentemente Não Possui, Vide Informações Complementares','Aparentemente Possui']}
-    ]},
-    {title:'Patologias - Condições de Habitabilidade', cols:1, fields:[
+       options:['Aparentemente Não Possui, Vide Informações Complementares','Aparentemente Possui']},
       {key:'patHabitabilidade', label:'Condições de Habitabilidade', type:'radio',
        options:['Aparentemente Não Possui, Vide Informações Complementares','Aparentemente Possui']}
     ]}
@@ -6318,25 +6307,17 @@ const _SEC_EMPREENDIMENTO_FULL={
 const _SEC_TERRENO_CASA={
   tabId:'terreno', label:'Terreno',
   sections:[
-    {title:'Lote da Unidade - Posição', cols:1, fields:[
-      {key:'terrenoPosicao', label:'Posição', type:'radio', options:_OPTS_POS}
+    {title:'Lote da Unidade', cols:3, fields:[
+      {key:'terrenoPosicao', label:'Posição', type:'radio', options:_OPTS_POS},
+      {key:'terrenoCota', label:'Cota/Greide', type:'radio', options:_OPTS_COTA},
+      {key:'terrenoFormato', label:'Formato Aproximado', type:'radio', options:_OPTS_FORMATO}
     ]},
-    {title:'Lote da Unidade - Cota/Greide', cols:1, fields:[
-      {key:'terrenoCota', label:'Cota/Greide', type:'radio', options:_OPTS_COTA}
-    ]},
-    {title:'Formato Aproximado', cols:1, fields:[
-      {key:'terrenoFormato', label:'Formato', type:'radio', options:_OPTS_FORMATO}
-    ]},
-    {title:'Inclinação', cols:1, fields:[
-      {key:'terrenoInclinacao', label:'Inclinação', type:'radio', options:_OPTS_INCLINACAO}
-    ]},
-    {title:'Cercamento', cols:1, fields:[
+    {title:'Inclinação / Cercamento', cols:2, fields:[
+      {key:'terrenoInclinacao', label:'Inclinação', type:'radio', options:_OPTS_INCLINACAO},
       {key:'terrenoCercamento', label:'Cercamento', type:'radio', options:_OPTS_CERCAMENTO}
     ]},
-    {title:'Tipo Cercamento - Frente', cols:1, fields:[
-      {key:'terrenoCercFrente', label:'Frente', type:'radio', options:_OPTS_CERC_TIPO}
-    ]},
-    {title:'Tipo Cercamento - Laterais/Fundo', cols:1, fields:[
+    {title:'Tipo Cercamento', cols:2, fields:[
+      {key:'terrenoCercFrente', label:'Frente', type:'radio', options:_OPTS_CERC_TIPO},
       {key:'terrenoCercLaterais', label:'Laterais/Fundo', type:'radio', options:_OPTS_CERC_TIPO}
     ]},
     {title:'Vocação Principal', cols:1, fields:[
@@ -6363,20 +6344,14 @@ const _SCHEMA_PREDIO={
         {key:'unidadesNoAndar', label:'Unidades no Andar', type:'number'},
         {key:'coberturaUnidade', label:'Un. Cobertura', type:'checkbox'}
       ]},
-      {title:'Estado de Conservação', cols:1, fields:[
-        {key:'estadoConservacao', label:'Estado de Conservação', type:'radio', options:_OPTS_CONSERVACAO}
-      ]},
-      {title:'Padrão de Acabamento', cols:1, fields:[
+      {title:'Estado de Conservação / Padrão de Acabamento', cols:2, fields:[
+        {key:'estadoConservacao', label:'Estado de Conservação', type:'radio', options:_OPTS_CONSERVACAO},
         {key:'padraoAcabamento', label:'Padrão de Acabamento', type:'radio', options:_OPTS_PADRAO}
       ]},
-      {title:'Destinação', cols:1, fields:[
+      {title:'Destinação / Paredes Internas / Ocupação', cols:3, fields:[
         {key:'destinacao', label:'Destinação', type:'radio',
-         options:['Residencial','Residencial-Comercial/Institucional','Comercial/Institucional','Outros, Vide Inform. Compl.']}
-      ]},
-      {title:'Paredes Internas', cols:1, fields:[
-        {key:'paredesInternas', label:'Paredes Internas', type:'radio', options:_OPTS_PAREDES}
-      ]},
-      {title:'Ocupação', cols:1, fields:[
+         options:['Residencial','Residencial-Comercial/Institucional','Comercial/Institucional','Outros, Vide Inform. Compl.']},
+        {key:'paredesInternas', label:'Paredes Internas', type:'radio', options:_OPTS_PAREDES},
         {key:'ocupacao', label:'Ocupação', type:'radio', options:_OPTS_OCUPACAO}
       ]},
       {title:'Posição da Unidade', cols:3, fields:[
@@ -6394,36 +6369,30 @@ const _SCHEMA_PREDIO={
     ]},
     _SEC_UN_AVAL_II_PREDIO,
     {id:'predio', label:'Prédio', sections:[
-      {title:'Implantação/Inserção', cols:1, fields:[
+      {title:'Implantação / Características', cols:2, fields:[
         {key:'predioImplantacao', label:'Implantação/Inserção', type:'radio',
-         options:['Condomínio','Condomínio (parte de outro condomínio)','Condomínio (parte de empreendimento não condominial)']}
+         options:['Condomínio','Condomínio (parte de outro condomínio)','Condomínio (parte de empreendimento não condominial)']},
+        {key:'predioCobertura', label:'Caracterização da Cobertura', type:'radio',
+         options:['Cobertura Individual','Uso Coletivo','Uso Individual e Coletivo','Sem Utilização','Outros']}
       ]},
-      {title:'Características', cols:4, fields:[
+      {title:'Características do Prédio', cols:4, fields:[
         {key:'nrPavimentosPredio', label:'Nº Pavimentos', type:'number'},
         {key:'nrUnidadesPredio', label:'Nº Unidades', type:'number'},
         {key:'nrSubsolos', label:'Nº Subsolos', type:'number'},
         {key:'nrElevadores', label:'Nº Elevadores', type:'number'}
       ]},
-      {title:'Caracterização da Cobertura', cols:1, fields:[
-        {key:'predioCobertura', label:'Cobertura', type:'radio',
-         options:['Cobertura Individual','Uso Coletivo','Uso Individual e Coletivo','Sem Utilização','Outros']}
-      ]},
-      {title:'Idade Estimada', cols:1, fields:[
-        {key:'predioIdade', label:'Idade Estimada', type:'radio', options:_OPTS_IDADE}
-      ]},
-      {title:'Estado de Conservação (Prédio)', cols:1, fields:[
+      {title:'Idade / Estado de Conservação (Prédio)', cols:2, fields:[
+        {key:'predioIdade', label:'Idade Estimada', type:'radio', options:_OPTS_IDADE},
         {key:'predioConservacao', label:'Estado de Conservação', type:'radio', options:_OPTS_CONSERVACAO}
       ]},
-      {title:'Destinação (Prédio)', cols:1, fields:[
+      {title:'Destinação / Padrão (Prédio)', cols:2, fields:[
         {key:'predioDestinacao', label:'Destinação', type:'radio',
-         options:['Residencial','Comercial/Institucional','Misto','Outros, Vide Inform. Complem.']}
+         options:['Residencial','Comercial/Institucional','Misto','Outros, Vide Inform. Complem.']},
+        {key:'predioPadrao', label:'Padrão de Acabamento', type:'radio', options:_OPTS_PADRAO}
       ]},
       {title:'Ocupação do Térreo', cols:1, fields:[
         {key:'predioOcupacaoTerreo', label:'Ocupação do Térreo', type:'checkbox-group',
          options:['Lojas','Sala(s)','Pilotis','Lazer','Unidades Residenciais','Garagens','Outros']}
-      ]},
-      {title:'Padrão de Acabamento (Prédio)', cols:1, fields:[
-        {key:'predioPadrao', label:'Padrão', type:'radio', options:_OPTS_PADRAO}
       ]},
       {title:'Acabamento - Área de Circulação', cols:2, fields:[
         {key:'acabPisos', label:'Pisos', type:'text'},
@@ -6448,26 +6417,18 @@ const _SCHEMA_CASA={
     {id:'identificacao', label:'Identificação', sections:[_SEC_IDENTIFICACAO]},
     {id:'unI', label:'Un. Avaliando I', sections:[
       _SEC_VISTORIA,
-      {title:'Estado de Conservação', cols:1, fields:[
-        {key:'estadoConservacao', label:'Estado de Conservação', type:'radio', options:_OPTS_CONSERVACAO}
-      ]},
-      {title:'Padrão de Acabamento', cols:1, fields:[
+      {title:'Estado de Conservação / Padrão de Acabamento', cols:2, fields:[
+        {key:'estadoConservacao', label:'Estado de Conservação', type:'radio', options:_OPTS_CONSERVACAO},
         {key:'padraoAcabamento', label:'Padrão de Acabamento', type:'radio', options:_OPTS_PADRAO}
       ]},
-      {title:'Destinação', cols:1, fields:[
+      {title:'Destinação / Idade Estimada', cols:2, fields:[
         {key:'destinacao', label:'Destinação', type:'radio',
-         options:['Residencial Unifamiliar','Residencial Multifamiliar','Comercial/Institucional','Residencial-Comercial/Institucional','Industrial','Industrial-Comercial/Institucional','Outros, Vide Inform. Compl.']}
-      ]},
-      {title:'Idade Estimada', cols:1, fields:[
+         options:['Residencial Unifamiliar','Residencial Multifamiliar','Comercial/Institucional','Residencial-Comercial/Institucional','Industrial','Industrial-Comercial/Institucional','Outros, Vide Inform. Compl.']},
         {key:'unidadeIdade', label:'Idade Estimada', type:'radio', options:_OPTS_IDADE}
       ]},
-      {title:'Paredes Internas', cols:1, fields:[
-        {key:'paredesInternas', label:'Paredes Internas', type:'radio', options:_OPTS_PAREDES}
-      ]},
-      {title:'Paredes Externas', cols:1, fields:[
-        {key:'paredesExternas', label:'Paredes Externas', type:'radio', options:_OPTS_PAREDES}
-      ]},
-      {title:'Ocupação', cols:1, fields:[
+      {title:'Paredes / Ocupação', cols:3, fields:[
+        {key:'paredesInternas', label:'Paredes Internas', type:'radio', options:_OPTS_PAREDES},
+        {key:'paredesExternas', label:'Paredes Externas', type:'radio', options:_OPTS_PAREDES},
         {key:'ocupacao', label:'Ocupação', type:'radio', options:_OPTS_OCUPACAO}
       ]},
       {title:'Posição da Unidade', cols:4, fields:[
@@ -6518,18 +6479,14 @@ const _SCHEMA_TERRENO={
     {id:'identificacao', label:'Identificação', sections:[_SEC_IDENTIFICACAO]},
     {id:'unI', label:'Un. Avaliando I', sections:[
       _SEC_VISTORIA,
-      {title:'Destinações', cols:1, fields:[
+      {title:'Destinações / Nível de Restrição', cols:2, fields:[
         {key:'destinacao', label:'Destinações', type:'radio',
-         options:['Residência Unifamiliar','Residência Multifamiliar','Comercial/Institucional','Residencial-Comercial/Institucional','Industrial','Industrial-Comercial/Institucional','Outros, Vide Inform. Complem.']}
-      ]},
-      {title:'Nível de Restrição de Uso', cols:1, fields:[
-        {key:'nivelRestricao', label:'Nível de Restrição', type:'radio',
+         options:['Residência Unifamiliar','Residência Multifamiliar','Comercial/Institucional','Residencial-Comercial/Institucional','Industrial','Industrial-Comercial/Institucional','Outros, Vide Inform. Complem.']},
+        {key:'nivelRestricao', label:'Nível de Restrição de Uso', type:'radio',
          options:['Baixo','Não Merece Destaque','Alto']}
       ]},
-      {title:'Ocupação', cols:1, fields:[
-        {key:'ocupacaoTerreno', label:'Ocupação', type:'radio', options:_OPTS_OCUPACAO}
-      ]},
-      {title:'Superfície', cols:1, fields:[
+      {title:'Ocupação / Superfície', cols:2, fields:[
+        {key:'ocupacaoTerreno', label:'Ocupação', type:'radio', options:_OPTS_OCUPACAO},
         {key:'superficie', label:'Superfície', type:'radio', options:['Seco','Alagável','Brejoso']}
       ]},
       {title:'Posição da Unidade', cols:3, fields:[
@@ -6572,23 +6529,15 @@ const _SCHEMA_TERRENO={
         {key:'empInfra', label:'Infra-Estrutura', type:'checkbox-group',
          options:['Água Potável','Esgoto Sanitário','Energia Elétrica','Telefone','Iluminação Pública','Pavimentação','Esgoto Pluvial','Outras, Vide Inform. Compl.']}
       ]},
-      {title:'Padrão do Empreendimento', cols:1, fields:[
-        {key:'empPadrao', label:'Padrão', type:'radio', options:_OPTS_PADRAO}
-      ]},
-      {title:'Estado de Conservação', cols:1, fields:[
-        {key:'empConservacao', label:'Estado de Conservação', type:'radio', options:_OPTS_CONSERVACAO}
-      ]},
-      {title:'Controle Acesso', cols:1, fields:[
+      {title:'Padrão / Estado de Conservação / Controle Acesso', cols:3, fields:[
+        {key:'empPadrao', label:'Padrão', type:'radio', options:_OPTS_PADRAO},
+        {key:'empConservacao', label:'Estado de Conservação', type:'radio', options:_OPTS_CONSERVACAO},
         {key:'empControleAcesso', label:'Controle de Acesso', type:'radio', options:['Sim','Não']}
       ]},
-      {title:'Cercamento', cols:1, fields:[
-        {key:'empCercamento', label:'Cercamento', type:'radio', options:_OPTS_CERCAMENTO}
-      ]},
-      {title:'Tipo Cercamento - Frente', cols:1, fields:[
-        {key:'empCercFrente', label:'Frente', type:'radio', options:_OPTS_CERC_TIPO}
-      ]},
-      {title:'Tipo Cercamento - Laterais/Fundo', cols:1, fields:[
-        {key:'empCercLaterais', label:'Laterais/Fundo', type:'radio', options:_OPTS_CERC_TIPO}
+      {title:'Cercamento', cols:3, fields:[
+        {key:'empCercamento', label:'Cercamento', type:'radio', options:_OPTS_CERCAMENTO},
+        {key:'empCercFrente', label:'Tipo - Frente', type:'radio', options:_OPTS_CERC_TIPO},
+        {key:'empCercLaterais', label:'Tipo - Laterais/Fundo', type:'radio', options:_OPTS_CERC_TIPO}
       ]},
       {title:'Ocupação do Terreno', cols:1, fields:[
         {key:'empOcupacaoTerreno', label:'Ocupação do Terreno', type:'checkbox-group',
@@ -6854,13 +6803,16 @@ function _esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')
 function _renderField(f){
   const id=`fv-${f.key}`;
   if(f.type==='radio'){
-    return `<div class="ficha-field full"><label>${_esc(f.label)}</label><div class="ficha-radio-list">${f.options.map((o,i)=>`<label><input type="radio" name="${f.key}" value="${_esc(o)}"> ${_esc(o)}</label>`).join('')}</div></div>`;
+    // Only force full-width when f.full is explicitly set; otherwise let the grid place it naturally
+    const cls=f.full?'ficha-field full':'ficha-field full';
+    return `<div class="${cls}"><label>${_esc(f.label)}</label><div class="ficha-radio-list">${f.options.map((o,i)=>`<label><input type="radio" name="${f.key}" value="${_esc(o)}"> ${_esc(o)}</label>`).join('')}</div></div>`;
   }
   if(f.type==='checkbox'){
-    return `<div class="ficha-field-cb full"><label><input type="checkbox" id="${id}"> ${_esc(f.label)}</label></div>`;
+    return `<div class="ficha-field-cb"><label><input type="checkbox" id="${id}"> ${_esc(f.label)}</label></div>`;
   }
   if(f.type==='checkbox-group'){
-    return `<div class="ficha-field full"><label>${_esc(f.label)}</label><div class="ficha-cbox-grid">${f.options.map(o=>`<label><input type="checkbox" data-group="${f.key}" value="${_esc(o)}"> ${_esc(o)}</label>`).join('')}</div></div>`;
+    const cls=f.full?'ficha-field full':'ficha-field full';
+    return `<div class="${cls}"><label>${_esc(f.label)}</label><div class="ficha-cbox-grid">${f.options.map(o=>`<label><input type="checkbox" data-group="${f.key}" value="${_esc(o)}"> ${_esc(o)}</label>`).join('')}</div></div>`;
   }
   if(f.type==='select'){
     const opts=(f.options||f.opts||[]).map(o=>`<option value="${_esc(o)}">${_esc(o)}</option>`).join('');
@@ -7097,16 +7049,20 @@ async function gerarFichaPDF(){
   try{
     // 1. Cria o elemento temporário para o pdf
     const el=document.createElement('div');
-    el.style.cssText='position:fixed;left:-9999px;top:0;z-index:-1;width:794px;background:#fff';
+    // Keep element off-screen but NOT display:none so html2canvas can paint it
+    el.style.cssText='position:fixed;left:-9999px;top:0;z-index:-1;width:794px;background:#fff;color:#000';
     el.innerHTML=_fichaHtmlContent(FICHA_OS,dados);
     document.body.appendChild(el);
+
+    // Wait for browser to layout and paint the off-screen element before capture
+    await new Promise(r=>requestAnimationFrame(()=>setTimeout(r,120)));
 
     const nomeArq=`Ficha_Vistoria_${(FICHA_OS.osp||FICHA_OS.os).replace(/[\/\\]/g,'-')}.pdf`;
     const opt={
       margin:[10,10,10,10],
       filename:nomeArq,
       image:{type:'jpeg',quality:0.95},
-      html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff'},
+      html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff',logging:false},
       jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}
     };
 
