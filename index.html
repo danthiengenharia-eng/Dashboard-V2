@@ -1657,6 +1657,9 @@ body.light-mode .ficha-single-cbox{border-color:rgba(0,0,0,0.12);background:rgba
 
 <!-- GABARITO DO COMPROVANTE PDF (Invisível) -->
 <div id="pdf-template-wrapper" style="display:none; position:absolute; left:-9999px; top:-9999px;">
+
+<!-- Wrapper para Ficha de Vistoria PDF — visibility:hidden mantém no layout sem mostrar ao usuário -->
+<div id="ficha-pdf-wrapper" style="position:absolute;left:-9999px;top:0;width:794px;background:#fff;color:#000;visibility:hidden;overflow:hidden;"></div>
   <div id="pdf-template" style="padding:38px 46px 38px 48px; font-family:Arial,sans-serif; font-size:10.5px; color:#000; background:#fff; width:627px; height:886px; box-sizing:border-box; line-height:1.1;">
     
     <script>
@@ -1929,11 +1932,51 @@ const MSG_AV_DEFAULT='{{saudacao}}\n\nQuem fala é o {{resp}}, engenheiro respon
 const MSG_MED_DEFAULT='{{saudacao}}\n\nQuem fala é o {{resp}}, engenheiro responsável pela vistoria de medição de obras.\nEstou entrando em contato a respeito da OS nº {{osNum}}, referente ao imóvel na {{endereco}}.\nGostaria de agendar a vistoria para {{data}}, entre {{hora}} hrs.\n\nAtenciosamente,\n{{resp}}';
 
 function hexToRgb(hex){try{const h=hex.replace('#','');return`${parseInt(h.slice(0,2),16)},${parseInt(h.slice(2,4),16)},${parseInt(h.slice(4,6),16)}`;}catch(e){return'0,71,142';}}
+
+// ── Helpers HSL: conversor hex→HSL, HSL→hex, e adaptador de contraste ───────
+function hexToHsl(hex){
+  try{
+    let r=parseInt(hex.slice(1,3),16)/255,g=parseInt(hex.slice(3,5),16)/255,b=parseInt(hex.slice(5,7),16)/255;
+    const mx=Math.max(r,g,b),mn=Math.min(r,g,b);let h=0,s=0,l=(mx+mn)/2;
+    if(mx!==mn){const d=mx-mn;s=l>0.5?d/(2-mx-mn):d/(mx+mn);
+      if(mx===r)h=(g-b)/d+(g<b?6:0);else if(mx===g)h=(b-r)/d+2;else h=(r-g)/d+4;h/=6;}
+    return[h*360,s*100,l*100];
+  }catch(_){return[210,70,35];}
+}
+function hslToHex(h,s,l){
+  try{
+    h/=360;s/=100;l/=100;
+    const q=l<0.5?l*(1+s):l+s-l*s,p=2*l-q;
+    const hue2rgb=(p,q,t)=>{if(t<0)t+=1;if(t>1)t-=1;if(t<1/6)return p+(q-p)*6*t;if(t<0.5)return q;if(t<2/3)return p+(q-p)*(2/3-t)*6;return p;};
+    const r=Math.round(hue2rgb(p,q,h+1/3)*255),g=Math.round(hue2rgb(p,q,h)*255),b=Math.round(hue2rgb(p,q,h-1/3)*255);
+    return'#'+[r,g,b].map(v=>v.toString(16).padStart(2,'0')).join('');
+  }catch(_){return hex;}
+}
+// Adapta a cor accent para garantir legibilidade no modo atual (escuro/claro)
+// O valor ORIGINAL do usuário é preservado no storage — só o CSS aplicado é adaptado.
+function contrastAccent(hex,isDarkMode){
+  try{
+    const[h,s,l]=hexToHsl(hex);
+    if(isDarkMode){
+      // Fundo escuro (~#111): cores com luminosidade < 45% ficam ilegíveis → clarear para 55%
+      // Mantém saturação limitada a 85% para não saturar demais
+      if(l<45)return hslToHex(h,Math.min(s,85),55);
+    }else{
+      // Fundo claro (~#f2f2f7): cores com luminosidade > 65% ficam ilegíveis → escurecer para 38%
+      if(l>65)return hslToHex(h,Math.min(s,85),38);
+    }
+  }catch(_){}
+  return hex;
+}
 function applyBranding(c){
   const colorRows = c.colorRows!==undefined ? c.colorRows : true;
   document.body.classList.toggle('no-row-colors', !colorRows);
-  const cor=c.cor||'#00478E';
-  const corEsc=c.corEsc||cor;
+  const isDark=!document.body.classList.contains('light-mode');
+  const corOrig=c.cor||'#00478E';
+  const corEscOrig=c.corEsc||corOrig;
+  // Adaptar accent para o modo atual (clarear se escuro demais no modo escuro, etc.)
+  const cor=contrastAccent(corOrig, isDark);
+  const corEsc=contrastAccent(corEscOrig, isDark);
   const rgb=hexToRgb(cor);
   document.documentElement.style.setProperty('--accent',cor);
   document.documentElement.style.setProperty('--accent-wine',corEsc);
@@ -2236,6 +2279,11 @@ function toggleDark(){
   document.body.classList.toggle('light-mode',DARK);
   document.getElementById('btn-dark').textContent=DARK?'☀️':'🌙';
   localStorage.setItem('danthi-dark',DARK?'light':'dark');
+  // Re-aplicar branding com contraste adaptado ao novo modo
+  try{
+    const raw=localStorage.getItem(_DCEF_KEY);
+    if(raw){const c=JSON.parse(raw);applyBranding(c);}
+  }catch(_){}
 }
 (function initDark(){
   const saved=localStorage.getItem('danthi-dark');
@@ -7047,15 +7095,13 @@ async function gerarFichaPDF(){
   const dados=coletarDadosFicha();
 
   try{
-    // 1. Cria o elemento temporário para o pdf
-    const el=document.createElement('div');
-    // Keep element off-screen but NOT display:none so html2canvas can paint it
-    el.style.cssText='position:fixed;left:-9999px;top:0;z-index:-1;width:794px;background:#fff;color:#000';
-    el.innerHTML=_fichaHtmlContent(FICHA_OS,dados);
-    document.body.appendChild(el);
+    // 1. Injeta o HTML da ficha no wrapper estático (visibility:hidden → o browser pinta mas não mostra)
+    const wrapper=document.getElementById('ficha-pdf-wrapper');
+    wrapper.innerHTML=_fichaHtmlContent(FICHA_OS,dados);
+    wrapper.style.visibility='visible';
 
-    // Wait for browser to layout and paint the off-screen element before capture
-    await new Promise(r=>requestAnimationFrame(()=>setTimeout(r,120)));
+    // Aguarda browser fazer layout completo
+    await new Promise(r=>requestAnimationFrame(()=>setTimeout(r,150)));
 
     const nomeArq=`Ficha_Vistoria_${(FICHA_OS.osp||FICHA_OS.os).replace(/[\/\\]/g,'-')}.pdf`;
     const opt={
@@ -7066,9 +7112,10 @@ async function gerarFichaPDF(){
       jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}
     };
 
-    const worker=html2pdf().set(opt).from(el);
+    const worker=html2pdf().set(opt).from(wrapper);
     const pdfBlob=await worker.outputPdf('blob');
-    document.body.removeChild(el);
+    wrapper.style.visibility='hidden';
+    wrapper.innerHTML='';
 
     resultado.textContent='⏳ Localizando pasta no Drive...';
 
@@ -7874,7 +7921,7 @@ async function _uploadFotoParaDrive(file, nome, folderId, barId){
 </div>
 
 </body>
-</html>-
+</html>
 
 
 
