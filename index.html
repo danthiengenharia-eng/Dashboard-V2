@@ -6841,17 +6841,15 @@ function abrirFichaTab(r){
   } else {
     document.getElementById('ficha-sel-area').style.display='block';
     document.getElementById('ficha-form-area').style.display='none';
-    setTimeout(renderFichaOS,50);
   }
 }
 
-// ── Helpers de estado, draft e pré-preenchimento ──────────────
+// -- Helpers de estado, draft e pre-preenchimento
 function _esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
 function _renderField(f){
   const id=`fv-${f.key}`;
   if(f.type==='radio'){
-    // Only force full-width when f.full is explicitly set; otherwise let the grid place it naturally
     const cls=f.full?'ficha-field full':'ficha-field full';
     return `<div class="${cls}"><label>${_esc(f.label)}</label><div class="ficha-radio-list">${f.options.map((o,i)=>`<label><input type="radio" name="${f.key}" value="${_esc(o)}"> ${_esc(o)}</label>`).join('')}</div></div>`;
   }
@@ -6864,7 +6862,7 @@ function _renderField(f){
   }
   if(f.type==='select'){
     const opts=(f.options||f.opts||[]).map(o=>`<option value="${_esc(o)}">${_esc(o)}</option>`).join('');
-    return `<div class="ficha-field"><label>${_esc(f.label)}</label><select id="${id}"><option value="">—</option>${opts}</select></div>`;
+    return `<div class="ficha-field"><label>${_esc(f.label)}</label><select id="${id}"><option value="">--</option>${opts}</select></div>`;
   }
   if(f.type==='textarea'){
     return `<div class="ficha-field full"><label>${_esc(f.label)}</label><textarea id="${id}" rows="3" placeholder="${_esc(f.ph||'')}"></textarea></div>`;
@@ -6881,16 +6879,13 @@ function _renderSection(sec){
 
 function _coletarEstadoFicha(){
   const estado={};
-  // Inputs simples (text, number, date, textarea, select)
   document.querySelectorAll('#ficha-campos-dinamicos input[id^="fv-"],#ficha-campos-dinamicos select[id^="fv-"],#ficha-campos-dinamicos textarea[id^="fv-"]').forEach(el=>{
     const k=el.id.slice(3);
     if(el.type==='checkbox') estado[k]=el.checked;
     else estado[k]=el.value;
   });
-  // Radios (agrupados por name)
   const radios=document.querySelectorAll('#ficha-campos-dinamicos input[type="radio"]:checked');
   radios.forEach(r=>{ estado[r.name]=r.value; });
-  // Checkbox-groups (data-group)
   document.querySelectorAll('#ficha-campos-dinamicos input[data-group]').forEach(el=>{
     const g=el.dataset.group;
     if(!estado[g])estado[g]=[];
@@ -6916,13 +6911,11 @@ function _aplicarEstadoFicha(estado){
       });
       return;
     }
-    // Radios
     const radios=document.querySelectorAll(`#ficha-campos-dinamicos input[type="radio"][name="${k}"]`);
     if(radios.length){
       radios.forEach(r=>{r.checked=(r.value===v);});
       return;
     }
-    // Inputs simples
     const el=document.getElementById('fv-'+k);
     if(!el)return;
     if(el.type==='checkbox') el.checked=!!v;
@@ -7095,28 +7088,138 @@ async function gerarFichaPDF(){
   const dados=coletarDadosFicha();
 
   try{
-    // 1. Injeta o HTML no wrapper fixo. O wrapper usa opacity:0.001 + position:fixed top:0,left:0
-    //    para que o browser PINTE o elemento no viewport mas o usuário não veja.
-    //    html2canvas IGNORA elementos com visibility:hidden ou fora do viewport (left:-9999px).
-    const wrapper=document.getElementById('ficha-pdf-wrapper');
-    wrapper.innerHTML=_fichaHtmlContent(FICHA_OS,dados);
+    // Gera PDF diretamente com jsPDF (sem html2canvas - 100% confiavel)
+    const {jsPDF}=window.jspdf;
+    const doc=new jsPDF({unit:'mm',format:'a4',orientation:'portrait'});
+    const pageW=doc.internal.pageSize.getWidth();
+    const pageH=doc.internal.pageSize.getHeight();
+    const mg=12, cw=pageW-2*mg;
+    let y=mg;
+    const rgbStr=(getComputedStyle(document.documentElement).getPropertyValue('--accent-rgb')||'0,71,142').trim();
+    const [ar,ag,ab]=rgbStr.split(',').map(v=>Math.round(Number(v.trim())));
+    const sr=Math.min(ar+55,255),sg=Math.min(ag+55,255),sb=Math.min(ab+55,255);
+    function chkPage(h=7){if(y+h>pageH-mg-8){doc.addPage();y=mg;}}
 
-    // Aguarda dois frames + timeout para o browser completar layout e pintura
-    await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>setTimeout(r,200))));
+    // Cabecalho
+    doc.setFillColor(ar,ag,ab);
+    doc.rect(mg,y,cw,14,'F');
+    doc.setTextColor(255,255,255);
+    doc.setFontSize(13);
+    doc.setFont('helvetica','bold');
+    doc.text('FICHA DE VISTORIA IMOBILIARIA',mg+3,y+8);
+    doc.setFontSize(8);
+    doc.setFont('helvetica','normal');
+    const tipLabel=dados.tipologiaLabel||dados.tipologia||'--';
+    const dvRaw=dados.estado&&dados.estado.dataVistoria||'';
+    const dataFmt=dvRaw?new Date(dvRaw+'T12:00:00').toLocaleDateString('pt-BR'):'--';
+    doc.text('Avaliacao CEF - '+tipLabel+' - Data: '+dataFmt,mg+3,y+12.5);
+    if(CONFIG_USER.logo){try{doc.addImage(CONFIG_USER.logo,'PNG',pageW-mg-22,y+1,20,12);}catch(_){}}
+    y+=17;
 
-    const nomeArq=`Ficha_Vistoria_${(FICHA_OS.osp||FICHA_OS.os).replace(/[\/\\]/g,'-')}.pdf`;
-    const opt={
-      margin:[10,10,10,10],
-      filename:nomeArq,
-      image:{type:'jpeg',quality:0.95},
-      html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff',logging:false,windowWidth:794},
-      jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}
-    };
+    // Info da OS
+    doc.setFillColor(240,242,245);
+    doc.rect(mg,y,cw,9,'F');
+    doc.setDrawColor(220,225,232);
+    doc.rect(mg,y,cw,9,'S');
+    doc.setTextColor(50,50,50);
+    doc.setFontSize(8);
+    doc.setFont('helvetica','bold');
+    const osLine='OS: '+(FICHA_OS.os||'--')+'  |  Item: '+(FICHA_OS.item||'--')+'  |  '+(FICHA_OS.mun||'')+'  |  '+(FICHA_OS.end||'');
+    doc.text(doc.splitTextToSize(osLine,cw-4),mg+2,y+5.5);
+    y+=13;
 
-    const worker=html2pdf().set(opt).from(wrapper);
-    const pdfBlob=await worker.outputPdf('blob');
-    wrapper.innerHTML='';
-    wrapper.style.visibility='hidden';
+    // Tabs e secoes
+    for(const tab of (dados.tabs||[])){
+      if(!tab.sections||!tab.sections.length)continue;
+      chkPage(10);
+      doc.setFillColor(35,35,35);
+      doc.rect(mg,y,cw,7,'F');
+      doc.setTextColor(255,255,255);
+      doc.setFontSize(9);
+      doc.setFont('helvetica','bold');
+      doc.text((tab.label||'').toUpperCase(),mg+3,y+5);
+      y+=7;
+      for(const sec of (tab.sections||[])){
+        if(!sec.fields||!sec.fields.length)continue;
+        chkPage(8);
+        doc.setFillColor(sr,sg,sb);
+        doc.rect(mg,y,cw,5.5,'F');
+        doc.setTextColor(255,255,255);
+        doc.setFontSize(7);
+        doc.setFont('helvetica','bold');
+        doc.text((sec.title||'').toUpperCase(),mg+2,y+4);
+        y+=5.5;
+        for(const f of (sec.fields||[])){
+          const raw=f.value;
+          const val=(raw===null||raw===undefined||raw==='')?'--':String(raw);
+          const lblLines=doc.splitTextToSize(f.label||'',cw*0.38-4);
+          const valLines=doc.splitTextToSize(val,cw*0.62-4);
+          const rowH=Math.max(lblLines.length,valLines.length)*3.8+3;
+          chkPage(rowH+1);
+          doc.setFillColor(248,249,251);
+          doc.rect(mg,y,cw*0.38,rowH,'F');
+          doc.setTextColor(85,85,85);
+          doc.setFontSize(7.5);
+          doc.setFont('helvetica','normal');
+          doc.text(lblLines,mg+2,y+3.5);
+          doc.setFillColor(255,255,255);
+          doc.rect(mg+cw*0.38,y,cw*0.62,rowH,'F');
+          doc.setTextColor(17,17,17);
+          doc.setFont('helvetica','bold');
+          doc.text(valLines,mg+cw*0.38+2,y+3.5);
+          doc.setDrawColor(221,225,231);
+          doc.rect(mg,y,cw,rowH,'S');
+          y+=rowH;
+        }
+        y+=2;
+      }
+      y+=4;
+    }
+
+    // Observacoes gerais
+    const obsVal=(dados.estado&&dados.estado.observacoes)||'';
+    if(obsVal){
+      chkPage(14);
+      doc.setFillColor(ar,ag,ab);
+      doc.rect(mg,y,cw,5.5,'F');
+      doc.setTextColor(255,255,255);
+      doc.setFontSize(7);
+      doc.setFont('helvetica','bold');
+      doc.text('OBSERVACOES GERAIS',mg+2,y+4);
+      y+=5.5;
+      const obsLines=doc.splitTextToSize(obsVal,cw-4);
+      const obsH=obsLines.length*3.8+4;
+      chkPage(obsH);
+      doc.setFillColor(255,255,255);
+      doc.rect(mg,y,cw,obsH,'F');
+      doc.setDrawColor(221,225,231);
+      doc.rect(mg,y,cw,obsH,'S');
+      doc.setTextColor(34,34,34);
+      doc.setFontSize(8);
+      doc.setFont('helvetica','normal');
+      doc.text(obsLines,mg+2,y+4);
+      y+=obsH;
+    }
+
+    // Rodape em todas as paginas
+    const totalPgs=doc.internal.getNumberOfPages();
+    const geradoEm=new Date().toLocaleDateString('pt-BR');
+    const respNm=CONFIG_USER.resp||'';
+    const creaNm=CONFIG_USER.crea||'';
+    for(let i=1;i<=totalPgs;i++){
+      doc.setPage(i);
+      doc.setDrawColor(200,200,200);
+      doc.line(mg,pageH-10,pageW-mg,pageH-10);
+      doc.setTextColor(140,140,140);
+      doc.setFontSize(7);
+      doc.setFont('helvetica','normal');
+      doc.text('Gerado em '+geradoEm+(respNm?' | Resp: '+respNm:'')+(creaNm?' | CREA: '+creaNm:''),mg,pageH-5.5);
+      doc.text('Pagina '+i+' de '+totalPgs,pageW-mg,pageH-5.5,{align:'right'});
+    }
+
+    const nomeArq='Ficha_Vistoria_'+(FICHA_OS.osp||FICHA_OS.os).replace(/[\/\\]/g,'-')+'.pdf';
+    doc.setProperties({title:'Ficha de Vistoria',author:CONFIG_USER.resp||'',creator:CONFIG_USER.emp||''});
+    const pdfBlob=doc.output('blob');
 
     resultado.textContent='⏳ Localizando pasta no Drive...';
 
