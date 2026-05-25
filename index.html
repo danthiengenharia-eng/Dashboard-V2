@@ -788,8 +788,8 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
   .topbar:hover .brand-nm{opacity:1}
   .topbar:hover .brand-sub{opacity:.92}
 
-  /* Nav items — geometria 100% estática. Icon centra naturalmente em 64px:
-     sidebar 64 - topbar pad 16 - nav-ico pad 28 = 20 (= largura do ícone). */
+  /* Nav items — geometria estática. Tip usa flex shrinkable + overflow hidden:
+     quando sidebar colapsa, tip vira 0 de largura naturalmente, sem empurrar ícone */
   .nav-sep{display:none}
   .nav-ico{
     width:100%;height:42px;border-radius:10px;
@@ -798,15 +798,20 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
     overflow:hidden;position:relative;
   }
   .nav-ico svg{flex-shrink:0;width:20px;height:20px}
-  /* Label — posição absoluta para não afetar layout do flex (não empurra o ícone) */
-  .nav-ico .tip{
-    position:absolute;left:46px;top:50%;transform:translateY(-50%);
-    background:none;color:inherit;
-    font-size:12.5px;font-weight:500;pointer-events:none;white-space:nowrap;
-    padding:0;border-radius:0;box-shadow:none;
+  /* Reset agressivo do estilo do tooltip mobile + flex shrinkable */
+  .nav-ico > .tip{
+    position:static !important;
+    top:auto !important;bottom:auto !important;left:auto !important;right:auto !important;
+    transform:none !important;
+    background:none !important;color:inherit !important;
+    font-size:12.5px;font-weight:500;
+    padding:0 !important;border-radius:0 !important;box-shadow:none !important;
+    pointer-events:none;white-space:nowrap;
+    flex:1 1 0;min-width:0;overflow:hidden;text-overflow:clip;
     opacity:0;transition:opacity .15s ease-out;
+    z-index:auto !important;
   }
-  .topbar:hover .nav-ico .tip{opacity:1}
+  .topbar:hover .nav-ico > .tip{opacity:1}
 
   .split-wrap{width:100%;margin-top:auto;padding-top:14px;border-top:1px solid var(--mica-border)}
   .split-wrap .nav-ico{width:100%}
