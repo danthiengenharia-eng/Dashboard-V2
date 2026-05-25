@@ -203,7 +203,7 @@ body.light-mode .sf-popover{background:#fff;box-shadow:0 6px 24px rgba(0,0,0,0.1
 .sf-popover .sf-actions button:hover{color:var(--text-primary);border-color:var(--mica-border-light);background:var(--mica-surface)}
 
 /* ── MAIN CONTENT ── */
-.main{padding:.65rem}
+.main{padding:.65rem;contain:layout}
 .card{background:var(--mica-surface);border:1px solid var(--mica-border);border-radius:var(--radius-lg);box-shadow:0 4px 24px rgba(0,0,0,0.15)}
 body.light-mode .card{box-shadow:0 4px 24px rgba(0,0,0,0.04)}
 .twrap{overflow-x:auto;overflow-y:auto;height:calc(100vh - 112px)}
@@ -739,7 +739,7 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
     overflow-y:auto;overflow-x:hidden;
     z-index:300;
     will-change:width;
-    transition:width .22s ease-out;
+    transition:width .22s ease-out, box-shadow .22s ease-out;
   }
   .topbar::-webkit-scrollbar{width:6px}
   .topbar::-webkit-scrollbar-thumb{background:rgba(var(--accent-rgb),.25);border-radius:3px}
@@ -753,25 +753,30 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
     margin:0 -8px 14px;flex-shrink:0;display:flex!important;
     flex-direction:column;align-items:center;gap:8px;
     position:relative;
-    transition:padding .25s ease;
+    min-height:84px;
+    transition:min-height .22s ease-out;
   }
+  body.sidebar-expanded .brand-logo-fallback{min-height:210px}
   .brand-logo-fallback::before{
-    content:'';position:absolute;top:8px;left:14px;right:14px;height:54px;
-    background:radial-gradient(circle at 50% 30%,rgba(var(--accent-rgb),0.22) 0%,transparent 70%);
-    z-index:0;pointer-events:none;
-    transition:height .25s ease;
+    content:'';position:absolute;top:14px;left:50%;
+    width:60px;height:60px;
+    transform:translateX(-50%) scale(1);transform-origin:top center;
+    background:radial-gradient(circle at 50% 35%,rgba(var(--accent-rgb),0.32) 0%,transparent 70%);
+    z-index:0;pointer-events:none;border-radius:50%;
+    transition:transform .22s ease-out;
+    will-change:transform;
   }
-  body.sidebar-expanded .brand-logo-fallback{padding:28px 10px 18px}
-  body.sidebar-expanded .brand-logo-fallback::before{height:170px;top:14px;left:10px;right:10px;
-    background:radial-gradient(circle at 50% 35%,rgba(var(--accent-rgb),0.30) 0%,transparent 75%)}
+  body.sidebar-expanded .brand-logo-fallback::before{transform:translateX(-50%) scale(3.3)}
   #brand-logo{
     position:relative;z-index:1;
-    width:48px;height:48px;max-width:100%;
+    width:52px;height:52px;
     object-fit:contain;
     background:transparent;padding:0;border-radius:0;
-    transition:width .22s ease-out, height .22s ease-out;
+    transform:scale(1);transform-origin:top center;
+    transition:transform .22s ease-out;
+    will-change:transform;
   }
-  body.sidebar-expanded #brand-logo{width:170px;height:170px}
+  body.sidebar-expanded #brand-logo{transform:scale(2.85)}
   body.light-mode #brand-logo{
     background:#fff;
     box-shadow:0 4px 16px rgba(var(--accent-rgb),0.12),0 1px 3px rgba(0,0,0,0.08);
@@ -800,14 +805,13 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
   body.sidebar-expanded .brand-nm{opacity:1;transition-delay:.08s}
   body.sidebar-expanded .brand-sub{opacity:.92;transition-delay:.08s}
   .nav-sep{display:none}
+  /* Geometria 100% estática — só opacity da .tip transiciona */
   .nav-ico{
-    width:48px;height:44px;border-radius:12px;
-    justify-content:center;padding:0 14px;gap:12px;flex-shrink:0;
-    border-left:none;
-    transition:width .22s ease-out, background .15s ease, color .15s ease;
-  }
-  body.sidebar-expanded .nav-ico{
-    width:100%;justify-content:flex-start;
+    width:100%;height:44px;border-radius:12px;
+    display:flex;align-items:center;
+    justify-content:flex-start;padding:0 14px;gap:12px;flex-shrink:0;
+    border-left:none;overflow:hidden;
+    transition:background .15s ease, color .15s ease;
   }
   .nav-ico:hover{transform:none}
   .nav-ico svg{flex-shrink:0;width:20px;height:20px}
@@ -815,9 +819,10 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
     position:static;opacity:0;background:none;color:inherit;
     font-size:12.5px;font-weight:500;transform:none;pointer-events:none;white-space:nowrap;
     padding:0;border-radius:0;box-shadow:none;
+    flex:0 1 auto;min-width:0;
     transition:opacity .18s ease-out;
   }
-  body.sidebar-expanded .nav-ico .tip{opacity:1;transition-delay:.08s}
+  body.sidebar-expanded .nav-ico .tip{opacity:1;transition-delay:.06s}
   /* Active state — pill em vez de border-left para combinar com colapsada */
   .nav-ico.active{
     background:linear-gradient(135deg,rgba(var(--accent-rgb),0.28),rgba(var(--accent-rgb),0.14));
@@ -837,10 +842,8 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
   }
   .nav-section-label:first-of-type{border-top:none;padding-top:6px}
   body.sidebar-expanded .nav-section-label{opacity:1;transition-delay:.08s}
-  .split-wrap{width:100%;display:flex;justify-content:center}
-  body.sidebar-expanded .split-wrap{justify-content:stretch}
-  .split-wrap .nav-ico{width:48px}
-  body.sidebar-expanded .split-wrap .nav-ico{width:100%}
+  .split-wrap{width:100%;display:flex;justify-content:stretch}
+  .split-wrap .nav-ico{width:100%}
   .split-menu{left:72px;top:auto;bottom:auto;right:auto}
   body.sidebar-expanded .split-menu{left:228px}
   .spacer{flex:1;min-height:20px}
@@ -870,9 +873,7 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
     font-size:10px;font-weight:600;margin:0;
   }
   .btn-auto-cep{display:none}
-  .btn-dark{width:48px;margin:0 auto;padding:6px;border-radius:10px;justify-content:center;border:1px solid var(--mica-border);height:40px;
-    transition:width .22s ease-out}
-  body.sidebar-expanded .btn-dark{width:calc(100% - 16px);margin:0 8px}
+  .btn-dark{width:calc(100% - 16px);margin:0 8px;padding:6px;border-radius:10px;justify-content:center;align-items:center;border:1px solid var(--mica-border);height:40px;display:flex}
   .fbar-wrap{margin-left:64px;top:0;padding-right:200px;transition:margin-left .22s ease-out}
   .main{margin-left:64px;transition:margin-left .22s ease-out}
   body.sidebar-expanded .main,
@@ -2383,18 +2384,17 @@ function toggleDark(){
   if(saved==='light'){toggleDark();}
 })();
 
-// Sidebar expand/collapse com debounce (desktop ≥769px)
+// Sidebar expand/collapse (desktop ≥769px) — pequena guarda contra flicker
 (function initSidebarHover(){
   if(!window.matchMedia||!window.matchMedia('(min-width:769px)').matches)return;
   const tb=document.querySelector('.topbar');if(!tb)return;
-  let enterTm=null,leaveTm=null;
-  tb.addEventListener('mouseenter',()=>{
+  let leaveTm=null;
+  tb.addEventListener('pointerenter',()=>{
     clearTimeout(leaveTm);
-    enterTm=setTimeout(()=>document.body.classList.add('sidebar-expanded'),80);
+    document.body.classList.add('sidebar-expanded');
   });
-  tb.addEventListener('mouseleave',()=>{
-    clearTimeout(enterTm);
-    leaveTm=setTimeout(()=>document.body.classList.remove('sidebar-expanded'),120);
+  tb.addEventListener('pointerleave',()=>{
+    leaveTm=setTimeout(()=>document.body.classList.remove('sidebar-expanded'),60);
   });
 })();
 
