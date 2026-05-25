@@ -20,10 +20,10 @@
   --glass-bg:rgba(var(--accent-rgb),0.08);--glass-border:rgba(var(--accent-rgb),0.20);
   --text-primary:#ffffff;--text-secondary:#aeaeb2;--text-muted:#8e8e93;
   --radius-sm:8px;--radius-md:10px;--radius-lg:14px;
-  /* Chrome tingido com a cor da marca (adaptada para legibilidade) */
-  --topbar-bg:linear-gradient(180deg, rgba(var(--accent-rgb),0.22) 0%, rgba(var(--accent-rgb),0.12) 100%), rgba(14,14,16,0.85);
-  --chrome-fbar-bg:linear-gradient(180deg, rgba(var(--accent-rgb),0.14), rgba(var(--accent-rgb),0.06)), rgba(14,14,16,0.88);
-  --chrome-border:rgba(var(--accent-rgb),0.30);
+  /* Dark mode: chrome neutro preto (sem tint da cor escolhida) */
+  --topbar-bg:rgba(14,14,16,0.92);
+  --chrome-fbar-bg:rgba(14,14,16,0.90);
+  --chrome-border:rgba(255,255,255,0.10);
   --btn-shadow:0 2px 10px rgba(var(--accent-rgb),0.3);
 }
 body.light-mode{
@@ -103,6 +103,9 @@ body.light-mode .nav-ico.active{background:linear-gradient(90deg,rgba(var(--acce
 .nav-ico:hover .tip{opacity:1}
 .spacer{flex:1}
 .auth-info{font-size:10px;opacity:.6;white-space:nowrap;font-family:'Inter',sans-serif}
+.auth-corner{position:fixed;top:10px;right:14px;z-index:350;display:flex;align-items:center;gap:8px;pointer-events:none}
+.auth-corner > *{pointer-events:auto}
+@media (max-width:768px){.auth-corner{top:8px;right:8px}}
 .btn-auth{background:rgba(var(--accent-rgb),0.12);border:1px solid rgba(var(--accent-rgb),0.35);color:var(--accent);
   padding:5px 12px;border-radius:7px;font-size:11px;cursor:pointer;white-space:nowrap;font-weight:600;transition:.18s;
   box-shadow:0 1px 4px rgba(0,0,0,0.2)}
@@ -659,7 +662,7 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
   .nav-sep{margin:0 2px}
   .nav-ico{width:32px;height:32px;flex-shrink:0}
   .nav-ico .tip{display:none}
-  .auth-info{display:none}
+  .auth-corner .auth-info{font-size:9px;padding:3px 7px}
   .btn-auth{padding:3px 8px;font-size:10px}
   .btn-dark{width:28px;height:28px}
   .spacer{flex:0 0 4px}
@@ -757,17 +760,21 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
     z-index:0;pointer-events:none;
     transition:height .25s ease;
   }
-  .topbar:hover .brand-logo-fallback{padding:24px 8px 20px}
-  .topbar:hover .brand-logo-fallback::before{height:84px}
+  .topbar:hover .brand-logo-fallback{padding:28px 10px 18px}
+  .topbar:hover .brand-logo-fallback::before{height:170px;top:14px;left:10px;right:10px;
+    background:radial-gradient(circle at 50% 35%,rgba(var(--accent-rgb),0.30) 0%,transparent 75%)}
   #brand-logo{
     position:relative;z-index:1;
     width:48px;height:48px;max-width:100%;
     object-fit:contain;border-radius:12px;
     background:rgba(255,255,255,0.96);padding:6px;
     box-shadow:0 4px 16px rgba(0,0,0,0.32),0 1px 3px rgba(var(--accent-rgb),0.4);
-    transition:width .25s ease, height .25s ease, transform .25s ease, box-shadow .25s ease;
+    transition:width .25s ease, height .25s ease, padding .25s ease, border-radius .25s ease, box-shadow .25s ease;
   }
-  .topbar:hover #brand-logo{width:84px;height:84px;padding:8px;border-radius:14px}
+  .topbar:hover #brand-logo{
+    width:170px;height:170px;padding:14px;border-radius:22px;
+    box-shadow:0 8px 28px rgba(0,0,0,0.40),0 2px 6px rgba(var(--accent-rgb),0.5);
+  }
   body.light-mode #brand-logo{
     background:#fff;
     box-shadow:0 4px 16px rgba(var(--accent-rgb),0.12),0 1px 3px rgba(0,0,0,0.08);
@@ -856,29 +863,29 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
     border-top:1px solid var(--mica-border);
   }
   .nav-section-label:first-of-type{border-top:none;padding-top:6px}
-  /* Move auth status to fixed top-right corner */
-  .auth-info{
-    position:fixed;top:12px;right:16px;z-index:150;
-    display:flex;align-items:center;gap:6px;
+  /* Auth corner — quando montado via .auth-corner; mantém visual original */
+  .auth-corner .auth-info{
     font-size:10px;font-weight:600;
     background:rgba(var(--accent-rgb),0.08);
     border:1px solid var(--mica-border);
     padding:5px 10px;border-radius:20px;
     backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
     opacity:.85;letter-spacing:.02em;
+    display:inline-flex;align-items:center;gap:6px;
   }
-  body.light-mode .auth-info{background:rgba(255,255,255,0.92)}
-  .btn-auth{
-    position:fixed;top:12px;right:170px;z-index:150;
-    width:auto;margin:0;padding:5px 14px;text-align:center;border-radius:18px;
-    font-size:10px;font-weight:600;
+  body.light-mode .auth-corner .auth-info{background:rgba(255,255,255,0.92)}
+  .auth-corner .btn-auth{
+    padding:5px 14px;border-radius:18px;
+    font-size:10px;font-weight:600;margin:0;
   }
   .btn-auto-cep{display:none}
   .btn-dark{width:48px;margin:0 auto;padding:6px;border-radius:10px;justify-content:center;border:1px solid var(--mica-border);height:40px;
     transition:width .25s ease, margin .25s ease, padding .25s ease, border-radius .25s ease}
   .topbar:hover .btn-dark{width:calc(100% - 16px);margin:0 8px;padding:6px 10px;border-radius:10px}
-  .fbar-wrap{margin-left:64px;top:0;padding-right:200px}
-  .main{margin-left:64px}
+  .fbar-wrap{margin-left:64px;top:0;padding-right:200px;transition:margin-left .25s cubic-bezier(.4,0,.2,1)}
+  .main{margin-left:64px;transition:margin-left .25s cubic-bezier(.4,0,.2,1)}
+  body:has(.topbar:hover) .main,
+  body:has(.topbar:hover) .fbar-wrap{margin-left:220px}
   .overlay,.drawer{z-index:400}
 }
 
@@ -1165,10 +1172,13 @@ body.light-mode .ficha-single-cbox{border-color:rgba(0,0,0,0.12);background:rgba
     </div>
   </div>
   <div class="spacer"></div>
-  <span class="auth-info" id="auth-ind">● Não autenticado</span>
-  <button class="btn-auth" id="btn-auth" onclick="doAuth()" style="margin-left:8px">Entrar</button>
-  <button id="btn-auto-cep" onclick="batchUpdateCeps()" style="margin-left:8px; padding:4px 8px; border-radius:6px; border:1px solid var(--mica-border); background:var(--mica-surface); color:var(--text-primary); cursor:pointer; font-size:12px;" title="Buscar CEPs faltantes nos arquivos TXT e salvar na planilha">🔄 Auto-CEPs</button>
   <button class="btn-dark" id="btn-dark" onclick="toggleDark()" title="Alternar tema">🌙</button>
+</div>
+
+<!-- Auth status flutuante no canto superior direito (fora da sidebar) -->
+<div class="auth-corner" id="auth-corner">
+  <span class="auth-info" id="auth-ind">● Não autenticado</span>
+  <button class="btn-auth" id="btn-auth" onclick="doAuth()">Entrar</button>
 </div>
 
 <!-- FILTER BAR (Airtable-style) -->
@@ -7789,7 +7799,17 @@ async function _uploadFotoParaDrive(file, nome, folderId, barId){
     </div>
     
     <hr style="border:none;border-top:1px solid var(--mica-border-light);margin-bottom:16px">
-    
+
+    <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px">Manutenção: CEPs dos endereços</div>
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--mica-border);border-radius:8px;background:var(--mica-surface);margin-bottom:18px">
+      <div style="flex:1;font-size:11px;color:var(--text-secondary);line-height:1.5">
+        Busca CEPs faltantes nos arquivos TXT das OS e salva direto na planilha. Use após cadastrar a empresa ou se notar endereços sem CEP.
+      </div>
+      <button id="btn-auto-cep" onclick="batchUpdateCeps()" style="padding:8px 14px;border-radius:7px;border:1px solid rgba(var(--accent-rgb),0.4);background:rgba(var(--accent-rgb),0.12);color:var(--accent);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap" title="Buscar CEPs faltantes nos arquivos TXT e salvar na planilha">🔄 Rodar Auto-CEPs</button>
+    </div>
+
+    <hr style="border:none;border-top:1px solid var(--mica-border-light);margin-bottom:16px">
+
     <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px">WhatsApp: Vistoria de Avaliação</div>
     <textarea id="cfg-msg-av" rows="5" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--mica-border);background:var(--mica-surface);color:var(--text-primary);font-size:11px;margin-bottom:4px;resize:vertical;box-sizing:border-box"></textarea>
     <div style="font-size:10px;color:var(--text-muted);margin-bottom:16px">Chaves disponíveis: <b>{{saudacao}}</b>, <b>{{osNum}}</b>, <b>{{endereco}}</b>, <b>{{data}}</b>, <b>{{hora}}</b>, <b>{{resp}}</b></div>
