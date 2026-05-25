@@ -1848,7 +1848,7 @@ let MUN={};   // {municipio:{v:desloc,polo:'...'}}
 let MUNE={};  // {municipio: val_km} — gerado automaticamente de MUN
 let SUBP=[];  // [{nm,d,ic,role}] — dinâmico, definido no setup passo 4
 let PDF_BASE_ID='';
-let CONFIG_USER={emp:'',resp:'',crea:'',tel:'',logo:'',msg_av:'',msg_med:''};
+let CONFIG_USER={emp:'',resp:'',crea:'',tel:'',logo:'',msg_av:'',msg_med:'',txt_name_tpl:'convocacao.txt',txt_folder_dest:'root'};
 
 const STCFG={'OS Concluída':{cls:'st-concluida',bg:'#16a34a',lbl:'Concluída'},'OS Cancelada':{cls:'st-cancelada',bg:'#dc2626',lbl:'Cancelada'},'OS em Andamento sem vistoria':{cls:'st-semvist',bg:'#475569',lbl:'Sem vistoria'},'Sem vistoria - não agendado':{cls:'st-semvist-nao-agend',bg:'#64748b',lbl:'S/ vist. - não agend.'},'Sem vistoria - agendado':{cls:'st-semvist-agend',bg:'#0ea5e9',lbl:'S/ vist. - agendado'},'OS não Vistoriada com PEPT':{cls:'st-pept-n',bg:'#2563eb',lbl:'S/ vist. c/ PEPT'},'OS Vistoriada com PEPT':{cls:'st-pept-v',bg:'#ea580c',lbl:'Vist. c/ PEPT'},'OS Vistoriada':{cls:'st-vistoriada',bg:'#a16207',lbl:'Vistoriada'},'OS em Revisão':{cls:'st-revisao',bg:'#9333ea',lbl:'Em revisão'},'OS em Andamento':{cls:'st-andamento',bg:'#475569',lbl:'Em andamento'}};
 let CALENDAR_FILTERS={};
@@ -1918,7 +1918,9 @@ function setupLoader(){
       emp:c.emp||'',resp:c.resp||'',crea:c.crea||'',
       tel:c.tel||'',logo:c.logo||'',
       msg_av:c.msg_av||MSG_AV_DEFAULT,msg_med:c.msg_med||MSG_MED_DEFAULT,
-      colorRows:c.colorRows!==undefined?c.colorRows:true
+      colorRows:c.colorRows!==undefined?c.colorRows:true,
+      txt_name_tpl:c.txt_name_tpl||'convocacao.txt',
+      txt_folder_dest:c.txt_folder_dest||'root'
     };
     // Visual
     applyBranding(c);
@@ -2018,7 +2020,7 @@ function applyBranding(c){
 // ─── carregarConfig: mantém compatibilidade com modal de config existente ──
 function carregarConfig(){
   const raw=localStorage.getItem(_DCEF_KEY);
-  if(raw){try{const c=JSON.parse(raw);CONFIG_USER={...CONFIG_USER,...{emp:c.emp,resp:c.resp,crea:c.crea,msg_av:c.msg_av,msg_med:c.msg_med}};}catch(e){}}
+  if(raw){try{const c=JSON.parse(raw);CONFIG_USER={...CONFIG_USER,...{emp:c.emp,resp:c.resp,crea:c.crea,msg_av:c.msg_av,msg_med:c.msg_med,txt_name_tpl:c.txt_name_tpl||'convocacao.txt',txt_folder_dest:c.txt_folder_dest||'root'}};}catch(e){}}
 }
 function salvarConfig(){
   CONFIG_USER.emp=document.getElementById('cfg-emp').value;
@@ -2027,6 +2029,8 @@ function salvarConfig(){
   CONFIG_USER.msg_av=document.getElementById('cfg-msg-av').value;
   CONFIG_USER.msg_med=document.getElementById('cfg-msg-med').value;
   CONFIG_USER.colorRows=document.getElementById('cfg-color-rows').checked;
+  CONFIG_USER.txt_name_tpl=document.getElementById('cfg-txt-name-tpl').value.trim()||'convocacao.txt';
+  CONFIG_USER.txt_folder_dest=document.getElementById('cfg-txt-folder-dest').value;
   const cor=document.getElementById('cfg-cor-txt').value.trim()||'#00478E';
   const corEsc=document.getElementById('cfg-cor-esc-txt').value.trim()||'#03347a';
   // Persiste junto com o resto do config
@@ -2040,6 +2044,8 @@ function salvarConfig(){
       c.msg_av=CONFIG_USER.msg_av;
       c.msg_med=CONFIG_USER.msg_med;
       c.colorRows=CONFIG_USER.colorRows;
+      c.txt_name_tpl=CONFIG_USER.txt_name_tpl;
+      c.txt_folder_dest=CONFIG_USER.txt_folder_dest;
       c.cor=cor;
       c.corEsc=corEsc;
       localStorage.setItem(_DCEF_KEY,JSON.stringify(c));
@@ -2057,6 +2063,8 @@ function abrirConfig(){
   document.getElementById('cfg-msg-av').value=CONFIG_USER.msg_av;
   document.getElementById('cfg-msg-med').value=CONFIG_USER.msg_med;
   document.getElementById('cfg-color-rows').checked=CONFIG_USER.colorRows!==false;
+  document.getElementById('cfg-txt-name-tpl').value=CONFIG_USER.txt_name_tpl||'convocacao.txt';
+  document.getElementById('cfg-txt-folder-dest').value=CONFIG_USER.txt_folder_dest||'root';
   
   const raw=localStorage.getItem(_DCEF_KEY);
   let cor='#00478E', corEsc='#03347a';
@@ -3897,11 +3905,33 @@ async function criarPastasDrive(item,atv,osp,mes){
     const subNomes=(SUBP && SUBP.length) ? SUBP.map(s=>s.nm) : ['DOCUMENTO','FICHA DE PESQUISA','PRODUTO','RELATORIO FOTOGRAFICO'];
     const subfolders=await Promise.all(subNomes.map(nm=>gapi.client.drive.files.create({fields:'id',resource:{name:nm,mimeType:'application/vnd.google-apps.folder',parents:[osFolderId]}})));
     
-    // Salvar arquivo .txt diretamente na pasta da OS
+    // Salvar arquivo .txt diretamente na pasta da OS ou na pasta de convocação
     if(TXT_FILE_CONVOCACAO){
+      let fileName = CONFIG_USER.txt_name_tpl || 'convocacao.txt';
+      const osLimpo = String(osp || '').replace(/[\/\.]/g, '');
+      const osSemBarra = String(osp || '').replace(/\//g, '');
+      const origName = TXT_FILE_CONVOCACAO.name ? TXT_FILE_CONVOCACAO.name.replace(/\.[^/.]+$/, "") : 'convocacao';
+      fileName = fileName
+        .replace(/{nr}/g, item || '')
+        .replace(/{atv}/g, atv || '')
+        .replace(/{os}/g, osLimpo)
+        .replace(/{osb}/g, osSemBarra)
+        .replace(/{original}/g, origName);
+      if (!fileName.toLowerCase().endsWith('.txt')) {
+        fileName += '.txt';
+      }
+
+      let destFolderId = osFolderId;
+      if (CONFIG_USER.txt_folder_dest === 'convocacao') {
+        const targetSubpIndex = (SUBP || []).findIndex(s => s.role === 'txt');
+        if (targetSubpIndex !== -1 && subfolders && subfolders[targetSubpIndex] && subfolders[targetSubpIndex].result) {
+          destFolderId = subfolders[targetSubpIndex].result.id;
+        }
+      }
+
       const metadata = {
-        name: 'convocacao.txt',
-        parents: [osFolderId],
+        name: fileName,
+        parents: [destFolderId],
         mimeType: 'text/plain'
       };
       const initRes = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable', {
@@ -5325,13 +5355,8 @@ async function batchUpdateCeps() {
       if(!r2.result.files || !r2.result.files.length) continue;
       const osFolderId=r2.result.files[0].id;
       
-      const resTxt = await gapi.client.drive.files.list({
-        q: `'${osFolderId}' in parents and name contains '.txt' and trashed=false`,
-        fields: 'files(id)',
-        pageSize: 1
-      });
-      const txts = resTxt.result.files || [];
-      if (!txts.length) continue;
+      const txts = await buscarArquivoTxtNaPasta(osFolderId);
+      if (!txts || !txts.length) continue;
       
       const resp = await fetch(`https://www.googleapis.com/drive/v3/files/${txts[0].id}?alt=media`, {
         headers: { Authorization: `Bearer ${TOKEN}` }
@@ -6131,6 +6156,8 @@ async function setupConcluir(){
     // Mensagens padrão
     msg_av:MSG_AV_DEFAULT,
     msg_med:MSG_MED_DEFAULT,
+    txt_name_tpl: 'convocacao.txt',
+    txt_folder_dest: 'root'
   };
   localStorage.setItem(_DCEF_KEY,JSON.stringify(cfg));
   showToast('✅ Configuração salva! Carregando...');
@@ -7647,6 +7674,25 @@ async function _uploadFotoParaDrive(file, nome, folderId, barId){
       <div style="grid-column:1 / -1; display:flex; align-items:center; gap:8px; margin-top:4px">
         <input type="checkbox" id="cfg-color-rows" style="width:16px; height:16px; cursor:pointer">
         <label for="cfg-color-rows" style="font-size:12px; font-weight:600; color:var(--text-secondary); cursor:pointer">Pintar linhas das OS com as cores dos status</label>
+      </div>
+      <!-- Opções do Arquivo TXT de Convocação -->
+      <div style="grid-column: 1 / -1; margin-top: 8px; border-top: 1px dashed var(--mica-border-light); padding-top: 12px;">
+        <div style="font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px;">📄 Arquivo TXT de Convocação</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div>
+            <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px">Nome do Arquivo Salvo</div>
+            <input id="cfg-txt-name-tpl" type="text" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--mica-border);background:var(--mica-surface);color:var(--text-primary);font-size:12px;box-sizing:border-box" placeholder="Ex: convocacao.txt ou {os}.txt">
+            <div style="font-size:9.5px;color:var(--text-muted);margin-top:4px">Tokens: <b>{os}</b> · <b>{osb}</b> · <b>{nr}</b> · <b>{atv}</b> · <b>{original}</b></div>
+          </div>
+          <div>
+            <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px">Pasta de Destino do TXT</div>
+            <select id="cfg-txt-folder-dest" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--mica-border);background:var(--mica-surface);color:var(--text-primary);font-size:12px;box-sizing:border-box">
+              <option value="root">Pasta Principal da OS</option>
+              <option value="convocacao">Pasta Referente à Convocação (TXT)</option>
+            </select>
+            <div style="font-size:9.5px;color:var(--text-muted);margin-top:4px">Requer subpasta com finalidade "TXT (convocação)"</div>
+          </div>
+        </div>
       </div>
     </div>
     
