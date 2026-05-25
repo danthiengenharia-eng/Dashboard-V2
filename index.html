@@ -722,44 +722,58 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
 
 /* ── DESKTOP SIDEBAR (≥769px) ── */
 @media (min-width:769px){
+  /* Sidebar colapsada (64px) → hover expande para 220px em OVERLAY.
+     Conteúdo principal NÃO se move. Transição: só width da topbar. */
   .topbar{
-    position:fixed;left:0;top:0;bottom:0;width:210px;height:100vh;
+    position:fixed;left:0;top:0;bottom:0;width:64px;height:100vh;
     flex-direction:column;align-items:stretch;
     padding:0 8px 16px;gap:2px;
     border-right:1px solid var(--mica-border);border-bottom:none;
     overflow-y:auto;overflow-x:hidden;
+    z-index:300;
+    transition:width .2s ease-out, box-shadow .2s ease-out;
   }
+  .topbar:hover{
+    width:220px;
+    box-shadow:8px 0 32px rgba(0,0,0,0.40);
+  }
+  body.light-mode .topbar:hover{box-shadow:8px 0 32px rgba(0,0,0,0.12)}
+
+  /* Logo container — altura fixa, sem animação de tamanho */
   .brand-logo-fallback{
-    padding:24px 8px 20px;border-bottom:1px solid var(--mica-border);
-    margin:0 -8px 16px;flex-shrink:0;display:flex!important;
-    flex-direction:column;align-items:center;gap:10px;
+    padding:14px 8px;border-bottom:1px solid var(--mica-border);
+    margin:0 -8px 12px;flex-shrink:0;display:flex!important;
+    flex-direction:column;align-items:center;gap:6px;
     position:relative;
   }
   .brand-logo-fallback::before{
-    content:'';position:absolute;top:10px;left:14px;right:14px;height:84px;
-    background:radial-gradient(circle at 50% 30%,rgba(var(--accent-rgb),0.18) 0%,transparent 70%);
+    content:'';position:absolute;top:8px;left:50%;width:120px;height:120px;
+    transform:translateX(-50%);
+    background:radial-gradient(circle at 50% 35%,rgba(var(--accent-rgb),0.20) 0%,transparent 65%);
     z-index:0;pointer-events:none;
   }
-  #brand-logo{
+  /* LOGO — ZERO fundo, ZERO padding, ZERO borda, ZERO sombra */
+  #brand-logo,
+  body.light-mode #brand-logo,
+  body #brand-logo{
     position:relative;z-index:1;
-    width:84px;height:84px;max-width:100%;max-height:84px;
-    object-fit:contain;border-radius:14px;
-    background:rgba(255,255,255,0.96);padding:8px;
-    box-shadow:0 4px 16px rgba(0,0,0,0.32),0 1px 3px rgba(var(--accent-rgb),0.4);
-    transition:.25s ease;
+    width:56px;height:56px;max-width:100%;
+    object-fit:contain;
+    background:none!important;background-color:transparent!important;
+    padding:0!important;border:none!important;border-radius:0!important;
+    box-shadow:none!important;
   }
-  body.light-mode #brand-logo{
-    background:#fff;
-    box-shadow:0 4px 16px rgba(var(--accent-rgb),0.12),0 1px 3px rgba(0,0,0,0.08);
-  }
-  #brand-logo:hover{transform:translateY(-2px) scale(1.02);box-shadow:0 8px 24px rgba(0,0,0,0.4),0 2px 6px rgba(var(--accent-rgb),0.5)}
+  #brand-logo:hover{transform:none;box-shadow:none!important}
+
+  /* Nome / subtítulo — sempre presentes no layout, só opacity transiciona */
   .brand-nm{
     position:relative;z-index:1;
-    font-size:18px!important;font-weight:800;letter-spacing:0.08em!important;
-    text-align:center;line-height:1.1;
+    font-size:16px!important;font-weight:800;letter-spacing:0.06em!important;
+    text-align:center;line-height:1.1;white-space:nowrap;
     background:linear-gradient(135deg,var(--text-primary) 30%,var(--accent) 100%);
     -webkit-background-clip:text;background-clip:text;
     -webkit-text-fill-color:transparent;color:transparent;
+    opacity:0;transition:opacity .15s ease-out;
   }
   body.light-mode .brand-nm{
     background:linear-gradient(135deg,var(--accent-wine) 0%,var(--accent) 100%);
@@ -767,38 +781,54 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
   }
   .brand-sub{
     position:relative;z-index:1;
-    font-size:9.5px;font-weight:700;letter-spacing:0.32em!important;
-    color:var(--accent);text-align:center;opacity:.92;margin-top:-4px;
+    font-size:9px;font-weight:700;letter-spacing:0.28em!important;
+    color:var(--accent);text-align:center;margin-top:-2px;white-space:nowrap;
+    opacity:0;transition:opacity .15s ease-out;
   }
+  .topbar:hover .brand-nm{opacity:1}
+  .topbar:hover .brand-sub{opacity:.92}
+
+  /* Nav items — geometria 100% estática. Icon centra naturalmente em 64px:
+     sidebar 64 - topbar pad 16 - nav-ico pad 28 = 20 (= largura do ícone). */
   .nav-sep{display:none}
   .nav-ico{
-    width:100%;height:40px;border-radius:8px;
-    justify-content:flex-start;padding:0 10px;gap:10px;flex-shrink:0;
+    width:100%;height:42px;border-radius:10px;
+    display:flex;align-items:center;
+    justify-content:flex-start;padding:0 14px;gap:12px;flex-shrink:0;
+    overflow:hidden;position:relative;
   }
-  .nav-ico svg{flex-shrink:0}
+  .nav-ico svg{flex-shrink:0;width:20px;height:20px}
+  /* Label — posição absoluta para não afetar layout do flex (não empurra o ícone) */
   .nav-ico .tip{
-    position:static;opacity:1;background:none;color:inherit;
-    font-size:12px;transform:none;pointer-events:none;white-space:nowrap;
-    overflow:hidden;text-overflow:ellipsis;padding:0;border-radius:0;box-shadow:none;
+    position:absolute;left:46px;top:50%;transform:translateY(-50%);
+    background:none;color:inherit;
+    font-size:12.5px;font-weight:500;pointer-events:none;white-space:nowrap;
+    padding:0;border-radius:0;box-shadow:none;
+    opacity:0;transition:opacity .15s ease-out;
   }
-  .nav-ico:hover .tip{opacity:1}
-  .split-wrap{width:100%}
+  .topbar:hover .nav-ico .tip{opacity:1}
+
+  .split-wrap{width:100%;margin-top:auto;padding-top:14px;border-top:1px solid var(--mica-border)}
   .split-wrap .nav-ico{width:100%}
-  .split-menu{left:210px;top:auto;bottom:auto;right:auto}
+  .split-menu{left:72px;top:auto;bottom:auto;right:auto}
+  .topbar:hover .split-menu{left:228px}
   .spacer{flex:1;min-height:20px}
-  /* Add subtle group separator before split button */
-  .split-wrap{margin-top:auto;padding-top:14px;border-top:1px solid var(--mica-border);width:100%}
-  /* Section header for "Ferramentas" grouping */
+
+  /* Section header — só opacity transiciona, espaço reservado sempre */
   .nav-section-label{
     font-size:9px;font-weight:700;letter-spacing:0.15em;
     color:var(--text-muted);text-transform:uppercase;
     padding:14px 12px 6px;margin-top:4px;
     border-top:1px solid var(--mica-border);
+    white-space:nowrap;overflow:hidden;
+    opacity:0;transition:opacity .15s ease-out;
   }
   .nav-section-label:first-of-type{border-top:none;padding-top:6px}
-  /* Move auth status to fixed top-right corner */
+  .topbar:hover .nav-section-label{opacity:1}
+
+  /* Auth no canto superior direito (fora da sidebar) */
   .auth-info{
-    position:fixed;top:12px;right:16px;z-index:150;
+    position:fixed;top:12px;right:16px;z-index:350;
     display:flex;align-items:center;gap:6px;
     font-size:10px;font-weight:600;
     background:rgba(var(--accent-rgb),0.08);
@@ -809,14 +839,19 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
   }
   body.light-mode .auth-info{background:rgba(255,255,255,0.92)}
   .btn-auth{
-    position:fixed;top:12px;right:170px;z-index:150;
+    position:fixed;top:12px;right:170px;z-index:350;
     width:auto;margin:0;padding:5px 14px;text-align:center;border-radius:18px;
     font-size:10px;font-weight:600;
   }
   .btn-auto-cep{display:none}
-  .btn-dark{width:calc(100% - 16px);margin:0 8px;padding:6px 10px;border-radius:7px;justify-content:center;border:1px solid var(--mica-border)}
-  .fbar-wrap{margin-left:210px;top:0;padding-right:200px}
-  .main{margin-left:210px}
+
+  /* Dark mode toggle — tamanho fixo, centralizado */
+  .btn-dark{width:42px;height:42px;margin:0 auto;padding:0;border-radius:10px;
+    display:flex;align-items:center;justify-content:center;border:1px solid var(--mica-border)}
+
+  /* Overlay: conteúdo NÃO se move (margin fixa em 64px = largura colapsada) */
+  .fbar-wrap{margin-left:64px;top:0;padding-right:200px}
+  .main{margin-left:64px}
   .overlay,.drawer{z-index:400}
 }
 
@@ -922,7 +957,7 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
 .setup-preview-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;margin-left:6px;font-weight:600}
 .setup-preview-badge.ok{background:rgba(34,197,94,.15);color:#16a34a;border:1px solid rgba(34,197,94,.3)}
 .setup-preview-badge.warn{background:rgba(239,68,68,.1);color:#dc2626;border:1px solid rgba(239,68,68,.3)}
-.setup-logo-preview{width:80px;height:80px;object-fit:contain;border-radius:8px;border:1px solid var(--mica-border);background:var(--mica-surface);display:none}
+.setup-logo-preview{width:80px;height:80px;object-fit:contain;border-radius:0;border:none;background:none;display:none}
 .setup-logo-wrap{display:flex;gap:12px;align-items:center}
 .setup-especial-rule{background:rgba(var(--accent-rgb),.08);border:1px solid rgba(var(--accent-rgb),.2);border-radius:8px;padding:10px 12px;margin-top:10px;font-size:12px;display:flex;align-items:center;gap:8px}
 .setup-especial-rule input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent)}
@@ -7372,7 +7407,7 @@ function _fichaHtmlContent(r, dados){
   <!-- Cabeçalho -->
   <div style="background:${corHex};color:#fff;padding:14px 18px;border-radius:6px 6px 0 0;display:flex;justify-content:space-between;align-items:center;gap:12px">
     <div style="display:flex;align-items:center;gap:12px">
-      ${CONFIG_USER.logo?`<img src="${CONFIG_USER.logo}" style="height:40px;max-width:80px;object-fit:contain;background:#fff;border-radius:4px;padding:2px" alt="logo">`:'' }
+      ${CONFIG_USER.logo?`<img src="${CONFIG_USER.logo}" style="height:40px;max-width:80px;object-fit:contain;background:none;padding:0" alt="logo">`:'' }
       <div>
         <div style="font-size:16px;font-weight:700;letter-spacing:.03em">FICHA DE VISTORIA IMOBILIÁRIA</div>
         <div style="font-size:10px;opacity:.8;margin-top:2px">Avaliação para fins de Crédito Imobiliário — CEF · ${_esc(tipLabel)}</div>
