@@ -164,7 +164,7 @@ body.light-mode .fbar-wrap{background:var(--chrome-fbar-bg)}
 .main.split-mode>[id^="tab-"] .agenda-layout{grid-template-columns:1fr}
 body.split-active .nav-ico#btn-split{background:rgba(var(--accent-rgb),0.18);border-left:2px solid var(--accent);color:#fff}
 
-.split-wrap{position:relative}
+.split-wrap{position:relative;display:flex;align-items:center}
 .split-menu{display:none;position:absolute;top:calc(100% + 6px);right:0;background:var(--mica-bg);border:1px solid var(--mica-border-light);border-radius:8px;padding:6px;min-width:200px;z-index:300;box-shadow:0 6px 24px rgba(0,0,0,.4);flex-direction:column;gap:1px}
 body.light-mode .split-menu{background:#fff;box-shadow:0 6px 24px rgba(0,0,0,.18)}
 .split-menu.open{display:flex}
@@ -4264,10 +4264,13 @@ function getSelecionadas(){return ALL.filter(r=>ROTA_SEL.has(r.item)&&r.end);}
 // Address normalization for geocoding
 function normalizarEndereco(r){
   let end=r.end||'';
-  // Read only until the first comma (ignore number and complements)
   const parts = end.split(',');
-  if (parts.length > 0) {
-    end = parts[0].trim();
+  if(parts.length>=2){
+    const num=parts[1].trim();
+    // Mantém número do imóvel se presente (melhora assertividade do geocoding)
+    end=/^\d/.test(num)?`${parts[0].trim()}, ${num}`:parts[0].trim();
+  }else if(parts.length>0){
+    end=parts[0].trim();
   }
   const mun=nMun(r.mun);
   return `${end}, ${r.bairro?r.bairro+', ':''}${mun}, RJ, Brasil`;
@@ -4325,12 +4328,19 @@ async function _gerarRotaMaps(mapBody){
 
   const GEO_KEY='e3219b407e77401692c069c3f9eb4f0d';
   const geocode=async(addr)=>{
+    // Tenta Geoapify com filtro BR e bias para RJ
     try{
-      const r=await fetch(`https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(addr)}&lang=pt&limit=1&apiKey=${GEO_KEY}`);
+      const r=await fetch(`https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(addr)}&lang=pt&limit=1&filter=countrycode:br&bias=proximity:-43.1729,-22.9068&apiKey=${GEO_KEY}`);
       const d=await r.json();
       if(d.features&&d.features.length){const[lon,lat]=d.features[0].geometry.coordinates;return[lat,lon];}
-      return null;
-    }catch{return null;}
+    }catch{}
+    // Fallback: Nominatim (OpenStreetMap) — gratuito, boa cobertura do Brasil
+    try{
+      const r=await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(addr)}&format=json&countrycodes=br&limit=1&accept-language=pt-BR`);
+      const d=await r.json();
+      if(d&&d.length)return[parseFloat(d[0].lat),parseFloat(d[0].lon)];
+    }catch{}
+    return null;
   };
 
   // Fase 1: geocodificar e mostrar marcadores arrastáveis
