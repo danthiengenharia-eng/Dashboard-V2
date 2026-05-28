@@ -102,20 +102,51 @@ body.light-mode .nav-ico.active{background:linear-gradient(90deg,rgba(var(--acce
   font-size:10px;padding:2px 7px;border-radius:4px;white-space:nowrap;pointer-events:none;opacity:0;transition:.15s;z-index:400}
 .nav-ico:hover .tip{opacity:1}
 .spacer{flex:1}
-.auth-info{font-size:10px;white-space:nowrap;font-family:'Inter',sans-serif}
-/* Auth-corner: integrado na chrome (sidebar/topbar), sem flutuar sobre conteúdo */
-.auth-corner{display:inline-flex;align-items:center;gap:6px;flex-shrink:0}
-.auth-corner .auth-info{
-  font-size:10px;font-weight:600;
-  background:rgba(var(--accent-rgb),0.10);
-  border:1px solid var(--chrome-border);
-  padding:5px 10px;border-radius:20px;
-  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
-  letter-spacing:.02em;display:inline-flex;align-items:center;gap:6px;
-  white-space:nowrap;max-width:160px;overflow:hidden;text-overflow:ellipsis;
+/* ── AUTH MINIMAL — bolinha colorida; Sair fica em popover sob clique ── */
+.auth-corner{position:relative;display:inline-flex;align-items:center;flex-shrink:0}
+.auth-dot-btn{
+  background:transparent;border:none;padding:6px;margin:0;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;border-radius:50%;
+  transition:background .15s;
 }
-body.light-mode .auth-corner .auth-info{background:rgba(255,255,255,0.92)}
-.auth-corner .btn-auth{padding:5px 12px;border-radius:18px;font-size:10px;font-weight:600;margin:0}
+.auth-dot-btn:hover{background:rgba(255,255,255,.08)}
+body.light-mode .auth-dot-btn:hover{background:rgba(0,0,0,.06)}
+.auth-info{
+  /* Texto vira bolinha visual: oculta texto, mostra círculo colorido */
+  font-size:0 !important;line-height:0;
+  width:10px;height:10px;border-radius:50%;
+  background:#6b7280;  /* cinza = não autenticado */
+  display:inline-block;flex-shrink:0;
+  padding:0;border:1px solid rgba(255,255,255,.25);
+  overflow:hidden;white-space:nowrap;
+  transition:background .2s, box-shadow .2s;
+}
+body.light-mode .auth-info{border-color:rgba(0,0,0,.18)}
+/* Quando autenticado: bolinha verde com glow */
+.auth-info.auth-authenticated{
+  background:#4ade80;
+  box-shadow:0 0 8px rgba(74,222,128,.55);
+}
+/* Popover do auth — sai sob clique */
+.auth-popover{
+  display:none;position:absolute;
+  top:calc(100% + 6px);right:0;
+  background:var(--mica-bg);border:1px solid var(--mica-border-light);
+  border-radius:8px;padding:8px;min-width:150px;
+  z-index:500;box-shadow:0 6px 24px rgba(0,0,0,.45);
+  flex-direction:column;gap:6px;
+}
+body.light-mode .auth-popover{background:#fff;box-shadow:0 6px 24px rgba(0,0,0,.18)}
+.auth-popover.open{display:flex}
+.auth-popover-label{
+  font-size:11px;color:var(--text-secondary);
+  padding:4px 6px 6px;border-bottom:1px solid var(--mica-border);
+  font-weight:500;text-align:center;
+}
+.auth-popover .btn-auth{
+  width:100%;padding:6px 12px;font-size:11px;font-weight:600;
+  border-radius:6px;margin:0;
+}
 .btn-auth{background:rgba(var(--accent-rgb),0.12);border:1px solid rgba(var(--accent-rgb),0.35);color:var(--accent);
   padding:5px 12px;border-radius:7px;font-size:11px;cursor:pointer;white-space:nowrap;font-weight:600;transition:.18s;
   box-shadow:0 1px 4px rgba(0,0,0,0.2)}
@@ -702,11 +733,8 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
   .nav-sep{margin:0 2px}
   .nav-ico{width:32px;height:32px;flex-shrink:0}
   .nav-ico .tip{display:none}
-  /* Auth-corner já está inline na topbar; só compactar */
-  .auth-corner{gap:4px}
-  .auth-corner .auth-info{font-size:9px;padding:3px 8px;max-width:120px}
-  .auth-corner .btn-auth{padding:3px 9px;font-size:10px}
-  .btn-auth{padding:3px 8px;font-size:10px}
+  /* Auth-corner já é bolinha minimal — só compacta o botão do popover */
+  .auth-popover .btn-auth{padding:5px 12px;font-size:11px}
   .btn-dark{width:28px;height:28px}
   .spacer{flex:0 0 4px}
 
@@ -805,23 +833,18 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
   #btn-split{display:none !important}
   .brand-logo-fallback,.brand-logo{display:none !important}
 
-  /* Auth-corner: tira do bottom-nav e flutua no canto superior direito (em zona sem conteúdo) */
-  .auth-corner{
-    position:fixed !important;
-    top:6px;right:6px;
-    z-index:250;  /* abaixo de drawer (301), prev-overlay (500), modals (1000) */
-    flex-direction:row;
-    width:auto;padding:0;margin:0;border:none;gap:4px;
-    align-items:center;
+  /* Auth: bolinha fica inline no bottom-nav (não flutua sobre conteúdo) */
+  .auth-corner{position:static;margin:0;padding:0}
+  /* Popover sai PRA CIMA do dot (porque dot está no bottom-nav, embaixo da tela) */
+  .auth-popover{
+    top:auto;bottom:calc(100% + 6px);right:0;
   }
-  .auth-corner .auth-info{font-size:9px;padding:3px 8px;max-width:120px}
-  .auth-corner .btn-auth{padding:3px 9px;font-size:9px}
   /* Btn-dark: tira do bottom-nav (acesso via Config) */
   #btn-dark{display:none !important}
-  /* Espaço: topo para auth pill, base para bottom nav */
-  .main{padding-top:38px !important;padding-bottom:calc(68px + env(safe-area-inset-bottom)) !important}
+  /* Sem mais padding-top reservado (auth não flutua mais) */
+  .main{padding-top:.45rem !important;padding-bottom:calc(68px + env(safe-area-inset-bottom)) !important}
   .fbar-wrap{top:0 !important;position:sticky !important}
-  .twrap{height:calc(100vh - 115px - env(safe-area-inset-bottom))}
+  .twrap{height:calc(100vh - 78px - env(safe-area-inset-bottom))}
 
   /* Tabela: oculta colunas menos úteis em telas pequenas */
   table thead th:nth-child(4),   /* Bairro */
@@ -1008,21 +1031,10 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
   .nav-section-label:first-of-type{border-top:none;padding-top:6px}
   .topbar:hover .nav-section-label{opacity:1}
 
-  /* Auth integrado no fim da sidebar (coluna vertical) */
-  .auth-corner{
-    flex-direction:column;width:100%;
-    padding:10px 6px 6px;margin-top:auto;
-    border-top:1px solid var(--mica-border);
-    gap:6px;align-items:stretch;flex-shrink:0;
-  }
-  .auth-corner .auth-info{
-    font-size:10px;padding:6px 8px;text-align:center;
-    justify-content:center;width:100%;max-width:100%;
-    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-  }
-  .auth-corner .btn-auth{
-    width:100%;padding:7px 8px;font-size:10px;
-    justify-content:center;display:flex;text-align:center;
+  /* Auth: bolinha centralizada na sidebar; popover sai pra direita */
+  .auth-corner{margin:6px auto 0;align-self:center}
+  .auth-popover{
+    top:auto;bottom:0;right:auto;left:calc(100% + 8px);
   }
   .btn-auto-cep{display:none}
 
@@ -1325,10 +1337,15 @@ body.light-mode .ficha-single-cbox{border-color:rgba(0,0,0,0.12);background:rgba
     </div>
   </div>
   <div class="spacer"></div>
-  <!-- Auth integrado na chrome (sidebar/topbar) — sem mais flutuar sobre conteúdo -->
+  <!-- Auth: bolinha mínima sempre visível; popover com Sair só ao clicar -->
   <div class="auth-corner" id="auth-corner">
-    <span class="auth-info" id="auth-ind">● Não autenticado</span>
-    <button class="btn-auth" id="btn-auth" onclick="doAuth()">Entrar</button>
+    <button class="auth-dot-btn" id="auth-dot-btn" type="button" onclick="toggleAuthMenu(event)" title="Status / Conta" aria-label="Menu de autenticação">
+      <span class="auth-info" id="auth-ind">● Não autenticado</span>
+    </button>
+    <div class="auth-popover" id="auth-popover" role="menu">
+      <div class="auth-popover-label" id="auth-popover-label">Não autenticado</div>
+      <button class="btn-auth" id="btn-auth" onclick="doAuth()">Entrar</button>
+    </div>
   </div>
   <button class="btn-dark" id="btn-dark" onclick="toggleDark()" title="Alternar tema">🌙</button>
 </div>
@@ -2635,11 +2652,41 @@ function initGSI(){
 }
 
 function doAuth(){if(TC)TC.requestAccessToken();else showToast('Aguarde...');}
+function toggleAuthMenu(event){
+  if(event){event.stopPropagation();}
+  const p=document.getElementById('auth-popover');
+  if(p)p.classList.toggle('open');
+}
+// Fecha popover ao clicar fora
+document.addEventListener('click',e=>{
+  const a=document.getElementById('auth-corner');
+  const p=document.getElementById('auth-popover');
+  if(a&&p&&!a.contains(e.target))p.classList.remove('open');
+});
 function setAuthUI(ok){
   const ind=document.getElementById('auth-ind'),btn=document.getElementById('btn-auth');
-  if(ok){ind.textContent='● Autenticado';ind.className='auth-authenticated';btn.textContent='Sair';btn.onclick=()=>{google.accounts.oauth2.revoke(TOKEN);TOKEN=null;AUTH=false;Auth.clear();if(_AUTH_REFRESH_TIMER){clearTimeout(_AUTH_REFRESH_TIMER);_AUTH_REFRESH_TIMER=null;}setAuthUI(false);};
-    const w=document.getElementById('nova-warn');if(w)w.style.display='none';}
-  else{ind.textContent='● Não autenticado';ind.style.color='';btn.textContent='Entrar';btn.onclick=doAuth;}
+  const lbl=document.getElementById('auth-popover-label');
+  if(ok){
+    ind.textContent='● Autenticado';
+    ind.classList.add('auth-authenticated');  // mantém .auth-info — só adiciona a classe de estado
+    if(lbl)lbl.textContent='Autenticado';
+    btn.textContent='Sair';
+    btn.onclick=()=>{
+      google.accounts.oauth2.revoke(TOKEN);TOKEN=null;AUTH=false;Auth.clear();
+      if(_AUTH_REFRESH_TIMER){clearTimeout(_AUTH_REFRESH_TIMER);_AUTH_REFRESH_TIMER=null;}
+      setAuthUI(false);
+      // fecha popover após logout
+      const p=document.getElementById('auth-popover');if(p)p.classList.remove('open');
+    };
+    const w=document.getElementById('nova-warn');if(w)w.style.display='none';
+  }else{
+    ind.textContent='● Não autenticado';
+    ind.classList.remove('auth-authenticated');
+    ind.style.color='';
+    if(lbl)lbl.textContent='Não autenticado';
+    btn.textContent='Entrar';
+    btn.onclick=doAuth;
+  }
 }
 
 // ═══════════════════════════════════════════════════════════
