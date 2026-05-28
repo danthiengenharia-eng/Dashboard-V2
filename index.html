@@ -3413,9 +3413,6 @@ async function gerarComprovante(){
     
     const numeroOS=COS.os;
     
-    // ID do PDF base no Google Drive
-    const PDF_BASE_ID='1g4V-w8FILXchz9NAmc5aV5ju9YyhEPbs';
-    
     // 1. Baixar PDF base do Drive como blob
     showToast('📥 Baixando template...');
     const response=await fetch(`https://www.googleapis.com/drive/v3/files/${PDF_BASE_ID}?alt=media`,{
