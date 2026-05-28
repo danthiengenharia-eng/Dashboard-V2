@@ -102,13 +102,20 @@ body.light-mode .nav-ico.active{background:linear-gradient(90deg,rgba(var(--acce
   font-size:10px;padding:2px 7px;border-radius:4px;white-space:nowrap;pointer-events:none;opacity:0;transition:.15s;z-index:400}
 .nav-ico:hover .tip{opacity:1}
 .spacer{flex:1}
-.auth-info{font-size:10px;opacity:.6;white-space:nowrap;font-family:'Inter',sans-serif}
-.auth-corner{position:fixed;top:10px;right:14px;z-index:350;display:flex;align-items:center;gap:8px;pointer-events:none}
-.auth-corner > *{pointer-events:auto}
-.auth-corner .auth-info{font-size:10px;font-weight:600;background:rgba(var(--accent-rgb),0.10);border:1px solid var(--chrome-border);padding:5px 10px;border-radius:20px;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);opacity:1;letter-spacing:.02em;display:inline-flex;align-items:center;gap:6px}
+.auth-info{font-size:10px;white-space:nowrap;font-family:'Inter',sans-serif}
+/* Auth-corner: integrado na chrome (sidebar/topbar), sem flutuar sobre conteúdo */
+.auth-corner{display:inline-flex;align-items:center;gap:6px;flex-shrink:0}
+.auth-corner .auth-info{
+  font-size:10px;font-weight:600;
+  background:rgba(var(--accent-rgb),0.10);
+  border:1px solid var(--chrome-border);
+  padding:5px 10px;border-radius:20px;
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  letter-spacing:.02em;display:inline-flex;align-items:center;gap:6px;
+  white-space:nowrap;max-width:160px;overflow:hidden;text-overflow:ellipsis;
+}
 body.light-mode .auth-corner .auth-info{background:rgba(255,255,255,0.92)}
-.auth-corner .btn-auth{padding:5px 14px;border-radius:18px;font-size:10px;font-weight:600;margin:0}
-@media (max-width:768px){.auth-corner{top:8px;right:8px}}
+.auth-corner .btn-auth{padding:5px 12px;border-radius:18px;font-size:10px;font-weight:600;margin:0}
 .btn-auth{background:rgba(var(--accent-rgb),0.12);border:1px solid rgba(var(--accent-rgb),0.35);color:var(--accent);
   padding:5px 12px;border-radius:7px;font-size:11px;cursor:pointer;white-space:nowrap;font-weight:600;transition:.18s;
   box-shadow:0 1px 4px rgba(0,0,0,0.2)}
@@ -465,6 +472,36 @@ body.light-mode .btn-p:hover{background:var(--accent-wine);border-color:var(--ac
   transition: transform 0.08s ease !important;
 }
 
+/* ── A11Y: focus-visible global — só aparece em navegação por teclado ── */
+.btn:focus-visible, .nav-ico:focus-visible, .cbtn:focus-visible, .stbtn:focus-visible,
+.btn-auth:focus-visible, .fbar-toggle-btn:focus-visible, .sf-btn:focus-visible,
+.setup-btn:focus-visible, .agenda-opt-btn:focus-visible, .foto-send-btn:focus-visible,
+.ficha-send-btn:focus-visible, .ficha-tab-btn:focus-visible, .btn-edit-drawer:focus-visible,
+.btn-save-drawer:focus-visible, .filter-row select:focus-visible, .filter-row input:focus-visible,
+.dash-flt:focus-visible, .dv-input:focus-visible, .agenda-field input:focus-visible,
+.agenda-field select:focus-visible, .agenda-field textarea:focus-visible,
+.ficha-field input:focus-visible, .ficha-field select:focus-visible, .ficha-field textarea:focus-visible,
+.rota-search:focus-visible, .rota-mun-filter:focus-visible {
+  outline: 2px solid var(--accent) !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.15) !important;
+}
+tbody tr:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* ── A11Y: respeitar preferência de menos movimento ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .nav-ico:hover, .btn:hover, .cbtn:hover { transform: none !important; }
+}
+
 .loading{display:flex;align-items:center;justify-content:center;padding:2rem;color:var(--text-muted);gap:8px;font-size:12px}
 .sp{width:16px;height:16px;border:2px solid var(--mica-border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -651,7 +688,7 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
 .btn-wpp svg{width:18px;height:18px;fill:currentColor}
 
 @media(max-width:900px){.agenda-layout{grid-template-columns:1fr;height:auto}}
-.vbadge{position:fixed;bottom:12px;right:12px;background:rgba(0,52,110,0.95);color:#fff;padding:4px 10px;border-radius:20px;font-size:10px;font-weight:600;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,0.3);letter-spacing:0.5px;pointer-events:none;border:1px solid rgba(255,255,255,0.2);backdrop-filter:blur(4px);display:flex;align-items:center;gap:6px}.vbadge::before{content:'';display:block;width:6px;height:6px;background:var(--success);border-radius:50%;box-shadow:0 0 6px var(--success)}
+.vbadge{position:fixed;bottom:12px;right:12px;background:rgba(0,52,110,0.95);color:#fff;padding:4px 10px;border-radius:20px;font-size:10px;font-weight:600;z-index:50;box-shadow:0 4px 12px rgba(0,0,0,0.3);letter-spacing:0.5px;pointer-events:none;border:1px solid rgba(255,255,255,0.2);backdrop-filter:blur(4px);display:flex;align-items:center;gap:6px}.vbadge::before{content:'';display:block;width:6px;height:6px;background:var(--success);border-radius:50%;box-shadow:0 0 6px var(--success)}
 
 /* ── MOBILE LAYOUT (≤768px) ── */
 @media (max-width:768px){
@@ -665,7 +702,10 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
   .nav-sep{margin:0 2px}
   .nav-ico{width:32px;height:32px;flex-shrink:0}
   .nav-ico .tip{display:none}
-  .auth-corner .auth-info{font-size:9px;padding:3px 7px}
+  /* Auth-corner já está inline na topbar; só compactar */
+  .auth-corner{gap:4px}
+  .auth-corner .auth-info{font-size:9px;padding:3px 8px;max-width:120px}
+  .auth-corner .btn-auth{padding:3px 9px;font-size:10px}
   .btn-auth{padding:3px 8px;font-size:10px}
   .btn-dark{width:28px;height:28px}
   .spacer{flex:0 0 4px}
@@ -765,12 +805,23 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
   #btn-split{display:none !important}
   .brand-logo-fallback,.brand-logo{display:none !important}
 
-  /* Espaço: topo para auth-corner, base para bottom nav */
-  .main{padding-top:50px !important;padding-bottom:calc(68px + env(safe-area-inset-bottom)) !important}
+  /* Auth-corner: tira do bottom-nav e flutua no canto superior direito (em zona sem conteúdo) */
+  .auth-corner{
+    position:fixed !important;
+    top:6px;right:6px;
+    z-index:250;  /* abaixo de drawer (301), prev-overlay (500), modals (1000) */
+    flex-direction:row;
+    width:auto;padding:0;margin:0;border:none;gap:4px;
+    align-items:center;
+  }
+  .auth-corner .auth-info{font-size:9px;padding:3px 8px;max-width:120px}
+  .auth-corner .btn-auth{padding:3px 9px;font-size:9px}
+  /* Btn-dark: tira do bottom-nav (acesso via Config) */
+  #btn-dark{display:none !important}
+  /* Espaço: topo para auth pill, base para bottom nav */
+  .main{padding-top:38px !important;padding-bottom:calc(68px + env(safe-area-inset-bottom)) !important}
   .fbar-wrap{top:0 !important;position:sticky !important}
-  .twrap{height:calc(100vh - 125px - env(safe-area-inset-bottom))}
-  .auth-corner{top:8px !important;right:8px !important}
-  .auth-corner .auth-info{font-size:9px;padding:3px 8px}
+  .twrap{height:calc(100vh - 115px - env(safe-area-inset-bottom))}
 
   /* Tabela: oculta colunas menos úteis em telas pequenas */
   table thead th:nth-child(4),   /* Bairro */
@@ -809,19 +860,41 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
   .dg{grid-template-columns:1fr}
   .dbody{padding:.7rem}
 
-  /* Calendário: controles compactos, grid menor */
-  .cal-controls{gap:4px}
-  .cal-controls .btn{font-size:10px;padding:4px 8px}
-  .cal-controls span{font-size:11px;min-width:80px}
+  /* Calendário: controles em 2 linhas (◀ título ▶ na 1ª, Dia/Sem/Mês/Hoje/filtro na 2ª) */
+  .cal-controls{display:flex;flex-wrap:wrap;gap:5px;align-items:center;justify-content:center}
+  .cal-controls > button:nth-child(1){order:1;flex:0 0 34px}     /* ◀ */
+  .cal-controls > span{order:2;flex:1 1 auto;min-width:120px;text-align:center;font-size:13px}
+  .cal-controls > button:nth-child(3){order:3;flex:0 0 34px}     /* ▶ */
+  /* Linha 2: força via flex-basis 100% num spacer invisível NÃO — uso order alto + min-width na linha 2 */
+  #btn-dia{order:4;flex:1 1 60px;font-size:10px;padding:5px 6px;min-width:50px}
+  #btn-sem{order:5;flex:1 1 70px;font-size:10px;padding:5px 6px;min-width:60px}
+  #btn-mes{order:6;flex:1 1 60px;font-size:10px;padding:5px 6px;min-width:50px}
+  .cal-controls .btn-p{order:7;flex:1 1 60px;font-size:10px;padding:5px 6px;min-width:50px}
+  .cal-controls .sf-wrap{order:8;flex:0 0 32px;margin-left:0 !important}
+  .cal-controls .btn{font-size:11px}
+  /* Grade do mês compacta */
   .cal-mes-grid{font-size:9px;gap:2px}
   .cal-dh{font-size:8px;text-align:center;padding:2px 0}
   .cal-cell{min-height:44px;padding:2px}
   .cal-num,.cal-num-hj{font-size:9px}
+  .cal-num-hj{width:16px;height:16px;font-size:8px}
   .cal-ev{font-size:7.5px;padding:1px 2px;line-height:1.2;overflow:hidden;max-height:14px}
+  /* View semana / dia: deixa colunas mais altas e role horizontal se precisar */
+  .cal-sem-col{min-height:80px;padding:3px}
+  .cal-dia-ev{padding:6px 10px;font-size:11px}
 
   /* Formulários em coluna única */
   .fg{grid-template-columns:1fr !important}
   .foto-tab-wrap,.ficha-tab-wrap{padding:.7rem}
+
+  /* Performance: reduzir blur em mobile (custa GPU em mid-range) */
+  .topbar,.fbar-wrap,.dhd,.glass-bg,.cc,.metric,.auth-corner .auth-info{
+    backdrop-filter:blur(8px) !important;
+    -webkit-backdrop-filter:blur(8px) !important;
+  }
+  .prev-overlay,.toast{backdrop-filter:blur(4px) !important;-webkit-backdrop-filter:blur(4px) !important}
+  /* Reduzir box-shadow custoso */
+  .card,.metric,.cc,.glass-bg{box-shadow:0 2px 8px rgba(0,0,0,0.12) !important}
 }
 
 /* ── DESKTOP SIDEBAR (≥769px) ── */
@@ -935,7 +1008,22 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
   .nav-section-label:first-of-type{border-top:none;padding-top:6px}
   .topbar:hover .nav-section-label{opacity:1}
 
-  /* auth-info / btn-auth posicionados via .auth-corner (fora deste media query) */
+  /* Auth integrado no fim da sidebar (coluna vertical) */
+  .auth-corner{
+    flex-direction:column;width:100%;
+    padding:10px 6px 6px;margin-top:auto;
+    border-top:1px solid var(--mica-border);
+    gap:6px;align-items:stretch;flex-shrink:0;
+  }
+  .auth-corner .auth-info{
+    font-size:10px;padding:6px 8px;text-align:center;
+    justify-content:center;width:100%;max-width:100%;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .auth-corner .btn-auth{
+    width:100%;padding:7px 8px;font-size:10px;
+    justify-content:center;display:flex;text-align:center;
+  }
   .btn-auto-cep{display:none}
 
   /* Dark mode toggle — tamanho fixo, centralizado */
@@ -943,24 +1031,14 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
     display:flex;align-items:center;justify-content:center;border:1px solid var(--mica-border)}
 
   /* Overlay: conteúdo NÃO se move (margin fixa em 64px = largura colapsada) */
-  .fbar-wrap{margin-left:64px;top:0;padding-right:200px}
+  .fbar-wrap{margin-left:64px;top:0;padding-right:0}
   .main{margin-left:64px}
   .overlay,.drawer{z-index:400}
 }
 
-/* ── TABLET (769–1024px) — auth-corner compacto, filterbar menos comprimida ── */
+/* ── TABLET (769–1024px) — sidebar estreita; auth já está dentro dela ── */
 @media (min-width:769px) and (max-width:1024px){
-  /* Sidebar estreita → filterbar pode usar mais espaço à direita */
-  .fbar-wrap{padding-right:120px}
-  /* Auth corner: texto truncado para não cobrir conteúdo */
-  .auth-corner{top:8px;right:10px;gap:5px}
-  .auth-corner .auth-info{
-    font-size:9px;padding:4px 8px;
-    max-width:130px;overflow:hidden;
-    text-overflow:ellipsis;white-space:nowrap;
-  }
-  .auth-corner .btn-auth{padding:4px 10px;font-size:9px}
-  /* Drawer ocupa tela inteira em tablets pequenos */
+  /* Drawer um pouco mais estreito em tablets */
   .drawer{width:min(500px,100vw)}
 }
 
@@ -1247,13 +1325,12 @@ body.light-mode .ficha-single-cbox{border-color:rgba(0,0,0,0.12);background:rgba
     </div>
   </div>
   <div class="spacer"></div>
+  <!-- Auth integrado na chrome (sidebar/topbar) — sem mais flutuar sobre conteúdo -->
+  <div class="auth-corner" id="auth-corner">
+    <span class="auth-info" id="auth-ind">● Não autenticado</span>
+    <button class="btn-auth" id="btn-auth" onclick="doAuth()">Entrar</button>
+  </div>
   <button class="btn-dark" id="btn-dark" onclick="toggleDark()" title="Alternar tema">🌙</button>
-</div>
-
-<!-- Auth flutuante no canto superior direito (fora da sidebar) -->
-<div class="auth-corner" id="auth-corner">
-  <span class="auth-info" id="auth-ind">● Não autenticado</span>
-  <button class="btn-auth" id="btn-auth" onclick="doAuth()">Entrar</button>
 </div>
 
 <!-- FILTER BAR (Airtable-style) -->
