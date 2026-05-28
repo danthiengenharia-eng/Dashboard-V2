@@ -786,13 +786,38 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
   table tbody td:nth-child(11),
   table tbody td:nth-child(12){display:none !important}
 
-  /* Drawer: header mais compacto e organizado */
-  .dhd{padding:.65rem .75rem;gap:8px}
-  .dhd-actions{gap:4px;flex-wrap:wrap;justify-content:flex-end;max-width:160px}
-  .cbtn{width:36px;height:36px;font-size:15px}
-  .btn-edit-drawer{padding:5px 10px;font-size:11px}
+  /* Drawer: header em duas zonas, ✕ fixo no canto superior direito */
+  .dhd{
+    flex-wrap:wrap;padding:.65rem .75rem;padding-right:2.6rem;
+    gap:5px;position:relative;
+  }
+  .dhd-main{flex:1 1 100%;min-width:0}
+  .dhd-actions{
+    flex:1 1 100%;max-width:100%;
+    overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;
+    flex-wrap:nowrap;justify-content:flex-start;gap:5px;padding-bottom:2px;
+  }
+  .dhd-actions::-webkit-scrollbar{display:none}
+  /* ✕ sempre visível no canto superior direito do header */
+  .dhd-actions>button:last-child{
+    position:absolute;top:.65rem;right:.75rem;flex-shrink:0;
+  }
+  .cbtn{width:32px;height:32px;font-size:13px}
+  .btn-edit-drawer{padding:5px 10px;font-size:11px;white-space:nowrap}
+  .btn-save-drawer{padding:4px 8px;font-size:10px;white-space:nowrap}
+  .stbtn{padding:4px 9px;font-size:10px}
   .dg{grid-template-columns:1fr}
   .dbody{padding:.7rem}
+
+  /* Calendário: controles compactos, grid menor */
+  .cal-controls{gap:4px}
+  .cal-controls .btn{font-size:10px;padding:4px 8px}
+  .cal-controls span{font-size:11px;min-width:80px}
+  .cal-mes-grid{font-size:9px;gap:2px}
+  .cal-dh{font-size:8px;text-align:center;padding:2px 0}
+  .cal-cell{min-height:44px;padding:2px}
+  .cal-num,.cal-num-hj{font-size:9px}
+  .cal-ev{font-size:7.5px;padding:1px 2px;line-height:1.2;overflow:hidden;max-height:14px}
 
   /* Formulários em coluna única */
   .fg{grid-template-columns:1fr !important}
@@ -921,6 +946,22 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
   .fbar-wrap{margin-left:64px;top:0;padding-right:200px}
   .main{margin-left:64px}
   .overlay,.drawer{z-index:400}
+}
+
+/* ── TABLET (769–1024px) — auth-corner compacto, filterbar menos comprimida ── */
+@media (min-width:769px) and (max-width:1024px){
+  /* Sidebar estreita → filterbar pode usar mais espaço à direita */
+  .fbar-wrap{padding-right:120px}
+  /* Auth corner: texto truncado para não cobrir conteúdo */
+  .auth-corner{top:8px;right:10px;gap:5px}
+  .auth-corner .auth-info{
+    font-size:9px;padding:4px 8px;
+    max-width:130px;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap;
+  }
+  .auth-corner .btn-auth{padding:4px 10px;font-size:9px}
+  /* Drawer ocupa tela inteira em tablets pequenos */
+  .drawer{width:min(500px,100vw)}
 }
 
 /* ══════════════════════════════════════
