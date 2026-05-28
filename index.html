@@ -4620,9 +4620,14 @@ function handleTxtFile(file){
   reader.onload=e=>{
     const txt=e.target.result;
     if(txt.includes('\uFFFD')){
-      const fallback=new FileReader();
-      fallback.onload=ev=>parseTxtOS(ev.target.result);
-      fallback.readAsText(file,'ISO-8859-1');
+      const cleaned=txt.replace(/\uFFFD+/g,'');
+      if(/[\u00E1\u00E9\u00ED\u00F3\u00FA\u00E2\u00EA\u00F4\u00E3\u00F5\u00E0\u00FC\u00E7\u00C1\u00C9\u00CD\u00D3\u00DA\u00C2\u00CA\u00D4\u00C3\u00D5\u00C0\u00DC\u00C7]/i.test(cleaned)){
+        parseTxtOS(cleaned);
+      }else{
+        const fallback=new FileReader();
+        fallback.onload=ev=>parseTxtOS(ev.target.result);
+        fallback.readAsText(file,'ISO-8859-1');
+      }
     }else{
       parseTxtOS(txt);
     }
