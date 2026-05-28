@@ -732,6 +732,73 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
   .nav-ico svg{width:16px;height:16px}
 }
 
+/* ── MOBILE PHONE (≤576px) — Bottom tab bar + table compacta ── */
+@media (max-width:576px){
+  /* Topbar vira barra inferior fixa */
+  .topbar{
+    position:fixed;bottom:0;left:0;right:0;top:auto;
+    height:auto;min-height:58px;
+    padding:6px 2px calc(6px + env(safe-area-inset-bottom));
+    flex-direction:row;justify-content:space-around;align-items:center;
+    border-top:1px solid var(--mica-border);border-bottom:none;
+    overflow:hidden;gap:0;z-index:200;
+  }
+  /* Ícones de nav: coluna com label */
+  .nav-ico{
+    flex-direction:column;width:auto;min-width:44px;height:auto;min-height:48px;
+    padding:4px 6px;border-radius:10px;border-left:none;gap:2px;flex:1;max-width:66px;
+    transform:none !important;
+  }
+  .nav-ico.active{border-left:none;border-top:2px solid var(--accent);background:rgba(var(--accent-rgb),0.12)}
+  .nav-ico:hover{transform:none}
+  .nav-ico svg{width:20px;height:20px}
+  /* Labels visíveis */
+  .nav-ico .tip{
+    display:block !important;position:static;transform:none;opacity:1;
+    background:transparent;color:inherit;font-size:9px;padding:0;
+    border-radius:0;pointer-events:none;z-index:auto;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis;max-width:64px;text-align:center;
+    transition:none;
+  }
+  /* Ocultar itens secundários da nav */
+  .nav-sep,.nav-section-label,.spacer{display:none !important}
+  #btn-split{display:none !important}
+  .brand-logo-fallback,.brand-logo{display:none !important}
+
+  /* Espaço: topo para auth-corner, base para bottom nav */
+  .main{padding-top:50px !important;padding-bottom:calc(68px + env(safe-area-inset-bottom)) !important}
+  .fbar-wrap{top:0 !important;position:sticky !important}
+  .twrap{height:calc(100vh - 125px - env(safe-area-inset-bottom))}
+  .auth-corner{top:8px !important;right:8px !important}
+  .auth-corner .auth-info{font-size:9px;padding:3px 8px}
+
+  /* Tabela: oculta colunas menos úteis em telas pequenas */
+  table thead th:nth-child(4),   /* Bairro */
+  table thead th:nth-child(6),   /* Atividade */
+  table thead th:nth-child(8),   /* Área */
+  table thead th:nth-child(9),   /* Mês */
+  table thead th:nth-child(11),  /* Valor Total */
+  table thead th:nth-child(12),  /* Val. Avaliado */
+  table tbody td:nth-child(4),
+  table tbody td:nth-child(6),
+  table tbody td:nth-child(8),
+  table tbody td:nth-child(9),
+  table tbody td:nth-child(11),
+  table tbody td:nth-child(12){display:none !important}
+
+  /* Drawer: header mais compacto e organizado */
+  .dhd{padding:.65rem .75rem;gap:8px}
+  .dhd-actions{gap:4px;flex-wrap:wrap;justify-content:flex-end;max-width:160px}
+  .cbtn{width:36px;height:36px;font-size:15px}
+  .btn-edit-drawer{padding:5px 10px;font-size:11px}
+  .dg{grid-template-columns:1fr}
+  .dbody{padding:.7rem}
+
+  /* Formulários em coluna única */
+  .fg{grid-template-columns:1fr !important}
+  .foto-tab-wrap,.ficha-tab-wrap{padding:.7rem}
+}
+
 /* ── DESKTOP SIDEBAR (≥769px) ── */
 @media (min-width:769px){
   /* Sidebar colapsada (64px) → hover expande para 220px em OVERLAY.
