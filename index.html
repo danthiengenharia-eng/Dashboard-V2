@@ -3001,8 +3001,16 @@ async function saveDrawerEdits(){
     if(field=='va'){val=val===''?'':(`R$ ${parseFloat(val||0).toFixed(2).replace('.',',')}`);updates.push({range:`${CFG.SHT}!${col}${COS.ri}`,values:[[val]]});return;}
     if(val)updates.push({range:`${CFG.SHT}!${col}${COS.ri}`,values:[[val]]});
   });
-
-
+  // Polo é readonly e fica fora do loop genérico — inclui explicitamente quando município foi alterado
+  if(munKey&&MUN[munKey]){
+    const poloCol=_campoToCol('polo');
+    if(poloCol){
+      const poloVal=MUN[munKey].polo;
+      const existIdx=updates.findIndex(u=>u.range===`${CFG.SHT}!${poloCol}${COS.ri}`);
+      if(existIdx>=0)updates[existIdx].values=[[poloVal]];
+      else updates.push({range:`${CFG.SHT}!${poloCol}${COS.ri}`,values:[[poloVal]]});
+    }
+  }
 
 
 
@@ -5809,9 +5817,9 @@ function _setupGarantirPolos(municipios){
   Array.from(tbody.querySelectorAll('tr')).forEach(tr=>{
     const inps=tr.querySelectorAll('input');
     const nm=(inps[0]?.value||'').trim();
-    const k=(inps[1]?.value||'').trim().toUpperCase();
+    const k=(inps[1]?.value||'').trim();
     if(nm)existentesPorNome[nm.toLowerCase()]={key:k,nome:nm};
-    if(k)existentesPorKey[k]={key:k,nome:nm};
+    if(k)existentesPorKey[k.toUpperCase()]={key:k,nome:nm};
   });
   // Coleta polos únicos dos municípios
   const polosUnicos=new Set();
@@ -5824,9 +5832,12 @@ function _setupGarantirPolos(municipios){
   polosUnicos.forEach(nomePolo=>{
     const k=_polo2key(nomePolo);
     if(existentesPorNome[nomePolo.toLowerCase()]){
-      nomeParaKey[nomePolo]=existentesPorNome[nomePolo.toLowerCase()].key;
-    } else if(existentesPorKey[k]){
-      nomeParaKey[nomePolo]=k;
+      // Atualiza o input de key do polo existente para o nome do CSV (Title Case)
+      const matchTr=Array.from(tbody.querySelectorAll('tr')).find(tr=>(tr.querySelectorAll('input')[0]?.value||'').trim().toLowerCase()===nomePolo.toLowerCase());
+      if(matchTr)matchTr.querySelectorAll('input')[1].value=nomePolo;
+      nomeParaKey[nomePolo]=nomePolo;
+    } else if(existentesPorKey[k.toUpperCase()]){
+      nomeParaKey[nomePolo]=existentesPorKey[k.toUpperCase()].key;
     } else {
       try{
         setupAddPolo(nomePolo,k,cores[idx%cores.length]);
@@ -6044,7 +6055,7 @@ function setupAddPolo(nome='', key='', cor='#1a5a9e'){
 function setupGetPolos(){
   return Array.from(document.querySelectorAll('#s-polo-tbody tr')).map(tr=>{
     const inps=tr.querySelectorAll('input');
-    return{nome:(inps[0]?.value||'').trim(),key:(inps[1]?.value||'').trim().toUpperCase(),cor:inps[2]?.value||'#475569'};
+    return{nome:(inps[0]?.value||'').trim(),key:(inps[1]?.value||'').trim(),cor:inps[2]?.value||'#475569'};
   }).filter(p=>p.key);
 }
 
@@ -6066,7 +6077,7 @@ function setupAddMun(nome='', val=0, polo=''){
   selPolo.style.cssText='width:100%;font-size:11px;padding:3px;background:var(--mica-bg);border:1px solid var(--mica-border);border-radius:4px;color:var(--text-primary)';
   setupGetPolos().forEach(p=>{
     const o=document.createElement('option');
-    o.value=p.key;o.textContent=p.nome||p.key;if(p.key===polo)o.selected=true;
+    o.value=p.key;o.textContent=p.nome||p.key;if(p.key.toUpperCase()===(polo||'').toUpperCase())o.selected=true;
     selPolo.appendChild(o);
   });
   tdPolo.appendChild(selPolo);
