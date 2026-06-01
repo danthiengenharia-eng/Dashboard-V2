@@ -1811,7 +1811,7 @@ body.light-mode .ficha-single-cbox{border-color:rgba(0,0,0,0.12);background:rgba
       <div class="df">
         <div class="dl">Mês faturamento</div>
         <div class="dv" id="d-mes"></div>
-        <input class="dv-input" id="e-mes" type="text" data-field="mes" data-col="M">
+        <select class="dv-input" id="e-mes" data-field="mes" data-col="M"></select>
       </div>
       <div class="df">
         <div class="dl">Revisão</div>
@@ -3192,6 +3192,19 @@ function openD(idx){
   // Fill edit inputs
   setEI('e-end',r.end);setEI('e-bairro',r.bairro);setEI('e-mun',titleCase(nMun(r.mun)));setEI('e-cep',r.cep);setEI('e-polo',poloNome(r.polo));
   setEI('e-tip',r.tip);setEI('e-area',r.area);setEI('e-vaval',r.va||'');
+  // Popula o select de mês (uma vez) com as opções padronizadas usadas em todo o app.
+  // Se o valor da OS estiver num formato antigo não previsto, adiciona como opção extra
+  // para evitar perder o valor ao abrir/salvar.
+  const _selMes=document.getElementById('e-mes');
+  if(_selMes&&_selMes.tagName==='SELECT'){
+    if(!_selMes.options.length){
+      const optEmpty=document.createElement('option');optEmpty.value='';optEmpty.textContent='—';_selMes.appendChild(optEmpty);
+      MES_ORD.forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m;_selMes.appendChild(o);});
+    }
+    if(r.mes&&![..._selMes.options].some(o=>o.value===r.mes)){
+      const oExtra=document.createElement('option');oExtra.value=r.mes;oExtra.textContent=r.mes+' (atual)';_selMes.appendChild(oExtra);
+    }
+  }
   setEI('e-siopi',r.siopi);setEI('e-mes',r.mes);
   setEI('e-atv',r.atv);setEI('e-tv',r.tv || 'Interna');
   document.getElementById('d-contato-sec').style.display='none';
