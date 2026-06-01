@@ -1015,8 +1015,8 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
 
   .split-wrap{width:100%;margin-top:auto;padding-top:14px;border-top:1px solid var(--mica-border)}
   .split-wrap .nav-ico{width:100%}
-  .split-menu{left:72px;top:auto;bottom:auto;right:auto}
-  .topbar:hover .split-menu{left:228px}
+  /* O menu é movido para o <body> e posicionado via JS (position:fixed),
+     pois a sidebar usa overflow:hidden + backdrop-filter que recortam o flyout. */
   .spacer{flex:1;min-height:20px}
 
   /* Section header — só opacity transiciona, espaço reservado sempre */
@@ -5249,9 +5249,26 @@ function sw(tab,btn){
   });
 }
 
+// Posiciona o menu fixo ao lado do botão. O menu é movido para o <body> para
+// escapar do overflow:hidden + backdrop-filter da sidebar (que recortam o flyout).
+function positionSplitMenu(m,btn){
+  const r=btn.getBoundingClientRect();
+  m.style.position='fixed';
+  m.style.left=Math.round(r.right+8)+'px';
+  m.style.right='auto';
+  m.style.top='auto';
+  // Alinha a base do menu com a base do botão, crescendo para cima; nunca sai da tela.
+  m.style.bottom=Math.round(Math.max(8,window.innerHeight-r.bottom))+'px';
+}
+
 function toggleSplitMenu(ev){
   if(ev)ev.stopPropagation();
   const m=document.getElementById('split-menu');
+  const btn=document.getElementById('btn-split');
+  if(!m||!btn)return;
+  if(m.parentElement!==document.body)document.body.appendChild(m);
+  const willOpen=!m.classList.contains('open');
+  if(willOpen)positionSplitMenu(m,btn);
   m.classList.toggle('open');
 }
 
@@ -5276,20 +5293,6 @@ document.addEventListener('click',e=>{
     if(m)m.classList.remove('open');
   }
 });
-
-// Event delegation para botões do menu split
-const splitMenu=document.getElementById('split-menu');
-if(splitMenu){
-  splitMenu.addEventListener('click',e=>{
-    const btn=e.target.closest('button');
-    if(!btn)return;
-    const onclick=btn.getAttribute('onclick');
-    if(onclick){
-      if(onclick.includes('setSplitTab')){const m=onclick.match(/'([^']+)'/);if(m)setSplitTab(m[1]);}
-      else if(onclick.includes('exitSplit')){exitSplit();}
-    }
-  });
-}
 
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3500);}
 
