@@ -2154,7 +2154,7 @@ function setupLoader(){
     PDF_BASE_ID=c.pdfBaseId||'';
     // Polos
     POLO_CORES={}; POLO_NOME={};
-    (c.polos||[]).forEach(p=>{POLO_CORES[p.key]=p.cor; POLO_NOME[p.key]=p.nome;});
+    (c.polos||[]).forEach(p=>{POLO_CORES[p.key]=p.cor; POLO_NOME[p.key]=titleCase(p.nome);});
     // Usuário/empresa
     CONFIG_USER={
       emp:c.emp||'',resp:c.resp||'',crea:c.crea||'',
@@ -2349,6 +2349,27 @@ let DRAGGED_IDX = null;
 const P=v=>(v===null||v===undefined)?'':String(v).trim();
 const B=v=>{const s=P(v).toUpperCase();return s==='TRUE'||s==='VERDADEIRO';};
 const nMun=m=>(m||'').replace(/\s*\(Deslocamento especial\)/i,'').trim();
+// Title Case com preposições minúsculas: "RIO DE JANEIRO" → "Rio de Janeiro".
+// Mantém siglas de 1–2 letras em caixa alta (ex.: "RJ", "VR", "MG").
+function titleCase(str){
+  if(!str)return str||'';
+  const lowers=['da','de','di','do','du','das','dos','e'];
+  return String(str).trim().split(/\s+/).map((w,i)=>{
+    if(!w)return '';
+    const lw=w.toLowerCase();
+    // Preposições (de, da, dos…) minúsculas, exceto na 1ª palavra — antes da guarda de sigla.
+    if(lowers.includes(lw))return i===0?lw.charAt(0).toUpperCase()+lw.slice(1):lw;
+    // Siglas de 1–2 letras permanecem em caixa alta (RJ, VR, MG).
+    if(/^[A-ZÀ-Ý0-9]{1,2}$/.test(w))return w;
+    return lw.charAt(0).toUpperCase()+lw.slice(1);
+  }).join(' ');
+}
+// Nome de exibição do polo (resolve sigla→nome de config e normaliza p/ Title Case).
+function poloNome(p){
+  if(!p)return '';
+  const k=resolvePoloKey(p);
+  return POLO_NOME[k]||POLO_NOME[String(p).toUpperCase()]||titleCase(p);
+}
 // Normaliza string removendo acentos para comparação de municípios
 const nrm=s=>(s||'').toString().normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim();
 // Encontra a chave canônica (com acentos) em MUN dado um nome qualquer
@@ -2939,7 +2960,7 @@ function renderTable(){
     const pz=prazoStatus(r);
     let prazoHtml='';
     if(pz){prazoHtml=pz.type==='atrasado'?`<span class="badge-atrasado">▲ ${pz.diff}d</span>`:`<span class="badge-vence">⏱ ${pz.diff}d</span>`;}
-    [{t:r.item,s:'font-size:11px;text-align:center'},{t:r.os,s:'font-size:10px;max-width:140px;overflow:hidden;text-overflow:ellipsis'},{t:r.end,s:'max-width:190px;overflow:hidden;text-overflow:ellipsis'},{t:r.bairro,s:'max-width:95px;overflow:hidden;text-overflow:ellipsis'},{t:nMun(r.mun),s:'max-width:110px;overflow:hidden;text-overflow:ellipsis'},{t:r.atv,s:'font-size:11px;max-width:90px;overflow:hidden;text-overflow:ellipsis'},{t:r.tip,s:''},{t:fmtArea(r.area),s:'font-size:11px'},{t:r.mes,s:'font-size:11px'},{h:badge(r)+prazoHtml},{t:r.vt>0?brl(r.vt):'—',s:'font-size:11px;text-align:right'},{t:r.va>0?brl(r.va):'—',s:'font-size:11px;text-align:right'},{t:rsm2(r),s:'font-size:11px;text-align:right'}].forEach(col=>{
+    [{t:r.item,s:'font-size:11px;text-align:center'},{t:r.os,s:'font-size:10px;max-width:140px;overflow:hidden;text-overflow:ellipsis'},{t:titleCase(r.end),s:'max-width:190px;overflow:hidden;text-overflow:ellipsis'},{t:titleCase(r.bairro),s:'max-width:95px;overflow:hidden;text-overflow:ellipsis'},{t:titleCase(nMun(r.mun)),s:'max-width:110px;overflow:hidden;text-overflow:ellipsis'},{t:r.atv,s:'font-size:11px;max-width:90px;overflow:hidden;text-overflow:ellipsis'},{t:r.tip,s:''},{t:fmtArea(r.area),s:'font-size:11px'},{t:r.mes,s:'font-size:11px'},{h:badge(r)+prazoHtml},{t:r.vt>0?brl(r.vt):'—',s:'font-size:11px;text-align:right'},{t:r.va>0?brl(r.va):'—',s:'font-size:11px;text-align:right'},{t:rsm2(r),s:'font-size:11px;text-align:right'}].forEach(col=>{
       const td=document.createElement('td');if(col.h)td.innerHTML=col.h;else td.textContent=col.t||'—';if(col.s)td.style.cssText=col.s;if(col.t)td.title=col.t;tr.appendChild(td);
     });
     const tdD=document.createElement('td');tdD.style.textAlign='center';const btn=document.createElement('button');btn.textContent='📁';btn.style.cssText='background:none;border:none;cursor:pointer;font-size:13px';btn.addEventListener('click',e=>{e.stopPropagation();openD(i);});tdD.appendChild(btn);tr.appendChild(tdD);tbody.appendChild(tr);
@@ -3109,7 +3130,7 @@ function renderCharts(D){
   mkC('ctv',{type:'doughnut',data:{labels:['Interna','Adjudicado'],datasets:[{data:[tv.Interna,tv.Adjudicado],backgroundColor:[accentPurple,accent],borderWidth:2,borderColor:chartBgColor,hoverBorderColor:'rgba(255,255,255,.15)'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>{const pct=tvTot?Math.round(c.parsed/tvTot*100):0;return`${c.label}: ${c.parsed} OS (${pct}%)`;}}}}}});
 
   // Top municípios
-  const bMu={};D.forEach(r=>{const m=nMun(r.mun);if(m)bMu[m]=(bMu[m]||0)+1;});const mTop=Object.entries(bMu).sort((a,b)=>b[1]-a[1]).slice(0,12);
+  const bMu={};D.forEach(r=>{const m=titleCase(nMun(r.mun));if(m)bMu[m]=(bMu[m]||0)+1;});const mTop=Object.entries(bMu).sort((a,b)=>b[1]-a[1]).slice(0,12);
   mkC('cmun',{type:'bar',data:{labels:mTop.map(e=>e[0]),datasets:[{data:mTop.map(e=>e[1]),backgroundColor:mTop.map((_,i)=>munPalette[i%munPalette.length]),borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.parsed.x} OS`}}},scales:{x:{ticks:{stepSize:1}},y:{ticks:{font:{size:9,family:"'Inter',sans-serif"}}}}}});
 
   // Faturamento por polo — usa r.polo de col F (siglas RJ/VR/CAMPOS) e POLO_CORES para cores
@@ -3129,7 +3150,7 @@ function renderCharts(D){
   const datasets=polosReal.map(poloKey=>{
     const cor=POLO_CORES[poloKey]||POLO_CORES[poloKey.toUpperCase()]||accentPurple;
     return{
-      label:POLO_NOME[poloKey]||POLO_NOME[poloKey.toUpperCase()]||poloKey,
+      label:POLO_NOME[poloKey]||POLO_NOME[poloKey.toUpperCase()]||titleCase(poloKey),
       data:mesL.map(mes=>Math.round(D.filter(r=>r.mes===mes&&r._resolvedPoloKey===poloKey).reduce((s,r)=>{
         const val=r.vt||r.vos||(ATV_DYN[r.atv]?ATV_DYN[r.atv].v:(ATV[r.atv]?ATV[r.atv].v:0));
         return s+val;
@@ -3139,7 +3160,7 @@ function renderCharts(D){
   });
   // Legenda dinâmica
   const legEl=document.getElementById('lpolo');
-  if(legEl)legEl.innerHTML=polosReal.map(p=>`<span><span class="lsq" style="background:${POLO_CORES[p]||POLO_CORES[p.toUpperCase()]||accentPurple}"></span>${POLO_NOME[p]||POLO_NOME[p.toUpperCase()]||p}</span>`).join('');
+  if(legEl)legEl.innerHTML=polosReal.map(p=>`<span><span class="lsq" style="background:${POLO_CORES[p]||POLO_CORES[p.toUpperCase()]||accentPurple}"></span>${POLO_NOME[p]||POLO_NOME[p.toUpperCase()]||titleCase(p)}</span>`).join('');
   const altPolo=Math.max(280,mesL.length*40);document.getElementById('cpolo-wrap').style.height=altPolo+'px';
   const ctx=document.getElementById('cpolo').getContext('2d');if(CHS['cpolo'])CHS['cpolo'].destroy();
   CHS['cpolo']=new Chart(ctx,{type:'bar',data:{labels:mesL,datasets},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${brl(c.raw)}`}}},scales:{x:{stacked:true,ticks:{color:tc,font:{size:9},callback:v=>fmtK(v)},grid:{color:gc}},y:{stacked:true,ticks:{color:tc,font:{size:9,family:"'Inter',sans-serif"}},grid:{display:false}}}}});
@@ -3155,7 +3176,7 @@ function openD(idx){
   document.getElementById('btn-save-drawer').style.display='none';
   document.getElementById('d-item-badge').textContent=`S${r.item}`;
   document.getElementById('d-num').textContent=r.os;
-  document.getElementById('d-tit').textContent=`${r.tip||''} — ${nMun(r.mun)}`;
+  document.getElementById('d-tit').textContent=`${r.tip||''} — ${titleCase(nMun(r.mun))}`;
   const c=stCfg(r),bdg=[`<span class="badge ${c.cls}">${c.lbl}</span>`];
   if(r.atv)bdg.push(`<span class="badge badge-atv">${r.atv}</span>`);
   if(r.tv)bdg.push(`<span class="badge badge-tv">${r.tv}</span>`);
@@ -3163,13 +3184,13 @@ function openD(idx){
   if(r.lau)bdg.push(`<span class="badge badge-lau">Laudo ✓</span>`);
   document.getElementById('d-badges').innerHTML=bdg.join('');
   // Fill display values
-  setDV('d-end',r.end);setDV('d-bairro',r.bairro);setDV('d-mun',`${nMun(r.mun)} / ${r.polo}`);setDV('d-cep',r.cep);setDV('d-polo',r.polo);
+  setDV('d-end',titleCase(r.end));setDV('d-bairro',titleCase(r.bairro));setDV('d-mun',`${titleCase(nMun(r.mun))} / ${poloNome(r.polo)}`);setDV('d-cep',r.cep);setDV('d-polo',poloNome(r.polo));
   setDV('d-tip',r.tip);setDV('d-area',fmtArea(r.area));setDV('d-vaval',brl(r.va));setDV('d-rsm2',rsm2(r));
   setDV('d-siopi',r.siopi);setDV('d-ent',r.ent);setDV('d-mes',r.mes);setDV('d-rev',r.rev?`${r.abr} → ${r.prz}`:'Sem revisão');
   setDV('d-vos',brl(r.vos));setDV('d-vd',brl(r.vd));setDV('d-vt',brl(r.vt));setDV('d-atv',r.atv);setDV('d-tv', r.tv || 'Interna');
   const isEsp=r.mun.includes('(Deslocamento especial)');setDV('d-esp',isEsp?'Sim':'Não');setEI('e-esp',isEsp?'1':'0');
   // Fill edit inputs
-  setEI('e-end',r.end);setEI('e-bairro',r.bairro);setEI('e-mun',nMun(r.mun));setEI('e-cep',r.cep);setEI('e-polo',r.polo);
+  setEI('e-end',r.end);setEI('e-bairro',r.bairro);setEI('e-mun',titleCase(nMun(r.mun)));setEI('e-cep',r.cep);setEI('e-polo',poloNome(r.polo));
   setEI('e-tip',r.tip);setEI('e-area',r.area);setEI('e-vaval',r.va||'');
   setEI('e-siopi',r.siopi);setEI('e-mes',r.mes);
   setEI('e-atv',r.atv);setEI('e-tv',r.tv || 'Interna');
@@ -4476,7 +4497,7 @@ function initRota(){
   const naoVist=ALL.filter(r=>isParaRota(r)&&r.end&&r.end.trim()!=='');
   OS_ROTA_FILTRADAS=[...naoVist];
   const munSel=document.getElementById('rota-mun');munSel.innerHTML='<option value="">Todos os municípios</option>';
-  const muns=[...new Set(naoVist.map(r=>nMun(r.mun)).filter(Boolean))].sort();
+  const muns=[...new Set(naoVist.map(r=>titleCase(nMun(r.mun))).filter(Boolean))].sort();
   muns.forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m;munSel.appendChild(o);});
   renderOsRota(naoVist);
 }
@@ -4496,12 +4517,12 @@ function renderOsRota(lista){
   if(!lista.length){container.innerHTML='<div style="text-align:center;padding:1rem;color:var(--text-muted);font-size:12px">Nenhuma OS encontrada</div>';return;}
   lista.forEach(r=>{
     const div=document.createElement('div');div.className='os-item'+(ROTA_SEL.has(r.item)?' selected':'');
-    const end=r.end||'Endereço não informado',mun=nMun(r.mun);
+    const end=r.end?titleCase(r.end):'Endereço não informado',mun=titleCase(nMun(r.mun));
     div.innerHTML=`<input type="checkbox" ${ROTA_SEL.has(r.item)?'checked':''}>
       <div class="os-item-info">
         <div class="os-item-num">#${r.item} — ${r.atv||''}</div>
         <div class="os-item-end" title="${end}">${end}</div>
-        <div class="os-item-sub">${r.bairro?r.bairro+' · ':''}<b>${mun}</b> · ${r.tip||''}</div>
+        <div class="os-item-sub">${r.bairro?titleCase(r.bairro)+' · ':''}<b>${mun}</b> · ${r.tip||''}</div>
       </div>`;
     const cb=div.querySelector('input');
     cb.addEventListener('change',e=>{e.stopPropagation();toggleOsRota(r.item,cb.checked);});
@@ -4750,8 +4771,8 @@ function renderizarResultadosRota(directionsResponse){
     s.innerHTML=`<div class="rota-stop-handle" style="cursor:grab;padding-right:8px;font-size:18px;color:var(--accent)">⠿</div>
       <div class="rota-stop-num">${i+1}</div>
       <div class="rota-stop-info">
-        <div class="rota-stop-label" style="font-weight:600; color:var(--text-primary)">#${r.item} — ${nMun(r.mun)}</div>
-        <div class="rota-stop-end">${r.end}${r.bairro?', '+r.bairro:''}</div>
+        <div class="rota-stop-label" style="font-weight:600; color:var(--text-primary)">#${r.item} — ${titleCase(nMun(r.mun))}</div>
+        <div class="rota-stop-end">${titleCase(r.end)}${r.bairro?', '+titleCase(r.bairro):''}</div>
       </div>`;
     
     s.addEventListener('dragstart',e=>{
@@ -4855,7 +4876,7 @@ function salvarRota(){
     const num=i+1;
     msg+=`${num}. *_S${r.item} - ${r.os}_*\n`;
     msg+=`   ${r.end}, ${r.bairro}\n`;
-    msg+=`   ${nMun(r.mun)}\n`;
+    msg+=`   ${titleCase(nMun(r.mun))}\n`;
     if(i<ROTA_OTIMIZADA.length-1)msg+=`\n`;
   });
   
@@ -5336,11 +5357,11 @@ function filtrarOsAgenda(){
   filtradas.forEach(r=>{
     const div=document.createElement('div');div.className='os-item';
     if(AGENDA_SEL && AGENDA_SEL.item===r.item)div.classList.add('selected');
-    const end=r.end||'Endereço não informado',mun=nMun(r.mun),atv=r.atv||'—';
+    const end=r.end?titleCase(r.end):'Endereço não informado',mun=titleCase(nMun(r.mun)),atv=r.atv||'—';
     div.innerHTML=`<div class="os-item-info">
         <div class="os-item-num">#${r.item} · ${r.os.split('/')[0]}</div>
         <div class="os-item-end" title="${end}">${end}</div>
-        <div class="os-item-sub">${r.bairro?r.bairro+' · ':''}<b>${mun}</b> · <span class="os-atv-lbl">${atv}</span></div>
+        <div class="os-item-sub">${r.bairro?titleCase(r.bairro)+' · ':''}<b>${mun}</b> · <span class="os-atv-lbl">${atv}</span></div>
       </div>
       <button class="btn-save-drawer" style="display:block;padding:4px 8px;font-size:10px;margin-left:8px">Selecionar</button>`;
     div.onclick=()=>selecionarOsAgenda(r);
@@ -5520,7 +5541,7 @@ function updateAgendaPreview(){
   const dStr=data?new Date(data+'T12:00:00').toLocaleDateString('pt-BR'):'__/__/____';
   const hStr=(hIni && hFim) ? `${hIni} e ${hFim}` : '__ e __';
   const osNum = AGENDA_SEL.os; // Número completo da OS incluindo /2026.01.01
-  const end = `${AGENDA_SEL.end}, ${AGENDA_SEL.bairro}, ${nMun(AGENDA_SEL.mun)}`;
+  const end = `${AGENDA_SEL.end}, ${AGENDA_SEL.bairro}, ${titleCase(nMun(AGENDA_SEL.mun))}`;
   
   let templateText = AGENDA_TEMPLATE === 'vistoria' ? CONFIG_USER.msg_av : CONFIG_USER.msg_med;
   
@@ -7848,7 +7869,7 @@ function _showVoltarDrawer(tabId,btnId){
   const btn=document.createElement('button');
   btn.id=btnId;btn.className='btn';
   btn.style.cssText='margin:0 0 14px;padding:7px 14px;font-size:12px;display:flex;align-items:center;gap:6px;width:max-content';
-  btn.innerHTML=`← OS ${r.item} — ${nMun(r.mun)}`;
+  btn.innerHTML=`← OS ${r.item} — ${titleCase(nMun(r.mun))}`;
   btn.onclick=()=>{btn.remove();_DRAWER_RETURN_OS=null;const idx=FIL.findIndex(x=>x.item===r.item);if(idx>=0)openD(idx);};
   tabEl.insertBefore(btn,tabEl.firstChild);
 }
