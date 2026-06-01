@@ -1222,6 +1222,15 @@ body.light-mode .ficha-field input,body.light-mode .ficha-field select,body.ligh
 .ficha-grid.cols4{grid-template-columns:repeat(4,1fr)}
 .ficha-grid.cols5{grid-template-columns:repeat(5,1fr)}
 .ficha-field.full{grid-column:1/-1}
+/* Mobile/tablet: reduz colunas da ficha para evitar campos espremidos */
+@media (max-width:900px){
+  .ficha-grid:not(.cols1){grid-template-columns:1fr 1fr}
+  .ficha-grid.cols3,.ficha-grid.cols4,.ficha-grid.cols5{grid-template-columns:1fr 1fr}
+}
+@media (max-width:600px){
+  .ficha-grid,.ficha-grid.cols3,.ficha-grid.cols4,.ficha-grid.cols5{grid-template-columns:1fr}
+  .ficha-tab-btn{padding:7px 10px;font-size:11px}
+}
 /* ── Ficha v2: tabs + radio + checkbox-group ── */
 .ficha-tab-strip{display:flex;gap:2px;flex-wrap:wrap;margin-bottom:14px;border-bottom:1px solid var(--mica-border);padding:0 0 0 4px;position:sticky;top:0;background:var(--mica-bg);z-index:5;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
 .ficha-tab-btn{padding:9px 16px;border-radius:8px 8px 0 0;background:transparent;border:none;border-bottom:2px solid transparent;color:var(--text-muted);cursor:pointer;font-size:12px;font-weight:600;font-family:inherit;transition:.18s;white-space:nowrap}
@@ -6633,6 +6642,14 @@ const _OPTS_VOCACAO=['Residência Unifamiliar','Residência Multifamiliar','Come
 const _OPTS_PATOLOGIA=['Aparentemente Não Possui','Aparentemente Possui, Vide Informações Complementares'];
 const _OPTS_CERCAMENTO=['Não Possui','Parcial','Total'];
 const _OPTS_PAREDES=['Alvenaria','Gesso','Madeira','Concreto','Aço','Outras'];
+// Listas extraídas dos prints da SIMIL (Caixa) para Áreas Molhadas/Secas, Esquadrias, Fachadas, Cobertura, Teto, Pavimentos
+const _OPTS_PISO=['Cimentado','Cerâmica Comercial','São Tomé','Estavanilhado','Granitina','Pomicada','Porcelanato 2ª','Pivurarte','Granito/Mármore 2ª','Cerâmica Extra','Ardósia','Vinílico','Madeira','Granito/Mármore 1ª','Porcelanato 1ª','Outros, Vide Inform. Compl.'];
+const _OPTS_PAREDE_AREA=['Cimentado','Cerâmica Comercial','São Tomé','Emborrachado','Azulejo','Granitina','Pomicada','Porcelanato 2ª','Granito/Mármore 2ª','Pintura/Textura','Grafiato','Cerâmica Extra','Ardósia','Vinílico','Madeira','Granito/Mármore 1ª','Porcelanato 1ª','Outros, Vide Inform. Compl.'];
+const _OPTS_ESQUADRIAS=['Alumínio','Ferro','Vidro Temperado','PVC','Madeira','Outros, Vide Inform. Compl.'];
+const _OPTS_FACHADA=['Sem Revestimento','Cimentado','Pintura/Textura','Grafiato','Cerâmica de Baixa Qualidade','Anodina ou Compatível','COBOGÓ','Vulcanizado ou Esmaltado','Granitina ou Compatível','Concreto Aparente','Cerâmica de Boa Qualidade','Revestimento','Madeira ou Envidraçado','Granito ou Compatível','Mármore ou Compatível','Alumina Composto','Pele de Vidro','Outros, Vide Inform. Complem.'];
+const _OPTS_COBERTURA=['Telha de fibrocimento sem laje','Telha metálica sem laje','Telha de barro sem laje','Telha de concreto sem laje','Telha de fibrocimento com laje','Telha metálica com laje','Telha de barro com laje','Telha de concreto com laje','Laje impermeabilizada','Outros, Vide Inform. Compl.'];
+const _OPTS_TETO=['Telhado Aparente','Forro de PVC','Forro de gesso','Forro de cimento','Forro de madeira','Forro metálico','Forro outros','Laje','Outros, Vide Inform. Compl.'];
+const _OPTS_PAVIMENTOS=['SS','T','MEZ','SLJ','PAV','COB','SS+T','T+MEZ','T+SLJ','T+PAV','T+COB','PAV+COB','SS+T+MEZ','SS+T+SLJ','SS+T+PAV','SS+T+COB','T+MEZ+SLJ','T+MEZ+SLJ+PAV'];
 
 const _SEC_VISTORIA={
   title:'Vistoria', cols:2,
@@ -6691,14 +6708,14 @@ const _SEC_UN_AVAL_II_PREDIO={
       {key:'equipamentos', label:'Equipamentos', type:'checkbox-group', options:_OPTS_EQUIPAMENTOS}
     ]},
     {title:'Áreas Molhadas', cols:2, fields:[
-      {key:'areasMolhadasPisos', label:'Pisos', type:'text'},
-      {key:'areasMolhadasParedes', label:'Paredes', type:'text'}
+      {key:'areasMolhadasPisos', label:'Pisos', type:'select', options:_OPTS_PISO},
+      {key:'areasMolhadasParedes', label:'Paredes', type:'select', options:_OPTS_PAREDE_AREA}
     ]},
     {title:'Áreas Secas', cols:1, fields:[
-      {key:'areasSecasPisos', label:'Pisos', type:'text'}
+      {key:'areasSecasPisos', label:'Pisos', type:'select', options:_OPTS_PISO}
     ]},
     {title:'Identificação dos Pavimentos da Unidade', cols:1, fields:[
-      {key:'pavimentosUnidade', label:'Pavimentos', type:'text'}
+      {key:'pavimentosUnidade', label:'Pavimentos', type:'select', options:_OPTS_PAVIMENTOS}
     ]},
     {title:'Áreas de Construção / Averbadas', cols:4, fields:[
       {key:'avPrivUnidade', label:'Priv. Unidade', type:'number'},
@@ -6873,19 +6890,19 @@ const _SCHEMA_PREDIO={
          options:['Lojas','Sala(s)','Pilotis','Lazer','Unidades Residenciais','Garagens','Outros']}
       ]},
       {title:'Acabamento - Área de Circulação', cols:2, fields:[
-        {key:'acabPisos', label:'Pisos', type:'text'},
-        {key:'acabParedes', label:'Paredes', type:'text'}
+        {key:'acabPisos', label:'Pisos', type:'select', options:_OPTS_PISO},
+        {key:'acabParedes', label:'Paredes', type:'select', options:_OPTS_PAREDE_AREA}
       ]},
       {title:'Acabamento - Esquadrias', cols:2, fields:[
-        {key:'acabEsqFachadaPrincipal', label:'Fachada Principal', type:'text'},
-        {key:'acabEsqDemaisFachadas', label:'Demais Fachadas', type:'text'}
+        {key:'acabEsqFachadaPrincipal', label:'Fachada Principal', type:'select', options:_OPTS_ESQUADRIAS},
+        {key:'acabEsqDemaisFachadas', label:'Demais Fachadas', type:'select', options:_OPTS_ESQUADRIAS}
       ]},
       {title:'Acabamento - Fachadas', cols:2, fields:[
-        {key:'acabFachadaPrincipal', label:'Fachada Principal', type:'text'},
-        {key:'acabFachadaDemais', label:'Demais Fachadas', type:'text'}
+        {key:'acabFachadaPrincipal', label:'Fachada Principal', type:'select', options:_OPTS_FACHADA},
+        {key:'acabFachadaDemais', label:'Demais Fachadas', type:'select', options:_OPTS_FACHADA}
       ]}
     ]},
-    _SEC_EMPREENDIMENTO_FULL
+    {...(_SEC_EMPREENDIMENTO_FULL), hidden:true}
   ]
 };
 
@@ -6927,16 +6944,16 @@ const _SCHEMA_CASA={
         {key:'qtdPavimentosUnidade', label:'Total Pav. Unidade', type:'number'}
       ]},
       {title:'Esquadrias', cols:2, fields:[
-        {key:'esqFachadaPrincipal', label:'Fachada Principal', type:'text'},
-        {key:'esqDemaisFachadas', label:'Demais Fachadas', type:'text'}
+        {key:'esqFachadaPrincipal', label:'Fachada Principal', type:'select', options:_OPTS_ESQUADRIAS},
+        {key:'esqDemaisFachadas', label:'Demais Fachadas', type:'select', options:_OPTS_ESQUADRIAS}
       ]},
       {title:'Fachadas', cols:2, fields:[
-        {key:'fachadaPrincipal', label:'Fachada Principal', type:'text'},
-        {key:'fachadaDemais', label:'Demais Fachadas', type:'text'}
+        {key:'fachadaPrincipal', label:'Fachada Principal', type:'select', options:_OPTS_FACHADA},
+        {key:'fachadaDemais', label:'Demais Fachadas', type:'select', options:_OPTS_FACHADA}
       ]},
       {title:'Cobertura', cols:2, fields:[
-        {key:'teto', label:'Teto', type:'text'},
-        {key:'coberturaCasa', label:'Cobertura', type:'text'}
+        {key:'teto', label:'Teto', type:'select', options:_OPTS_TETO},
+        {key:'coberturaCasa', label:'Cobertura', type:'select', options:_OPTS_COBERTURA}
       ]},
       {title:'Vagas de Garagem', cols:4, fields:[
         {key:'vagasCobLivres', label:'Cob. Livres', type:'number'},
@@ -6946,8 +6963,8 @@ const _SCHEMA_CASA={
       ]}
     ]},
     _SEC_UN_AVAL_II_PREDIO,
-    _SEC_TERRENO_CASA,
-    _SEC_EMPREENDIMENTO_FULL
+    {...(_SEC_TERRENO_CASA), hidden:true},
+    {...(_SEC_EMPREENDIMENTO_FULL), hidden:true}
   ]
 };
 
@@ -7352,6 +7369,13 @@ function _aplicarEstadoFicha(estado){
     const el=document.getElementById('fv-'+k);
     if(!el)return;
     if(el.type==='checkbox') el.checked=!!v;
+    else if(el.tagName==='SELECT'&&v){
+      // Preserva valores antigos: se não existe a opção, adiciona como "(atual)"
+      if(![...el.options].some(o=>o.value===v)){
+        const opt=document.createElement('option');opt.value=v;opt.textContent=v+' (atual)';el.appendChild(opt);
+      }
+      el.value=v;
+    }
     else el.value=v??'';
   });
 }
@@ -7442,12 +7466,14 @@ function _ativarTabFicha(tabId){
 // ── Renderização do formulário por tipologia (v2 com tabs) ────
 function renderFichaForm(tipKey){
   const schema=_FICHA_SCHEMA[tipKey]||_FICHA_SCHEMA.casa;
+  // Filtra abas marcadas como hidden (saem da UI mas continuam no schema p/ retro-compat)
+  const tabsVis=schema.tabs.filter(t=>!t.hidden);
   const wrap=document.getElementById('ficha-campos-dinamicos');
-  const tabsHtml=`<div class="ficha-tab-strip">${schema.tabs.map((t,i)=>`<button class="ficha-tab-btn${i===0?' active':''}" data-tab="${t.id}" onclick="_ativarTabFicha('${t.id}')">${_esc(t.label)}</button>`).join('')}</div>`;
+  const tabsHtml=`<div class="ficha-tab-strip">${tabsVis.map((t,i)=>`<button class="ficha-tab-btn${i===0?' active':''}" data-tab="${t.id}" onclick="_ativarTabFicha('${t.id}')">${_esc(t.label)}</button>`).join('')}</div>`;
   const draftHint=`<div class="ficha-draft-hint" id="ficha-draft-hint" style="display:none"></div>`;
-  const contentHtml=schema.tabs.map((t,i)=>`<div class="ficha-tab-content${i===0?' active':''}" data-tab="${t.id}">${t.sections.map(_renderSection).join('')}</div>`).join('');
+  const contentHtml=tabsVis.map((t,i)=>`<div class="ficha-tab-content${i===0?' active':''}" data-tab="${t.id}">${t.sections.map(_renderSection).join('')}</div>`).join('');
   wrap.innerHTML=tabsHtml+draftHint+contentHtml;
-  _FICHA_TAB_ATUAL=schema.tabs[0]?.id||null;
+  _FICHA_TAB_ATUAL=tabsVis[0]?.id||null;
   // Listeners para auto-save
   wrap.querySelectorAll('input,select,textarea').forEach(el=>{
     el.addEventListener('input',_agendaSalvarDraft);
@@ -7484,7 +7510,7 @@ function coletarDadosFicha(){
   // Estrutura para PDF: mantém todas as sections; em cada section preenche valores
   // (campos vazios viram "—" no render do PDF). Isso garante que o PDF sempre
   // reflete a estrutura completa do laudo, não só o que foi preenchido.
-  const tabs=schema.tabs.map(tab=>({
+  const tabs=schema.tabs.filter(t=>!t.hidden).map(tab=>({
     id:tab.id||tab.tabId,
     label:tab.label,
     sections:tab.sections.map(sec=>({
@@ -7924,6 +7950,32 @@ function previewFotos(files){
   document.getElementById('foto-input').value='';
 }
 
+// Comprime imagem antes do upload: redimensiona p/ máx. 1920px no maior lado e exporta JPEG 85%.
+// Pula arquivos pequenos (<500KB) e formatos não-suportados (GIF). Em qualquer erro, devolve o original.
+async function _comprimirImagem(file, maxDim, quality){
+  maxDim=maxDim||1920; quality=quality||0.85;
+  if(!file||!file.type)return file;
+  if(file.size<500*1024)return file;
+  if(!file.type.startsWith('image/')||file.type==='image/gif')return file;
+  try{
+    const bitmap=await createImageBitmap(file);
+    const ratio=Math.min(1,maxDim/Math.max(bitmap.width,bitmap.height));
+    // Sem necessidade de redimensionar, mas ainda comprime via toBlob para reduzir tamanho.
+    const w=Math.round(bitmap.width*ratio), h=Math.round(bitmap.height*ratio);
+    const canvas=document.createElement('canvas');
+    canvas.width=w; canvas.height=h;
+    canvas.getContext('2d').drawImage(bitmap,0,0,w,h);
+    if(bitmap.close)bitmap.close();
+    const blob=await new Promise(r=>canvas.toBlob(r,'image/jpeg',quality));
+    if(!blob||blob.size>=file.size)return file; // não ajudou: mantém original
+    const newName=file.name.replace(/\.[^.]+$/,'.jpg');
+    return new File([blob],newName,{type:'image/jpeg',lastModified:Date.now()});
+  }catch(e){
+    console.warn('Compressão falhou, enviando original:',e);
+    return file;
+  }
+}
+
 async function uploadFotos(){
   if(!FOTO_OS){showToast('Selecione uma OS primeiro');return;}
   if(!_fotoFiles.length){showToast('Nenhuma foto selecionada');return;}
@@ -7980,20 +8032,36 @@ async function uploadFotos(){
       showToast(`📁 Pasta "${fotoFolderName}" criada`);
     }
 
-    // 3. Upload de cada foto com barra de progresso
+    // 3. Descobre o próximo número de "Imagem_XXX" já existente na pasta (contagem contínua)
+    resultado.textContent='⏳ Verificando fotos existentes...';
+    let startNum=1;
+    try{
+      const existentes=await gapi.client.drive.files.list({
+        q:`'${fotoFolderId}' in parents and trashed=false`,
+        fields:'files(name)',pageSize:1000
+      });
+      const nums=(existentes.result.files||[])
+        .map(f=>{const m=(f.name||'').match(/^Imagem[_\s-]?(\d+)/i);return m?parseInt(m[1],10):null;})
+        .filter(n=>n!==null);
+      if(nums.length)startNum=Math.max.apply(null,nums)+1;
+    }catch(e){console.warn('Não foi possível listar fotos existentes:',e);}
+
+    // 4. Upload de cada foto com barra de progresso (comprime + renomeia Imagem_NNN)
     let ok=0, err=0;
     for(let i=0;i<_fotoFiles.length;i++){
-      const file=_fotoFiles[i];
-      const ext=(file.name.split('.').pop()||'jpg').toLowerCase();
-      const nomeDest=`${(FOTO_OS.osp||FOTO_OS.os).replace(/[\/\\]/g,'-')}_foto${String(i+1).padStart(3,'0')}.${ext}`;
+      const original=_fotoFiles[i];
 
       const pItem=document.createElement('div');
       pItem.className='foto-prog-item';
-      pItem.innerHTML=`<div class="foto-prog-label">${file.name}</div><div class="foto-prog-bar-bg"><div class="foto-prog-bar" id="fpb-${i}"></div></div>`;
+      pItem.innerHTML=`<div class="foto-prog-label">${original.name}</div><div class="foto-prog-bar-bg"><div class="foto-prog-bar" id="fpb-${i}"></div></div>`;
       progWrap.appendChild(pItem);
-      resultado.textContent=`⏳ Enviando foto ${i+1} de ${_fotoFiles.length}...`;
+      resultado.textContent=`⏳ Processando foto ${i+1} de ${_fotoFiles.length}...`;
 
       try{
+        const file=await _comprimirImagem(original);
+        const ext=(file.name.split('.').pop()||'jpg').toLowerCase();
+        const nomeDest=`Imagem_${String(startNum+i).padStart(3,'0')}.${ext}`;
+        resultado.textContent=`⏳ Enviando ${nomeDest} (${i+1}/${_fotoFiles.length})...`;
         await _uploadFotoParaDrive(file, nomeDest, fotoFolderId, `fpb-${i}`);
         const bar=document.getElementById(`fpb-${i}`);
         if(bar){bar.style.width='100%';bar.classList.add('done');}
