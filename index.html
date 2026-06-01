@@ -1813,6 +1813,10 @@ body.light-mode .ficha-single-cbox{border-color:rgba(0,0,0,0.12);background:rgba
         <div class="dl">CNM <span style="opacity:.5;font-size:9px">(SIOPI)</span></div>
         <div class="dv" id="d-siopi-cnm">—</div>
       </div>
+      <div class="df">
+        <div class="dl">Cartório <span style="opacity:.5;font-size:9px">(SIOPI)</span></div>
+        <div class="dv" id="d-siopi-cartorio">—</div>
+      </div>
     </div></div>
 
     <div class="ds"><h3>Datas</h3><div class="dg">
@@ -3233,11 +3237,12 @@ function openD(idx){
   // Reseta + recarrega campos do SIOPI a partir do draft da ficha de vistoria
   // (mesma fonte de dados — assim os valores sobrevivem entre aberturas do drawer)
   const _siopiAlerta=document.getElementById('d-siopi-alerta-tip');if(_siopiAlerta)_siopiAlerta.style.display='none';
-  ['d-siopi-matricula','d-siopi-cnm','d-siopi-valor'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='—';});
+  ['d-siopi-matricula','d-siopi-cnm','d-siopi-cartorio','d-siopi-valor'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='—';});
   const _draft=r.item?lerDraftFicha(r.item):null;
   if(_draft){
     setDV('d-siopi-matricula',_draft.matricula);
     setDV('d-siopi-cnm',_draft.cnm);
+    setDV('d-siopi-cartorio',_draft.cartorio);
     setDV('d-siopi-valor',_draft.valorCompraVenda?'R$ '+_draft.valorCompraVenda:'');
     // Aviso de tipologia divergente persiste também
     if(_draft.tipoConstrucao){
@@ -3415,8 +3420,9 @@ async function enriquecerComSIOPI(){
   setStatus('🔍 Iniciando busca no SIOPI. Não feche a aba do SIOPI...','var(--text-muted)');
   
   try{
-    // 1. Chama a extensão — ela abre o SIOPI, consulta, extrai e retorna
-    const result=await window.danthiSIOPI.extract(osCompleta);
+    // 1. Chama a extensão — ela abre o SIOPI, consulta, extrai e retorna.
+    //    Passamos o código da atividade pra ativar fluxos especiais (ex.: E401 = acompanhamento de obra)
+    const result=await window.danthiSIOPI.extract(osCompleta, COS.atv);
     console.log('[SIOPI] resultado completo:',result);
     console.log('[SIOPI] documentos:',result?.documentos);
     if(result?.documentos){
@@ -3481,15 +3487,18 @@ async function enriquecerComSIOPI(){
     const tipoSiopi=result.tipo_construcao||result.tipologia||'';
     setDV('d-siopi-matricula',result.matricula);
     setDV('d-siopi-cnm',result.cnm);
+    setDV('d-siopi-cartorio',result.cartorio);
     setDV('d-siopi-valor',result.valor_compra_venda?'R$ '+result.valor_compra_venda:'');
     if(COS&&COS.item){
       atualizarDraftFicha(COS.item,{
         matricula:result.matricula,
         cnm:result.cnm,
+        cartorio:result.cartorio,
         valorCompraVenda:result.valor_compra_venda,
         tipoConstrucao:tipoSiopi
       });
       if(result.matricula)etapas.push(`🏷️ Matrícula: ${result.matricula}`);
+      if(result.cartorio)etapas.push(`📜 Cartório: ${result.cartorio}`);
     }
     // Compara tipo de construção do SIOPI com tipologia da OS — só sinaliza, não edita
     if(tipoSiopi){
@@ -6746,6 +6755,7 @@ const _SEC_IDENTIFICACAO={
     {key:'matricula', label:'Matrícula', type:'text'},
     // Campos preenchidos automaticamente pela extensão SIOPI (mas editáveis)
     {key:'cnm', label:'Código Nacional de Matrículas', type:'text'},
+    {key:'cartorio', label:'Cartório', type:'text'},
     {key:'valorCompraVenda', label:'Valor de Compra e Venda', type:'text'},
     {key:'tipoConstrucao', label:'Tipo de Construção (SIOPI)', type:'text'}
   ]
