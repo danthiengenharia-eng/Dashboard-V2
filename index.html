@@ -1756,6 +1756,7 @@ body.light-mode .ficha-single-cbox{border-color:rgba(0,0,0,0.12);background:rgba
         <div class="dl">Endereço</div>
         <div class="dv" id="d-end"></div>
         <input class="dv-input" id="e-end" type="text" data-field="end" data-col="J">
+        <div id="d-siopi-alerta-tip" style="display:none;margin-top:6px;font-size:11px;padding:6px 9px;border-radius:6px;background:rgba(217,119,6,0.15);border:1px solid rgba(217,119,6,0.4);color:#fbbf24;line-height:1.4"></div>
       </div>
       <div class="df">
         <div class="dl">Bairro</div>
@@ -1804,6 +1805,14 @@ body.light-mode .ficha-single-cbox{border-color:rgba(0,0,0,0.12);background:rgba
         <div class="dl">R$/m²</div>
         <div class="dv" id="d-rsm2"></div>
       </div>
+      <div class="df">
+        <div class="dl">Matrícula <span style="opacity:.5;font-size:9px">(SIOPI)</span></div>
+        <div class="dv" id="d-siopi-matricula">—</div>
+      </div>
+      <div class="df">
+        <div class="dl">CNM <span style="opacity:.5;font-size:9px">(SIOPI)</span></div>
+        <div class="dv" id="d-siopi-cnm">—</div>
+      </div>
     </div></div>
 
     <div class="ds"><h3>Datas</h3><div class="dg">
@@ -1832,6 +1841,10 @@ body.light-mode .ficha-single-cbox{border-color:rgba(0,0,0,0.12);background:rgba
       <div class="df">
         <div class="dl">Valor OS</div>
         <div class="dv" id="d-vos"></div>
+      </div>
+      <div class="df">
+        <div class="dl">Valor C/V <span style="opacity:.5;font-size:9px">(SIOPI)</span></div>
+        <div class="dv" id="d-siopi-valor">—</div>
       </div>
       <div class="df">
         <div class="dl">Deslocamento especial</div>
@@ -3217,6 +3230,9 @@ function openD(idx){
   setEI('e-siopi',r.siopi);setEI('e-mes',r.mes);
   setEI('e-atv',r.atv);setEI('e-tv',r.tv || 'Interna');
   document.getElementById('d-contato-sec').style.display='none';
+  // Reseta campos do SIOPI ao trocar de OS (evita vazamento entre OSs)
+  ['d-siopi-matricula','d-siopi-cnm','d-siopi-valor'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='—';});
+  const _siopiAlerta=document.getElementById('d-siopi-alerta-tip');if(_siopiAlerta)_siopiAlerta.style.display='none';
   const ds=document.getElementById('drawer-soltos');if(ds){ds.style.display='none';ds.innerHTML='';}
   loadDrive(r);
   document.getElementById('drawer').classList.add('open');
@@ -3440,20 +3456,26 @@ async function enriquecerComSIOPI(){
       }
     }
 
-    if(result.tipologia){
-      // Mapeia o valor bruto do SIOPI para uma das opções válidas (acentos-insensitive)
+    // Campos do SIOPI exibidos no drawer — só visualização, não persiste na planilha
+    const tipoSiopi=result.tipo_construcao||result.tipologia||'';
+    setDV('d-siopi-matricula',result.matricula);
+    setDV('d-siopi-cnm',result.cnm);
+    setDV('d-siopi-valor',result.valor_compra_venda?'R$ '+result.valor_compra_venda:'');
+    // Compara tipo de construção do SIOPI com tipologia da OS — só sinaliza, não edita
+    if(tipoSiopi){
       const TIP_OPTS=['Apartamento','Casa','Casa comercial','Obra Residencial','Terreno','Sala comercial','Loja','Gleba'];
-      const raw=nrm(result.tipologia);
-      // Ordena por tamanho para evitar match parcial errado (Casa comercial antes de Casa)
+      const raw=nrm(tipoSiopi);
       const sorted=[...TIP_OPTS].sort((a,b)=>b.length-a.length);
       const matched=sorted.find(o=>raw.includes(nrm(o)));
+      const alertaEl=document.getElementById('d-siopi-alerta-tip');
       if(matched&&matched!==COS.tip){
-        const tipCol=_campoToCol('tip')||'I';
-        updates.push({range:`${CFG.SHT}!${tipCol}${COS.ri}`,values:[[matched]]});
-        COS.tip=matched;
-        setDV('d-tip',matched);
-        setEI('e-tip',matched);
-        etapas.push(`🏠 Tipologia: ${matched}`);
+        if(alertaEl){
+          alertaEl.innerHTML=`⚠️ <b>Tipologia divergente</b><br>SIOPI: <b>${matched}</b> · Dashboard: <b>${COS.tip||'—'}</b><br><span style="font-size:10px;opacity:.85">Corrija manualmente em "Editar OS" se necessário.</span>`;
+          alertaEl.style.display='block';
+        }
+        etapas.push(`⚠️ Tipologia SIOPI (${matched}) ≠ Dashboard (${COS.tip||'—'})`);
+      }else if(alertaEl){
+        alertaEl.style.display='none';
       }
     }
     
@@ -6650,12 +6672,12 @@ const _OPTS_PATOLOGIA=['Aparentemente Não Possui','Aparentemente Possui, Vide I
 const _OPTS_CERCAMENTO=['Não Possui','Parcial','Total'];
 const _OPTS_PAREDES=['Alvenaria','Gesso','Madeira','Concreto','Aço','Outras'];
 // Listas extraídas dos prints da SIMIL (Caixa) para Áreas Molhadas/Secas, Esquadrias, Fachadas, Cobertura, Teto, Pavimentos
-const _OPTS_PISO=['Cimentado','Cerâmica Comercial','São Tomé','Estavanilhado','Granitina','Pomicada','Porcelanato 2ª','Pivurarte','Granito/Mármore 2ª','Cerâmica Extra','Ardósia','Vinílico','Madeira','Granito/Mármore 1ª','Porcelanato 1ª','Outros, Vide Inform. Compl.'];
-const _OPTS_PAREDE_AREA=['Cimentado','Cerâmica Comercial','São Tomé','Emborrachado','Azulejo','Granitina','Pomicada','Porcelanato 2ª','Granito/Mármore 2ª','Pintura/Textura','Grafiato','Cerâmica Extra','Ardósia','Vinílico','Madeira','Granito/Mármore 1ª','Porcelanato 1ª','Outros, Vide Inform. Compl.'];
+const _OPTS_PISO=['Cimentado','Cerâmica Comercial','São Tomé','Emborrachado','Granitina','Formicado','Porcelanato 2ª','Flutuante','Granito/Mármore 2ª','Cerâmica Extra','Ardósia','Vinílico','Madeira','Granito/Mármore 1ª','Porcelanato 1ª','Outros, Vide Inform. Compl.'];
+const _OPTS_PAREDE_AREA=['Cimentado','Cerâmica Comercial','São Tomé','Emborrachado','Azulejo','Granitina','Formicado','Porcelanato 2ª','Granito/Mármore 2ª','Pintura/Textura','Grafiato','Cerâmica Extra','Ardósia','Vinílico','Madeira','Granito/Mármore 1ª','Porcelanato 1ª','Outros, Vide Inform. Compl.'];
 const _OPTS_ESQUADRIAS=['Alumínio','Ferro','Vidro Temperado','PVC','Madeira','Outros, Vide Inform. Compl.'];
-const _OPTS_FACHADA=['Sem Revestimento','Cimentado','Pintura/Textura','Grafiato','Cerâmica de Baixa Qualidade','Anodina ou Compatível','COBOGÓ','Vulcanizado ou Esmaltado','Granitina ou Compatível','Concreto Aparente','Cerâmica de Boa Qualidade','Revestimento','Madeira ou Envidraçado','Granito ou Compatível','Mármore ou Compatível','Alumina Composto','Pele de Vidro','Outros, Vide Inform. Complem.'];
+const _OPTS_FACHADA=['Sem Revestimento','Cimentado','Pintura/Textura','Grafiato','Cerâmica de Baixa Qualidade','Anodina ou Compatível','COBOGÓ','Vulcanizado ou Esmaltado','Granitina ou Compatível','Concreto Aparente','Cerâmica de Boa Qualidade','Revestimento','Madeira ou Envidraçado','Granito ou Compatível','Mármore ou Compatível','Alumínio Composto','Pele de Vidro','Pastilha','Outros, Vide Inform. Complem.'];
 const _OPTS_COBERTURA=['Telha de fibrocimento sem laje','Telha metálica sem laje','Telha de barro sem laje','Telha de concreto sem laje','Telha de fibrocimento com laje','Telha metálica com laje','Telha de barro com laje','Telha de concreto com laje','Laje impermeabilizada','Outros, Vide Inform. Compl.'];
-const _OPTS_TETO=['Telhado Aparente','Forro de PVC','Forro de gesso','Forro de cimento','Forro de madeira','Forro metálico','Forro outros','Laje','Outros, Vide Inform. Compl.'];
+const _OPTS_TETO=['Telhado Aparente','Forro de PVC','Forro de gesso','Forro de aglomerado','Forro de madeira','Forro metálico','Forro outros','Laje','Outros, Vide Inform. Compl.'];
 const _OPTS_PAVIMENTOS=['SS','T','MEZ','SLJ','PAV','COB','SS+T','T+MEZ','T+SLJ','T+PAV','T+COB','PAV+COB','SS+T+MEZ','SS+T+SLJ','SS+T+PAV','SS+T+COB','T+MEZ+SLJ','T+MEZ+SLJ+PAV'];
 
 const _SEC_VISTORIA={
