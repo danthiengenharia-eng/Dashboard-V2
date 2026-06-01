@@ -3230,9 +3230,27 @@ function openD(idx){
   setEI('e-siopi',r.siopi);setEI('e-mes',r.mes);
   setEI('e-atv',r.atv);setEI('e-tv',r.tv || 'Interna');
   document.getElementById('d-contato-sec').style.display='none';
-  // Reseta campos do SIOPI ao trocar de OS (evita vazamento entre OSs)
-  ['d-siopi-matricula','d-siopi-cnm','d-siopi-valor'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='—';});
+  // Reseta + recarrega campos do SIOPI a partir do draft da ficha de vistoria
+  // (mesma fonte de dados — assim os valores sobrevivem entre aberturas do drawer)
   const _siopiAlerta=document.getElementById('d-siopi-alerta-tip');if(_siopiAlerta)_siopiAlerta.style.display='none';
+  ['d-siopi-matricula','d-siopi-cnm','d-siopi-valor'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='—';});
+  const _draft=r.item?lerDraftFicha(r.item):null;
+  if(_draft){
+    setDV('d-siopi-matricula',_draft.matricula);
+    setDV('d-siopi-cnm',_draft.cnm);
+    setDV('d-siopi-valor',_draft.valorCompraVenda?'R$ '+_draft.valorCompraVenda:'');
+    // Aviso de tipologia divergente persiste também
+    if(_draft.tipoConstrucao){
+      const TIP_OPTS=['Apartamento','Casa','Casa comercial','Obra Residencial','Terreno','Sala comercial','Loja','Gleba'];
+      const raw=nrm(_draft.tipoConstrucao);
+      const sorted=[...TIP_OPTS].sort((a,b)=>b.length-a.length);
+      const matched=sorted.find(o=>raw.includes(nrm(o)));
+      if(matched&&matched!==r.tip&&_siopiAlerta){
+        _siopiAlerta.innerHTML=`⚠️ <b>Tipologia divergente</b><br>SIOPI: <b>${matched}</b> · Dashboard: <b>${r.tip||'—'}</b><br><span style="font-size:10px;opacity:.85">Corrija manualmente em "Editar OS" se necessário.</span>`;
+        _siopiAlerta.style.display='block';
+      }
+    }
+  }
   const ds=document.getElementById('drawer-soltos');if(ds){ds.style.display='none';ds.innerHTML='';}
   loadDrive(r);
   document.getElementById('drawer').classList.add('open');
@@ -3456,11 +3474,23 @@ async function enriquecerComSIOPI(){
       }
     }
 
-    // Campos do SIOPI exibidos no drawer — só visualização, não persiste na planilha
+    // Campos do SIOPI: exibe no drawer e PERSISTE no draft da ficha de vistoria
+    // (mesmo storage usado pela ficha — Matrícula já era um campo dela; os outros 3 foram
+    // adicionados ao schema). Assim os dados sobrevivem entre aberturas do drawer e
+    // aparecem automaticamente na ficha quando ela for gerada.
     const tipoSiopi=result.tipo_construcao||result.tipologia||'';
     setDV('d-siopi-matricula',result.matricula);
     setDV('d-siopi-cnm',result.cnm);
     setDV('d-siopi-valor',result.valor_compra_venda?'R$ '+result.valor_compra_venda:'');
+    if(COS&&COS.item){
+      atualizarDraftFicha(COS.item,{
+        matricula:result.matricula,
+        cnm:result.cnm,
+        valorCompraVenda:result.valor_compra_venda,
+        tipoConstrucao:tipoSiopi
+      });
+      if(result.matricula)etapas.push(`🏷️ Matrícula: ${result.matricula}`);
+    }
     // Compara tipo de construção do SIOPI com tipologia da OS — só sinaliza, não edita
     if(tipoSiopi){
       const TIP_OPTS=['Apartamento','Casa','Casa comercial','Obra Residencial','Terreno','Sala comercial','Loja','Gleba'];
@@ -6649,6 +6679,21 @@ let _FICHA_TAB_ATUAL = null;
 let _FICHA_TIPOLOGIA_ATUAL = null;
 const _FICHA_DRAFT_KEY = osItem => `ficha_draft_${osItem}`;
 
+// Lê/escreve no draft da ficha sem precisar tê-la aberta — usado pela integração SIOPI
+// para persistir dados extraídos (Matrícula, CNM, Valor C/V, Tipo Construção).
+function lerDraftFicha(osItem){
+  try{const raw=localStorage.getItem(_FICHA_DRAFT_KEY(osItem));return raw?JSON.parse(raw):null;}catch{return null;}
+}
+function atualizarDraftFicha(osItem,patch){
+  if(!osItem||!patch)return;
+  try{
+    const atual=lerDraftFicha(osItem)||{};
+    Object.entries(patch).forEach(([k,v])=>{if(v!==undefined&&v!==null&&v!=='')atual[k]=v;});
+    atual._ts=Date.now();
+    localStorage.setItem(_FICHA_DRAFT_KEY(osItem),JSON.stringify(atual));
+  }catch(_){}
+}
+
 function _fichaTipologia(tipStr){
   const s=String(tipStr||'').toLowerCase();
   if(/terreno|lote|gleba|area de terra/.test(s))return 'terreno';
@@ -6698,7 +6743,11 @@ const _SEC_IDENTIFICACAO={
     {key:'area', label:'Área Avaliada (m²)', type:'text'},
     {key:'tipologia', label:'Tipologia (OS)', type:'text'},
     {key:'atvCodigo', label:'Código Atividade', type:'text'},
-    {key:'matricula', label:'Matrícula', type:'text'}
+    {key:'matricula', label:'Matrícula', type:'text'},
+    // Campos preenchidos automaticamente pela extensão SIOPI (mas editáveis)
+    {key:'cnm', label:'Código Nacional de Matrículas', type:'text'},
+    {key:'valorCompraVenda', label:'Valor de Compra e Venda', type:'text'},
+    {key:'tipoConstrucao', label:'Tipo de Construção (SIOPI)', type:'text'}
   ]
 };
 
