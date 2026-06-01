@@ -3669,6 +3669,13 @@ async function excluirOS(){
 // ═══════════════════════════════════════════════════════════
 //  GERAR COMPROVANTE DE VISTORIA
 // ═══════════════════════════════════════════════════════════
+// Monta o nome do arquivo do comprovante. Padrão: "Comprovante de vistoria <Bairro>.pdf".
+// Title-case no bairro, remove caracteres ilegais p/ filename, usa fallback se vier vazio.
+function _nomeComprovante(bairro, fallback){
+  const b=titleCase((bairro||'').trim()).replace(/[\\/:*?"<>|]/g,'').trim();
+  return b?`Comprovante de vistoria ${b}.pdf`:`Comprovante de vistoria ${fallback||'sem bairro'}.pdf`;
+}
+
 async function gerarComprovante(){
   if(!AUTH){showToast('Entre com Google primeiro.');return;}
   if(!COS){showToast('Nenhuma OS selecionada.');return;}
@@ -3793,7 +3800,7 @@ async function gerarComprovante(){
     
     // 6. Fazer upload do PDF para a pasta "04 - Produtos"
     showToast('💾 Salvando no Drive...');
-    const nomeArquivo=`Comprovante_Vistoria_${COS.osp}.pdf`;
+    const nomeArquivo=_nomeComprovante(COS.bairro, COS.osp);
     
     const metadata={
       name:nomeArquivo,
@@ -5642,7 +5649,7 @@ async function gerarComprovantePDF(){
     // Configurações do HTML2PDF
     const opt = {
       margin: 0,
-      filename: `Comprovante_Vistoria_${AGENDA_SEL.item}.pdf`,
+      filename: _nomeComprovante(AGENDA_SEL.bairro, AGENDA_SEL.item),
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true },
       jsPDF: { unit: 'px', format: [794, 1122], orientation: 'portrait' }
@@ -5690,7 +5697,7 @@ async function gerarComprovantePDF(){
     }
 
     const metadata = {
-      name: `Comprovante_Vistoria_${AGENDA_SEL.item}.pdf`,
+      name: _nomeComprovante(AGENDA_SEL.bairro, AGENDA_SEL.item),
       mimeType: 'application/pdf',
       parents: [subFolderId]
     };
