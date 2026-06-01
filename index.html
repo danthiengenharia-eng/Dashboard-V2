@@ -4588,27 +4588,52 @@ async function _gerarRotaMaps(mapBody){
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19}).addTo(map);
 
   const GEO_KEY='e3219b407e77401692c069c3f9eb4f0d';
-  const geocode=async(addr)=>{
-    // Tenta Geoapify com filtro BR e bias para RJ
-    try{
-      const r=await fetch(`https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(addr)}&lang=pt&limit=1&filter=countrycode:br&bias=proximity:-43.1729,-22.9068&apiKey=${GEO_KEY}`);
+  // Cache persistente de geocodificação — evita refazer buscas a cada rota gerada.
+  let _geoCache;try{_geoCache=JSON.parse(localStorage.getItem('geocache')||'{}');}catch{_geoCache={};}
+  const _saveGeo=()=>{try{localStorage.setItem('geocache',JSON.stringify(_geoCache));}catch{}};
+  const geocode=async(addr,cep)=>{
+    if(!addr)return null;
+    const cepNum=(cep||'').replace(/\D/g,'');
+    const ck=(addr+'|'+cepNum).toLowerCase();
+    if(_geoCache[ck])return _geoCache[ck];
+    let coord=null;
+    // 1) Google Geocoding — usa a MESMA API Key do Sheets/Drive; melhor precisão no Brasil.
+    //    O CEP entra em components=postal_code, o que melhora muito o acerto de rua/bairro.
+    if(CFG.KEY){
+      try{
+        const comp=cepNum?`country:BR|postal_code:${cepNum}`:'country:BR';
+        const r=await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(addr)}&components=${encodeURIComponent(comp)}&language=pt-BR&region=br&key=${CFG.KEY}`);
+        const d=await r.json();
+        if(d.status==='OK'&&d.results&&d.results.length){const loc=d.results[0].geometry.location;coord=[loc.lat,loc.lng];}
+      }catch{}
+    }
+    // 2) Fallback: Geoapify (filtro BR + bias RJ)
+    if(!coord){try{
+      const txt=cepNum?`${addr}, ${cepNum}`:addr;
+      const r=await fetch(`https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(txt)}&lang=pt&limit=1&filter=countrycode:br&bias=proximity:-43.1729,-22.9068&apiKey=${GEO_KEY}`);
       const d=await r.json();
-      if(d.features&&d.features.length){const[lon,lat]=d.features[0].geometry.coordinates;return[lat,lon];}
-    }catch{}
-    // Fallback: Nominatim (OpenStreetMap) — gratuito, boa cobertura do Brasil
-    try{
-      const r=await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(addr)}&format=json&countrycodes=br&limit=1&accept-language=pt-BR`);
+      if(d.features&&d.features.length){const[lon,lat]=d.features[0].geometry.coordinates;coord=[lat,lon];}
+    }catch{}}
+    // 3) Fallback: Nominatim (OpenStreetMap) — gratuito, boa cobertura do Brasil
+    if(!coord){try{
+      const txt=cepNum?`${addr}, ${cepNum}`:addr;
+      const r=await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(txt)}&format=json&countrycodes=br&limit=1&accept-language=pt-BR`);
       const d=await r.json();
-      if(d&&d.length)return[parseFloat(d[0].lat),parseFloat(d[0].lon)];
-    }catch{}
-    return null;
+      if(d&&d.length)coord=[parseFloat(d[0].lat),parseFloat(d[0].lon)];
+    }catch{}}
+    if(coord){_geoCache[ck]=coord;_saveGeo();}
+    return coord;
   };
 
-  // Fase 1: geocodificar e mostrar marcadores arrastáveis
+  // Fase 1: geocodifica TODOS em paralelo (rápido). As OS levam o CEP junto.
   document.getElementById('rota-map-info').textContent='Geocodificando endereços...';
+  const geoResults=await Promise.all(todos.map((addr,i)=>{
+    if(i>0&&i<todos.length-1){const os=ROTA_OTIMIZADA[i-1];return geocode(addr,os.cep);}
+    return geocode(addr);
+  }));
   const coordsMap=[];
   for(let i=0;i<todos.length;i++){
-    let c=await geocode(todos[i]);
+    let c=geoResults[i];
     // Se falhou e é uma OS (não a partida), tenta com bairro e depois só município
     if(!c && i>0 && i<todos.length-1){
       const os=ROTA_OTIMIZADA[i-1];
