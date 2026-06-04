@@ -3436,22 +3436,41 @@ async function extrairTextoPdfJs(bytesB64){
 
 // Google Vision DOCUMENT_TEXT_DETECTION. Custo: ~US$ 1,50/1000 unidades (1ª 1k grátis/mês).
 // Espera CONFIG_USER.visionKey configurado no setup.
+// Imagens → endpoint images:annotate. PDFs (até 5 páginas) → endpoint files:annotate.
 async function ocrViaVision(bytesB64, mimeType){
   const key=(CONFIG_USER&&CONFIG_USER.visionKey)||'';
   if(!key){return {texto:'', erro:'vision_key_ausente'};}
-  // Vision aceita imagens diretas; PDF exige asyncBatchAnnotateFiles (mais complexo).
-  // Nesse MVP só processamos imagens via Vision; PDFs sem texto extraível ficam não validados.
-  if((mimeType||'').toLowerCase().includes('pdf')){
-    return {texto:'', erro:'pdf_sem_texto'};
-  }
+  const isPdf=(mimeType||'').toLowerCase().includes('pdf');
   try{
-    const body={requests:[{image:{content:bytesB64},features:[{type:'DOCUMENT_TEXT_DETECTION'}]}]};
-    const res=await fetch(`https://vision.googleapis.com/v1/images:annotate?key=${encodeURIComponent(key)}`,{
+    let body, url;
+    if(isPdf){
+      // files:annotate (síncrono) aceita PDF inline até 5 páginas. Acima disso retorna erro.
+      url=`https://vision.googleapis.com/v1/files:annotate?key=${encodeURIComponent(key)}`;
+      body={requests:[{
+        inputConfig:{content:bytesB64,mimeType:'application/pdf'},
+        features:[{type:'DOCUMENT_TEXT_DETECTION'}]
+      }]};
+    }else{
+      url=`https://vision.googleapis.com/v1/images:annotate?key=${encodeURIComponent(key)}`;
+      body={requests:[{image:{content:bytesB64},features:[{type:'DOCUMENT_TEXT_DETECTION'}]}]};
+    }
+    const res=await fetch(url,{
       method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)
     });
-    if(!res.ok)return {texto:'', erro:`vision_http_${res.status}`};
+    if(!res.ok){
+      const errTxt=await res.text().catch(()=>'');
+      console.warn('[OCR] Vision HTTP',res.status,errTxt.slice(0,200));
+      return {texto:'', erro:`vision_http_${res.status}`};
+    }
     const json=await res.json();
-    const texto=json.responses?.[0]?.fullTextAnnotation?.text||'';
+    let texto='';
+    if(isPdf){
+      // files:annotate retorna responses[0].responses = array de páginas, cada uma com fullTextAnnotation
+      const paginas=json.responses?.[0]?.responses||[];
+      texto=paginas.map(p=>p.fullTextAnnotation?.text||'').join('\n');
+    }else{
+      texto=json.responses?.[0]?.fullTextAnnotation?.text||'';
+    }
     return {texto, erro:texto?'':'vision_sem_texto'};
   }catch(e){return {texto:'', erro:'vision_excecao_'+e.message};}
 }
