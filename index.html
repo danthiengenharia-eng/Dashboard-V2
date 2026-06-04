@@ -2497,6 +2497,9 @@ function parseRow(r,i){
     rev:B(r[ci('rev',27)]),
     abr:P(r[ci('abr',28)]),
     prz:P(r[ci('prz',29)]),
+    matricula:P(r[ci('matricula',30)]),
+    cnm:P(r[ci('cnm',31)]),
+    vcv:P(r[ci('vcv',32)]),
     ord:P(r[ci('item',0)])
   };
 }
@@ -2505,7 +2508,8 @@ function parseRow(r,i){
 const _COL_DEFAULTS={
   item:0,os:1,aceita:2,atv:3,tv:4,polo:5,mun:6,bairro:7,tip:8,end:9,area:10,cep:11,
   mes:12,siopi:13,pept:14,ent:15,vis:16,lau:17,vos:20,fich:21,vd:22,vt:23,
-  st:24,va:25,rsm:26,rev:27,abr:28,prz:29
+  st:24,va:25,rsm:26,rev:27,abr:28,prz:29,
+  matricula:30,cnm:31,vcv:32
 };
 // Recebe um objeto {campo: valor} e devolve um array de células posicionadas exatamente
 // nas colunas que a empresa configurou via CFG.COLS (ou nos defaults).
@@ -3234,16 +3238,25 @@ function openD(idx){
   setEI('e-siopi',r.siopi);setEI('e-mes',r.mes);
   setEI('e-atv',r.atv);setEI('e-tv',r.tv || 'Interna');
   document.getElementById('d-contato-sec').style.display='none';
-  // Reseta + recarrega campos do SIOPI a partir do draft da ficha de vistoria
-  // (mesma fonte de dados — assim os valores sobrevivem entre aberturas do drawer)
+  // Reseta + recarrega campos do SIOPI.
+  // Fonte de verdade: planilha (r.matricula/r.cnm/r.vcv) — cross-device.
+  // Fallback: draft local pra OS antigas que ainda não foram sincronizadas.
+  // cartorio/tipoConstrucao continuam só no draft (não são sincronizados).
   const _siopiAlerta=document.getElementById('d-siopi-alerta-tip');if(_siopiAlerta)_siopiAlerta.style.display='none';
   ['d-siopi-matricula','d-siopi-cnm','d-siopi-cartorio','d-siopi-valor'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='—';});
   const _draft=r.item?lerDraftFicha(r.item):null;
+  // Planilha > draft pros 3 campos sincronizados; draft puro pros 2 locais
+  const _matricula=r.matricula||(_draft&&_draft.matricula)||'';
+  const _cnm=r.cnm||(_draft&&_draft.cnm)||'';
+  const _vcvRaw=r.vcv||(_draft&&_draft.valorCompraVenda?'R$ '+_draft.valorCompraVenda:'')||'';
+  const _cartorio=(_draft&&_draft.cartorio)||'';
+  if(_matricula||_cnm||_vcvRaw||_cartorio){
+    setDV('d-siopi-matricula',_matricula);
+    setDV('d-siopi-cnm',_cnm);
+    setDV('d-siopi-cartorio',_cartorio);
+    setDV('d-siopi-valor',_vcvRaw);
+  }
   if(_draft){
-    setDV('d-siopi-matricula',_draft.matricula);
-    setDV('d-siopi-cnm',_draft.cnm);
-    setDV('d-siopi-cartorio',_draft.cartorio);
-    setDV('d-siopi-valor',_draft.valorCompraVenda?'R$ '+_draft.valorCompraVenda:'');
     // Aviso de tipologia divergente persiste também
     if(_draft.tipoConstrucao){
       const TIP_OPTS=['Apartamento','Casa','Casa comercial','Obra Residencial','Terreno','Sala comercial','Loja','Gleba'];
@@ -3480,10 +3493,9 @@ async function enriquecerComSIOPI(){
       }
     }
 
-    // Campos do SIOPI: exibe no drawer e PERSISTE no draft da ficha de vistoria
-    // (mesmo storage usado pela ficha — Matrícula já era um campo dela; os outros 3 foram
-    // adicionados ao schema). Assim os dados sobrevivem entre aberturas do drawer e
-    // aparecem automaticamente na ficha quando ela for gerada.
+    // Campos do SIOPI: exibe no drawer e PERSISTE:
+    //  - matricula / cnm / valor_compra_venda → planilha (cross-device) + draft como cache
+    //  - cartorio / tipo_construcao → só no draft (uso interno da ficha)
     const tipoSiopi=result.tipo_construcao||result.tipologia||'';
     setDV('d-siopi-matricula',result.matricula);
     setDV('d-siopi-cnm',result.cnm);
@@ -3497,6 +3509,24 @@ async function enriquecerComSIOPI(){
         valorCompraVenda:result.valor_compra_venda,
         tipoConstrucao:tipoSiopi
       });
+      // Enfileira updates pros 3 campos sincronizáveis (espelha r.matricula/r.cnm/r.vcv).
+      // Usa _campoToCol(...)||fallback igual ao padrão das colunas 'end'/'area'.
+      if(result.matricula){
+        const matCol=_campoToCol('matricula')||'AE';
+        updates.push({range:`${CFG.SHT}!${matCol}${COS.ri}`,values:[[result.matricula]]});
+        COS.matricula=result.matricula;
+      }
+      if(result.cnm){
+        const cnmCol=_campoToCol('cnm')||'AF';
+        updates.push({range:`${CFG.SHT}!${cnmCol}${COS.ri}`,values:[[result.cnm]]});
+        COS.cnm=result.cnm;
+      }
+      if(result.valor_compra_venda){
+        const vcvCol=_campoToCol('vcv')||'AG';
+        const vcvFmt='R$ '+result.valor_compra_venda;
+        updates.push({range:`${CFG.SHT}!${vcvCol}${COS.ri}`,values:[[vcvFmt]]});
+        COS.vcv=vcvFmt;
+      }
       if(result.matricula)etapas.push(`🏷️ Matrícula: ${result.matricula}`);
       if(result.cartorio)etapas.push(`📜 Cartório: ${result.cartorio}`);
     }
