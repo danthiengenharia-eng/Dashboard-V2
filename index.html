@@ -2100,6 +2100,13 @@ body.light-mode .ficha-single-cbox{border-color:rgba(0,0,0,0.12);background:rgba
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+// Configura o worker do pdf.js (necessário pra processar PDFs em threads)
+if (typeof pdfjsLib !== 'undefined') {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
+</script>
 <script>
 // ═══════════════════════════════════════════════════════════
 //  CONFIGURATION — white-label, carregado do localStorage
@@ -2116,7 +2123,7 @@ let MUN={};   // {municipio:{v:desloc,polo:'...'}}
 let MUNE={};  // {municipio: val_km} — gerado automaticamente de MUN
 let SUBP=[];  // [{nm,d,ic,role}] — dinâmico, definido no setup passo 4
 let PDF_BASE_ID='';
-let CONFIG_USER={emp:'',resp:'',crea:'',tel:'',logo:'',msg_av:'',msg_med:'',txt_name_tpl:'convocacao.txt',txt_folder_dest:'root'};
+let CONFIG_USER={emp:'',resp:'',crea:'',tel:'',logo:'',msg_av:'',msg_med:'',txt_name_tpl:'convocacao.txt',txt_folder_dest:'root',visionKey:''};
 
 const STCFG={'OS Concluída':{cls:'st-concluida',bg:'#16a34a',lbl:'Concluída'},'OS Cancelada':{cls:'st-cancelada',bg:'#dc2626',lbl:'Cancelada'},'OS em Andamento sem vistoria':{cls:'st-semvist',bg:'#475569',lbl:'Sem vistoria'},'Sem vistoria - não agendado':{cls:'st-semvist-nao-agend',bg:'#64748b',lbl:'S/ vist. - não agend.'},'Sem vistoria - agendado':{cls:'st-semvist-agend',bg:'#0ea5e9',lbl:'S/ vist. - agendado'},'OS não Vistoriada com PEPT':{cls:'st-pept-n',bg:'#2563eb',lbl:'S/ vist. c/ PEPT'},'OS Vistoriada com PEPT':{cls:'st-pept-v',bg:'#ea580c',lbl:'Vist. c/ PEPT'},'OS Vistoriada':{cls:'st-vistoriada',bg:'#a16207',lbl:'Vistoriada'},'OS em Revisão':{cls:'st-revisao',bg:'#9333ea',lbl:'Em revisão'},'OS em Andamento':{cls:'st-andamento',bg:'#475569',lbl:'Em andamento'}};
 let CALENDAR_FILTERS={};
@@ -2188,7 +2195,8 @@ function setupLoader(){
       msg_av:c.msg_av||MSG_AV_DEFAULT,msg_med:c.msg_med||MSG_MED_DEFAULT,
       colorRows:c.colorRows!==undefined?c.colorRows:true,
       txt_name_tpl:c.txt_name_tpl||'convocacao.txt',
-      txt_folder_dest:c.txt_folder_dest||'root'
+      txt_folder_dest:c.txt_folder_dest||'root',
+      visionKey:c.visionKey||''
     };
     // Visual
     applyBranding(c);
@@ -2299,6 +2307,7 @@ function salvarConfig(){
   CONFIG_USER.colorRows=document.getElementById('cfg-color-rows').checked;
   CONFIG_USER.txt_name_tpl=document.getElementById('cfg-txt-name-tpl').value.trim()||'convocacao.txt';
   CONFIG_USER.txt_folder_dest=document.getElementById('cfg-txt-folder-dest').value;
+  const _vk=document.getElementById('cfg-vision-key');if(_vk)CONFIG_USER.visionKey=_vk.value.trim();
   const cor=document.getElementById('cfg-cor-txt').value.trim()||'#00478E';
   const corEsc=document.getElementById('cfg-cor-esc-txt').value.trim()||'#03347a';
   // Persiste junto com o resto do config
@@ -2314,6 +2323,7 @@ function salvarConfig(){
       c.colorRows=CONFIG_USER.colorRows;
       c.txt_name_tpl=CONFIG_USER.txt_name_tpl;
       c.txt_folder_dest=CONFIG_USER.txt_folder_dest;
+      c.visionKey=CONFIG_USER.visionKey||'';
       c.cor=cor;
       c.corEsc=corEsc;
       localStorage.setItem(_DCEF_KEY,JSON.stringify(c));
@@ -2333,6 +2343,7 @@ function abrirConfig(){
   document.getElementById('cfg-color-rows').checked=CONFIG_USER.colorRows!==false;
   document.getElementById('cfg-txt-name-tpl').value=CONFIG_USER.txt_name_tpl||'convocacao.txt';
   document.getElementById('cfg-txt-folder-dest').value=CONFIG_USER.txt_folder_dest||'root';
+  const _vkEl=document.getElementById('cfg-vision-key');if(_vkEl)_vkEl.value=CONFIG_USER.visionKey||'';
   
   const raw=localStorage.getItem(_DCEF_KEY);
   let cor='#00478E', corEsc='#03347a';
@@ -2500,6 +2511,7 @@ function parseRow(r,i){
     matricula:P(r[ci('matricula',30)]),
     cnm:P(r[ci('cnm',31)]),
     vcv:P(r[ci('vcv',32)]),
+    alertaMat:P(r[ci('alertaMat',33)]),
     ord:P(r[ci('item',0)])
   };
 }
@@ -2509,7 +2521,7 @@ const _COL_DEFAULTS={
   item:0,os:1,aceita:2,atv:3,tv:4,polo:5,mun:6,bairro:7,tip:8,end:9,area:10,cep:11,
   mes:12,siopi:13,pept:14,ent:15,vis:16,lau:17,vos:20,fich:21,vd:22,vt:23,
   st:24,va:25,rsm:26,rev:27,abr:28,prz:29,
-  matricula:30,cnm:31,vcv:32
+  matricula:30,cnm:31,vcv:32,alertaMat:33
 };
 // Recebe um objeto {campo: valor} e devolve um array de células posicionadas exatamente
 // nas colunas que a empresa configurou via CFG.COLS (ou nos defaults).
@@ -2990,7 +3002,8 @@ function renderTable(){
     const pz=prazoStatus(r);
     let prazoHtml='';
     if(pz){prazoHtml=pz.type==='atrasado'?`<span class="badge-atrasado">▲ ${pz.diff}d</span>`:`<span class="badge-vence">⏱ ${pz.diff}d</span>`;}
-    [{t:r.item,s:'font-size:11px;text-align:center'},{t:r.os,s:'font-size:10px;max-width:140px;overflow:hidden;text-overflow:ellipsis'},{t:titleCase(r.end),s:'max-width:190px;overflow:hidden;text-overflow:ellipsis'},{t:titleCase(r.bairro),s:'max-width:95px;overflow:hidden;text-overflow:ellipsis'},{t:titleCase(nMun(r.mun)),s:'max-width:110px;overflow:hidden;text-overflow:ellipsis'},{t:r.atv,s:'font-size:11px;max-width:90px;overflow:hidden;text-overflow:ellipsis'},{t:r.tip,s:''},{t:fmtArea(r.area),s:'font-size:11px'},{t:r.mes,s:'font-size:11px'},{h:badge(r)+prazoHtml},{t:r.vt>0?brl(r.vt):'—',s:'font-size:11px;text-align:right'},{t:r.va>0?brl(r.va):'—',s:'font-size:11px;text-align:right'},{t:rsm2(r),s:'font-size:11px;text-align:right'}].forEach(col=>{
+    const _alertaMat=r.alertaMat==='divergente'?`<span title="⚠️ Matrícula divergente da Certidão — possível cancelamento da demanda" style="display:inline-block;margin-right:4px;color:#dc2626;font-weight:700">⚠</span>`:'';
+    [{h:_alertaMat+(r.item||'—'),s:'font-size:11px;text-align:center'+(r.alertaMat==='divergente'?';background:rgba(220,38,38,0.10)':'')},{t:r.os,s:'font-size:10px;max-width:140px;overflow:hidden;text-overflow:ellipsis'},{t:titleCase(r.end),s:'max-width:190px;overflow:hidden;text-overflow:ellipsis'},{t:titleCase(r.bairro),s:'max-width:95px;overflow:hidden;text-overflow:ellipsis'},{t:titleCase(nMun(r.mun)),s:'max-width:110px;overflow:hidden;text-overflow:ellipsis'},{t:r.atv,s:'font-size:11px;max-width:90px;overflow:hidden;text-overflow:ellipsis'},{t:r.tip,s:''},{t:fmtArea(r.area),s:'font-size:11px'},{t:r.mes,s:'font-size:11px'},{h:badge(r)+prazoHtml},{t:r.vt>0?brl(r.vt):'—',s:'font-size:11px;text-align:right'},{t:r.va>0?brl(r.va):'—',s:'font-size:11px;text-align:right'},{t:rsm2(r),s:'font-size:11px;text-align:right'}].forEach(col=>{
       const td=document.createElement('td');if(col.h)td.innerHTML=col.h;else td.textContent=col.t||'—';if(col.s)td.style.cssText=col.s;if(col.t)td.title=col.t;tr.appendChild(td);
     });
     const tdD=document.createElement('td');tdD.style.textAlign='center';const btn=document.createElement('button');btn.textContent='📁';btn.style.cssText='background:none;border:none;cursor:pointer;font-size:13px';btn.addEventListener('click',e=>{e.stopPropagation();openD(i);});tdD.appendChild(btn);tr.appendChild(tdD);tbody.appendChild(tr);
@@ -3396,6 +3409,107 @@ function copyAddress(){
 }
 
 // ═══════════════════════════════════════════════════════════
+//  OCR / Validação de matrícula (Certidão da Matrícula)
+//  Cascata: pdf.js (texto nativo) → Google Vision (imagens/PDF escaneado)
+// ═══════════════════════════════════════════════════════════
+function _b64ToUint8(b64){
+  const bin=atob(b64);
+  const arr=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++)arr[i]=bin.charCodeAt(i);
+  return arr;
+}
+
+async function extrairTextoPdfJs(bytesB64){
+  if(typeof pdfjsLib==='undefined'){console.warn('[OCR] pdfjsLib ausente');return '';}
+  try{
+    const data=_b64ToUint8(bytesB64);
+    const pdf=await pdfjsLib.getDocument({data}).promise;
+    let texto='';
+    for(let p=1;p<=pdf.numPages;p++){
+      const page=await pdf.getPage(p);
+      const content=await page.getTextContent();
+      texto+=content.items.map(it=>it.str).join(' ')+'\n';
+    }
+    return texto.trim();
+  }catch(e){console.warn('[OCR] pdf.js falhou:',e.message);return '';}
+}
+
+// Google Vision DOCUMENT_TEXT_DETECTION. Custo: ~US$ 1,50/1000 unidades (1ª 1k grátis/mês).
+// Espera CONFIG_USER.visionKey configurado no setup.
+async function ocrViaVision(bytesB64, mimeType){
+  const key=(CONFIG_USER&&CONFIG_USER.visionKey)||'';
+  if(!key){return {texto:'', erro:'vision_key_ausente'};}
+  // Vision aceita imagens diretas; PDF exige asyncBatchAnnotateFiles (mais complexo).
+  // Nesse MVP só processamos imagens via Vision; PDFs sem texto extraível ficam não validados.
+  if((mimeType||'').toLowerCase().includes('pdf')){
+    return {texto:'', erro:'pdf_sem_texto'};
+  }
+  try{
+    const body={requests:[{image:{content:bytesB64},features:[{type:'DOCUMENT_TEXT_DETECTION'}]}]};
+    const res=await fetch(`https://vision.googleapis.com/v1/images:annotate?key=${encodeURIComponent(key)}`,{
+      method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)
+    });
+    if(!res.ok)return {texto:'', erro:`vision_http_${res.status}`};
+    const json=await res.json();
+    const texto=json.responses?.[0]?.fullTextAnnotation?.text||'';
+    return {texto, erro:texto?'':'vision_sem_texto'};
+  }catch(e){return {texto:'', erro:'vision_excecao_'+e.message};}
+}
+
+async function extrairTextoDoc(doc){
+  const isPdf=(doc.mimeType||'').toLowerCase().includes('pdf')||(doc.nome||'').toLowerCase().endsWith('.pdf');
+  if(isPdf){
+    const t=await extrairTextoPdfJs(doc.bytes);
+    if(t && t.length>=30) return {texto:t, fonte:'pdfjs'};
+    const v=await ocrViaVision(doc.bytes, doc.mimeType);
+    if(v.texto) return {texto:v.texto, fonte:'vision'};
+    return {texto:'', fonte:'nenhuma', erro:v.erro||'pdfjs_vazio'};
+  }
+  const v=await ocrViaVision(doc.bytes, doc.mimeType||'image/jpeg');
+  if(v.texto) return {texto:v.texto, fonte:'vision'};
+  return {texto:'', fonte:'nenhuma', erro:v.erro||'sem_texto'};
+}
+
+// Extrai candidatos a nº de matrícula do texto. Aceita "matrícula nº 12345",
+// "matricula: 12345", "MATRÍCULA-12345" etc. Limita a 1-8 dígitos (faixa CRI).
+function extrairCandidatosMatricula(texto){
+  const t=(texto||'').replace(/\s+/g,' ');
+  const cands=new Set();
+  const re=/matr[íi]cula[\s\S]{0,15}?(\d{1,8})/gi;
+  let m; while((m=re.exec(t))!==null){cands.add(m[1]);}
+  return [...cands];
+}
+
+function compararMatricula(esperada, candidatos){
+  if(!candidatos.length) return {status:'nao_validada'};
+  const esp=String(esperada||'').replace(/\D/g,'').replace(/^0+/,'');
+  if(!esp) return {status:'nao_validada'};
+  const bate=candidatos.some(c=>c.replace(/^0+/,'')===esp);
+  return {status:bate?'ok':'divergente', candidatos};
+}
+
+// Pipeline: filtra docs com tipo "Certidão da Matrícula", roda OCR, valida cada um.
+// status final: 'ok' (todos bateram), 'divergente' (algum divergiu), 'nao_validada' ou 'sem_certidao'.
+async function validarCertidaoMatricula(documentos, matriculaEsperada){
+  const certidoes=(documentos||[]).filter(d=>d.bytes && /certid[ãa]o\s+d[ae]\s+matr[íi]cula/i.test(d.tipo||''));
+  if(!certidoes.length) return {status:'sem_certidao', detalhes:[]};
+  if(!matriculaEsperada) return {status:'nao_validada', motivo:'sem_matricula_siopi', detalhes:[]};
+  const detalhes=[]; let achouOk=false, achouDiv=false;
+  for(const doc of certidoes){
+    const ext=await extrairTextoDoc(doc);
+    const cands=extrairCandidatosMatricula(ext.texto);
+    const cmp=compararMatricula(matriculaEsperada, cands);
+    detalhes.push({nome:doc.nome, fonte:ext.fonte, candidatos:cands, status:cmp.status, erro:ext.erro});
+    if(cmp.status==='ok') achouOk=true;
+    if(cmp.status==='divergente') achouDiv=true;
+  }
+  let status='nao_validada';
+  if(achouDiv) status='divergente';
+  else if(achouOk) status='ok';
+  return {status, detalhes};
+}
+
+// ═══════════════════════════════════════════════════════════
 //  COMPLEMENTOS SIOPI (via extensão Chrome)
 // ═══════════════════════════════════════════════════════════
 async function enriquecerComSIOPI(){
@@ -3510,23 +3624,19 @@ async function enriquecerComSIOPI(){
         tipoConstrucao:tipoSiopi
       });
       // Enfileira updates pros 3 campos sincronizáveis (espelha r.matricula/r.cnm/r.vcv).
-      // Usa _campoToCol(...)||fallback igual ao padrão das colunas 'end'/'area'.
-      if(result.matricula){
-        const matCol=_campoToCol('matricula')||'AE';
-        updates.push({range:`${CFG.SHT}!${matCol}${COS.ri}`,values:[[result.matricula]]});
-        COS.matricula=result.matricula;
-      }
-      if(result.cnm){
-        const cnmCol=_campoToCol('cnm')||'AF';
-        updates.push({range:`${CFG.SHT}!${cnmCol}${COS.ri}`,values:[[result.cnm]]});
-        COS.cnm=result.cnm;
-      }
-      if(result.valor_compra_venda){
-        const vcvCol=_campoToCol('vcv')||'AG';
-        const vcvFmt='R$ '+result.valor_compra_venda;
-        updates.push({range:`${CFG.SHT}!${vcvCol}${COS.ri}`,values:[[vcvFmt]]});
-        COS.vcv=vcvFmt;
-      }
+      // Sempre grava — vazio inclusive — pra limpar valores stale quando o SIOPI muda.
+      const matCol=_campoToCol('matricula')||'AE';
+      const cnmCol=_campoToCol('cnm')||'AF';
+      const vcvCol=_campoToCol('vcv')||'AG';
+      const matVal=result.matricula||'';
+      const cnmVal=result.cnm||'';
+      const vcvVal=result.valor_compra_venda?'R$ '+result.valor_compra_venda:'';
+      updates.push({range:`${CFG.SHT}!${matCol}${COS.ri}`,values:[[matVal]]});
+      updates.push({range:`${CFG.SHT}!${cnmCol}${COS.ri}`,values:[[cnmVal]]});
+      updates.push({range:`${CFG.SHT}!${vcvCol}${COS.ri}`,values:[[vcvVal]]});
+      COS.matricula=matVal;
+      COS.cnm=cnmVal;
+      COS.vcv=vcvVal;
       if(result.matricula)etapas.push(`🏷️ Matrícula: ${result.matricula}`);
       if(result.cartorio)etapas.push(`📜 Cartório: ${result.cartorio}`);
     }
@@ -3582,8 +3692,47 @@ async function enriquecerComSIOPI(){
         }
         etapas.push(`📁 ${uploaded}/${result.documentos.length} documento(s) salvos`);
       }
+
+      // 3.5. Validação da matrícula via Certidão da Matrícula (OCR cascata)
+      const matEsperada=result.matricula||COS.matricula||'';
+      if(matEsperada){
+        setStatus('🔎 Validando matrícula via certidão...','var(--text-muted)');
+        try{
+          const val=await validarCertidaoMatricula(result.documentos,matEsperada);
+          let alertaVal=''; // valor a persistir na coluna alertaMat
+          if(val.status==='ok'){
+            etapas.push(`✅ Matrícula confere com a certidão`);
+            alertaVal='ok';
+          }else if(val.status==='divergente'){
+            const cands=val.detalhes.flatMap(d=>d.candidatos).join(', ');
+            etapas.push(`⚠️ MATRÍCULA DIVERGENTE — SIOPI: ${matEsperada} · Certidão: ${cands||'?'}`);
+            alertaVal='divergente';
+          }else if(val.status==='sem_certidao'){
+            console.log('[OCR] sem certidão da matrícula entre os docs');
+          }else{
+            etapas.push(`ℹ️ Matrícula não pôde ser validada (texto não extraído)`);
+            alertaVal='nao_validada';
+          }
+          // Persiste estado na planilha (coluna alertaMat = AH por default)
+          // Flush imediato porque o batch principal já rodou antes do upload dos docs.
+          if(alertaVal && COS&&COS.ri){
+            const aCol=_campoToCol('alertaMat')||'AH';
+            COS.alertaMat=alertaVal;
+            try{
+              await gapi.client.sheets.spreadsheets.values.update({
+                spreadsheetId:CFG.SID,
+                range:`${CFG.SHT}!${aCol}${COS.ri}`,
+                valueInputOption:'USER_ENTERED',
+                resource:{values:[[alertaVal]]}
+              });
+            }catch(e){console.warn('[OCR] falha ao gravar alertaMat:',e);}
+          }
+        }catch(e){
+          console.warn('[OCR] erro na validação:',e);
+        }
+      }
     }
-    
+
     // 4. Finalização
     if(etapas.length){
       setStatus('✅ '+etapas.join(' · '),'#86efac');
@@ -8304,6 +8453,15 @@ async function _uploadFotoParaDrive(file, nome, folderId, barId){
       </div>
     </div>
     
+    <hr style="border:none;border-top:1px solid var(--mica-border-light);margin-bottom:16px">
+
+    <div style="font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px;">🔎 Google Vision API (OCR de Certidão de Matrícula)</div>
+    <div style="margin-bottom:18px">
+      <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px">Chave da API</div>
+      <input id="cfg-vision-key" type="password" autocomplete="off" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--mica-border);background:var(--mica-surface);color:var(--text-primary);font-size:12px;box-sizing:border-box;font-family:monospace" placeholder="AIza...">
+      <div style="font-size:9.5px;color:var(--text-muted);margin-top:4px;line-height:1.4">Usada só pra extrair texto de certidões escaneadas (imagens). PDFs com texto nativo não consomem cota. ~US$ 1,50/1000 unidades · 1.000 grátis/mês.</div>
+    </div>
+
     <hr style="border:none;border-top:1px solid var(--mica-border-light);margin-bottom:16px">
 
     <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px">Manutenção: CEPs dos endereços</div>
