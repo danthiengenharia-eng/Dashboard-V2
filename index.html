@@ -159,6 +159,14 @@ body.light-mode .auth-popover{background:#fff;box-shadow:0 6px 24px rgba(0,0,0,.
   transform:translateY(-1px);box-shadow:0 3px 8px rgba(0,0,0,0.25)}
 .btn-entrar:active{transform:translateY(0);box-shadow:none}
 .btn-entrar svg{width:13px;height:13px;flex-shrink:0}
+/* Botão Entrar no topo (mobile): aparece na barra de filtros quando deslogado */
+.btn-entrar-top{display:none}
+@media (max-width:576px){
+  body.no-auth .btn-entrar-top{display:inline-flex !important;margin-left:auto}
+  body.no-auth #fcnt{display:none !important}
+  /* Evita botão duplicado: o "Entrar" do bottom-nav some no celular (o de cima cobre) */
+  body.no-auth .auth-corner{display:none !important}
+}
 .btn-auth:hover{background:rgba(var(--accent-rgb),0.22);border-color:rgba(var(--accent-rgb),0.6);transform:translateY(-1px);box-shadow:0 3px 8px rgba(0,0,0,0.25)}
 .btn-auth:active{transform:translateY(0);box-shadow:none}
 .btn-dark{background:transparent;border:none;color:rgba(255,255,255,.7);width:32px;height:32px;border-radius:6px;
@@ -1396,6 +1404,10 @@ body.light-mode .ficha-single-cbox{border-color:rgba(0,0,0,0.12);background:rgba
       Filtros
     </button>
     <div class="active-chips" id="active-chips"></div>
+    <button class="btn-entrar btn-entrar-top" id="btn-entrar-top" type="button" onclick="doAuth()" title="Fazer login" style="display:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+      <span>Entrar</span>
+    </button>
     <span class="fcount-bar" id="fcnt"></span>
   </div>
   <div class="filter-panel" id="filter-panel">
@@ -2955,6 +2967,7 @@ function setAuthUI(ok){
   const lbl=document.getElementById('auth-popover-label');
   const entrar=document.getElementById('btn-entrar');
   const dotBtn=document.getElementById('auth-dot-btn');
+  document.body.classList.toggle('no-auth',!ok);
   if(ok){
     if(entrar)entrar.style.display='none';
     if(dotBtn)dotBtn.style.display='';
