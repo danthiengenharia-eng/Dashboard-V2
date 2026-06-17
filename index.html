@@ -2221,9 +2221,102 @@ function _hashCfgImport(){
     const json=decodeURIComponent(escape(atob(b64)));
     JSON.parse(json); // valida
     localStorage.setItem(_DCEF_KEY,json);
-    // Mantém o hash na URL para que o link continue funcionando se copiar de novo
     return true;
   }catch(e){console.warn('Hash de config inválido:',e);return false;}
+}
+
+// Marca a config local com timestamp atual e persiste. Use sempre que salvar.
+function _saveCfgLocal(cfg){
+  cfg._savedAt=Date.now();
+  localStorage.setItem(_DCEF_KEY,JSON.stringify(cfg));
+}
+
+// ─── Sincronização da config via Drive (fonte única da verdade) ─────────────
+// Arquivo fixo no Drive raiz. Tudo que muda em qualquer device sobe pra cá;
+// na próxima autenticação em qualquer outro device, a versão do Drive desce.
+const _DCFG_FILE_NAME='dashboard-cef-config.json';
+let _DCFG_FILE_ID=null;
+let _DCFG_SYNC_IN_PROGRESS=false;
+
+async function _driveCfgFindFileId(){
+  if(_DCFG_FILE_ID)return _DCFG_FILE_ID;
+  try{
+    const r=await gapi.client.drive.files.list({
+      q:`name='${_DCFG_FILE_NAME}' and trashed=false`,
+      fields:'files(id,modifiedTime)',pageSize:1,spaces:'drive'
+    });
+    if(r.result.files&&r.result.files.length){
+      _DCFG_FILE_ID=r.result.files[0].id;
+      return _DCFG_FILE_ID;
+    }
+  }catch(e){console.warn('Drive cfg find falhou:',e);}
+  return null;
+}
+
+async function _driveCfgDownload(){
+  try{
+    const id=await _driveCfgFindFileId();
+    if(!id)return null;
+    const r=await gapi.client.drive.files.get({fileId:id,alt:'media'});
+    return JSON.parse(typeof r.body==='string'?r.body:JSON.stringify(r.result));
+  }catch(e){console.warn('Drive cfg download falhou:',e);return null;}
+}
+
+async function _driveCfgUpload(){
+  if(!AUTH||!TOKEN)return;
+  const raw=localStorage.getItem(_DCEF_KEY);
+  if(!raw)return;
+  try{
+    let id=await _driveCfgFindFileId();
+    if(id){
+      await fetch(`https://www.googleapis.com/upload/drive/v3/files/${id}?uploadType=media`,{
+        method:'PATCH',
+        headers:{'Authorization':'Bearer '+TOKEN,'Content-Type':'application/json'},
+        body:raw
+      });
+    }else{
+      const form=new FormData();
+      form.append('metadata',new Blob([JSON.stringify({name:_DCFG_FILE_NAME,mimeType:'application/json'})],{type:'application/json'}));
+      form.append('file',new Blob([raw],{type:'application/json'}));
+      const r=await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',{
+        method:'POST',
+        headers:{'Authorization':'Bearer '+TOKEN},
+        body:form
+      });
+      const data=await r.json();
+      _DCFG_FILE_ID=data.id;
+    }
+  }catch(e){console.warn('Drive cfg upload falhou:',e);}
+}
+
+// Compara local com Drive e converge para a versão mais recente
+async function _driveCfgSync(){
+  if(!AUTH||_DCFG_SYNC_IN_PROGRESS)return;
+  _DCFG_SYNC_IN_PROGRESS=true;
+  try{
+    const driveCfg=await _driveCfgDownload();
+    const localRaw=localStorage.getItem(_DCEF_KEY);
+    const localCfg=localRaw?JSON.parse(localRaw):null;
+
+    if(!localCfg&&!driveCfg)return;
+
+    const tLocal=(localCfg&&localCfg._savedAt)||0;
+    const tDrive=(driveCfg&&driveCfg._savedAt)||0;
+
+    if(driveCfg&&(!localCfg||tDrive>tLocal)){
+      // Drive é mais novo (ou é o único): aplica localmente
+      localStorage.setItem(_DCEF_KEY,JSON.stringify(driveCfg));
+      _hashCfgUpdate();
+      // Re-aplica branding/dados sem recarregar a página
+      try{setupLoader();}catch(_){}
+      try{if(typeof loadData==='function')loadData();}catch(_){}
+      showToast('🔄 Configuração sincronizada');
+    }else if(localCfg&&(!driveCfg||tLocal>tDrive)){
+      // Local é mais novo (ou Drive ainda não tem o arquivo): faz upload
+      if(!localCfg._savedAt){_saveCfgLocal(localCfg);}
+      await _driveCfgUpload();
+    }
+  }finally{_DCFG_SYNC_IN_PROGRESS=false;}
 }
 function _hashCfgExport(){
   const raw=localStorage.getItem(_DCEF_KEY);
@@ -2411,7 +2504,9 @@ function salvarConfig(){
       c.visionKey=CONFIG_USER.visionKey||'';
       c.cor=cor;
       c.corEsc=corEsc;
-      localStorage.setItem(_DCEF_KEY,JSON.stringify(c));
+      _saveCfgLocal(c);
+      _hashCfgUpdate();
+      _driveCfgUpload(); // propaga pra todos os devices
       applyBranding(c);
     }catch(e){}
   }
@@ -2775,6 +2870,7 @@ async function initClient(){
     gapi.client.setToken({access_token:TOKEN});
     setAuthUI(true);
     scheduleAuthRefresh(saved.expiry);
+    _driveCfgSync(); // sincroniza config do Drive em background
   }
   loadData();
 }
@@ -2790,6 +2886,7 @@ function initGSI(){
         Auth.save(resp.access_token,resp.expires_in);
         scheduleAuthRefresh(Date.now()+(resp.expires_in||3600)*1000);
         setAuthUI(true);
+        _driveCfgSync(); // baixa última config do Drive (ou faz upload da local se for mais nova)
         if(typeof gapi!=='undefined'&&gapi.client&&gapi.client.sheets)loadData();
       }
     }
@@ -6980,8 +7077,9 @@ async function setupConcluir(){
     txt_name_tpl: 'convocacao.txt',
     txt_folder_dest: 'root'
   };
-  localStorage.setItem(_DCEF_KEY,JSON.stringify(cfg));
+  _saveCfgLocal(cfg);
   _hashCfgUpdate(); // sincroniza URL com a config (para abrir em outro device)
+  _driveCfgUpload(); // sobe para o Drive como fonte única da verdade
   showToast('✅ Configuração salva! Carregando...');
   hideSetup();
   setupLoader();
@@ -7012,9 +7110,10 @@ function setupImportar(ev){
   const reader=new FileReader();
   reader.onload=e=>{
     try{
-      JSON.parse(e.target.result); // valida JSON
-      localStorage.setItem(_DCEF_KEY,e.target.result);
+      const imported=JSON.parse(e.target.result); // valida JSON
+      _saveCfgLocal(imported); // bump timestamp para ter prioridade sobre URLs antigas
       _hashCfgUpdate();
+      _driveCfgUpload();
       showToast('✅ Configuração importada!');
       setupCarregarExistente();
     }catch(err){showToast('❌ Arquivo JSON inválido');}
