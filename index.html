@@ -150,6 +150,15 @@ body.light-mode .auth-popover{background:#fff;box-shadow:0 6px 24px rgba(0,0,0,.
 .btn-auth{background:rgba(var(--accent-rgb),0.12);border:1px solid rgba(var(--accent-rgb),0.35);color:var(--accent);
   padding:5px 12px;border-radius:7px;font-size:11px;cursor:pointer;white-space:nowrap;font-weight:600;transition:.18s;
   box-shadow:0 1px 4px rgba(0,0,0,0.2)}
+/* Botão "Entrar" — visível quando não autenticado, em qualquer device */
+.btn-entrar{display:inline-flex;align-items:center;gap:5px;background:rgba(var(--accent-rgb),0.18);
+  border:1px solid rgba(var(--accent-rgb),0.45);color:var(--accent);
+  padding:5px 11px;border-radius:7px;font-size:11.5px;cursor:pointer;font-weight:600;white-space:nowrap;
+  font-family:'Inter',sans-serif;transition:.18s;box-shadow:0 1px 4px rgba(0,0,0,0.18)}
+.btn-entrar:hover{background:rgba(var(--accent-rgb),0.28);border-color:rgba(var(--accent-rgb),0.65);
+  transform:translateY(-1px);box-shadow:0 3px 8px rgba(0,0,0,0.25)}
+.btn-entrar:active{transform:translateY(0);box-shadow:none}
+.btn-entrar svg{width:13px;height:13px;flex-shrink:0}
 .btn-auth:hover{background:rgba(var(--accent-rgb),0.22);border-color:rgba(var(--accent-rgb),0.6);transform:translateY(-1px);box-shadow:0 3px 8px rgba(0,0,0,0.25)}
 .btn-auth:active{transform:translateY(0);box-shadow:none}
 .btn-dark{background:transparent;border:none;color:rgba(255,255,255,.7);width:32px;height:32px;border-radius:6px;
@@ -541,6 +550,22 @@ tbody tr:focus-visible {
   border-radius:var(--radius-md);font-size:12px;z-index:600;transform:translateY(60px);opacity:0;transition:.3s;max-width:300px;
   box-shadow:0 8px 32px rgba(0,0,0,0.4)}
 .toast.show{transform:translateY(0);opacity:1}
+/* Widget de upload em segundo plano */
+.bg-upload{position:fixed;bottom:1rem;right:1rem;background:var(--glass-bg);backdrop-filter:blur(40px) saturate(180%);
+  -webkit-backdrop-filter:blur(40px) saturate(180%);border:1px solid var(--glass-border);color:var(--text-primary);
+  border-radius:var(--radius-md);padding:.65rem .85rem;font-size:12px;z-index:601;width:270px;
+  box-shadow:0 8px 32px rgba(0,0,0,0.4);transition:opacity .3s,transform .3s}
+.bg-upload-hd{display:flex;align-items:center;gap:6px;font-weight:600}
+.bg-upload-ico{font-size:14px}
+.bg-upload-tit{flex:1;font-size:12px}
+.bg-upload-min{background:none;border:none;color:var(--text-muted);font-size:18px;cursor:pointer;padding:0 4px;line-height:1}
+.bg-upload-os{font-size:10.5px;color:var(--text-muted);margin-top:.3rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bg-upload-stat{font-size:11px;color:var(--text-secondary);margin-top:.25rem;margin-bottom:.3rem}
+.bg-upload-bar-bg{height:5px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden}
+.bg-upload-bar{height:100%;background:var(--accent);width:0%;transition:width .25s;border-radius:3px}
+.bg-upload.collapsed .bg-upload-body{display:none}
+.bg-upload.done .bg-upload-bar{background:#22c55e;width:100% !important}
+.bg-upload.err .bg-upload-bar{background:#ef4444}
 .abar{background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:var(--radius-md);
   padding:.7rem .9rem;display:flex;align-items:center;gap:8px;margin-bottom:.75rem;font-size:12px;color:#fbbf24}
 
@@ -1346,13 +1371,17 @@ body.light-mode .ficha-single-cbox{border-color:rgba(0,0,0,0.12);background:rgba
     </div>
   </div>
   <div class="spacer"></div>
-  <!-- Auth: bolinha mínima sempre visível; popover com Sair só ao clicar -->
+  <!-- Auth: botão "Entrar" quando deslogado; bolinha verde + popover "Sair" quando autenticado -->
   <div class="auth-corner" id="auth-corner">
-    <button class="auth-dot-btn" id="auth-dot-btn" type="button" onclick="toggleAuthMenu(event)" title="Status / Conta" aria-label="Menu de autenticação">
-      <span class="auth-info" id="auth-ind">● Não autenticado</span>
+    <button class="btn-entrar" id="btn-entrar" type="button" onclick="doAuth()" title="Fazer login">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+      <span>Entrar</span>
+    </button>
+    <button class="auth-dot-btn" id="auth-dot-btn" type="button" onclick="toggleAuthMenu(event)" title="Conta" aria-label="Menu de autenticação" style="display:none">
+      <span class="auth-info auth-authenticated" id="auth-ind">●</span>
     </button>
     <div class="auth-popover" id="auth-popover" role="menu">
-      <div class="auth-popover-label" id="auth-popover-label">Não autenticado</div>
+      <div class="auth-popover-label" id="auth-popover-label">Autenticado</div>
       <button class="btn-auth" id="btn-auth" onclick="doAuth()">Entrar</button>
     </div>
   </div>
@@ -1922,6 +1951,19 @@ body.light-mode .ficha-single-cbox{border-color:rgba(0,0,0,0.12);background:rgba
 
 <div class="toast" id="toast"></div>
 
+<div class="bg-upload" id="bg-upload" style="display:none">
+  <div class="bg-upload-hd">
+    <span class="bg-upload-ico" id="bg-upload-ico">⬆️</span>
+    <span class="bg-upload-tit" id="bg-upload-tit">Enviando fotos...</span>
+    <button class="bg-upload-min" onclick="_toggleBgUpload()" title="Minimizar">–</button>
+  </div>
+  <div class="bg-upload-body">
+    <div class="bg-upload-os" id="bg-upload-os"></div>
+    <div class="bg-upload-stat" id="bg-upload-stat">0 / 0</div>
+    <div class="bg-upload-bar-bg"><div class="bg-upload-bar" id="bg-upload-bar"></div></div>
+  </div>
+</div>
+
 <!-- Wrapper para Ficha PDF — posição fixa no viewport para html2canvas capturar corretamente -->
 <div id="ficha-pdf-wrapper" style="position:fixed;top:0;left:0;width:794px;opacity:0.001;pointer-events:none;z-index:99999;background:#fff;color:#000;"></div>
 
@@ -2100,6 +2142,7 @@ body.light-mode .ficha-single-cbox{border-color:rgba(0,0,0,0.12);background:rgba
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/piexifjs@1.0.6/piexif.min.js"></script>
 <script>
 // Configura o worker do pdf.js (necessário pra processar PDFs em threads)
 if (typeof pdfjsLib !== 'undefined') {
@@ -2167,8 +2210,51 @@ const FILTER_OPS=[
   {key:'date_after',label:'depois de',types:['date']},
 ];
 
+// ─── URL hash: permite carregar config diretamente da URL ───────────────────
+// Formato: #cfg=<base64(JSON)>. Usado para sincronizar config entre devices
+// sem precisar de embedded credentials nem de upload manual.
+function _hashCfgImport(){
+  const h=location.hash||'';
+  if(!h.startsWith('#cfg='))return false;
+  try{
+    const b64=decodeURIComponent(h.slice(5));
+    const json=decodeURIComponent(escape(atob(b64)));
+    JSON.parse(json); // valida
+    localStorage.setItem(_DCEF_KEY,json);
+    // Mantém o hash na URL para que o link continue funcionando se copiar de novo
+    return true;
+  }catch(e){console.warn('Hash de config inválido:',e);return false;}
+}
+function _hashCfgExport(){
+  const raw=localStorage.getItem(_DCEF_KEY);
+  if(!raw)return '';
+  try{
+    const b64=btoa(unescape(encodeURIComponent(raw)));
+    return '#cfg='+encodeURIComponent(b64);
+  }catch(e){return '';}
+}
+function _hashCfgUpdate(){
+  const h=_hashCfgExport();
+  if(h){try{history.replaceState(null,'',location.pathname+location.search+h);}catch(_){}}
+}
+function copiarUrlConfigurada(){
+  const h=_hashCfgExport();
+  if(!h){showToast('Salve a configuração antes de copiar');return;}
+  const url=location.origin+location.pathname+location.search+h;
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(url).then(
+      ()=>showToast('✅ URL copiada! Cole em outro dispositivo'),
+      ()=>{prompt('Copie esta URL:',url);}
+    );
+  }else{
+    prompt('Copie esta URL:',url);
+  }
+}
+
 // ─── Loader: aplica config salva no localStorage ───────────────────────────
 function setupLoader(){
+  // 1. Se a URL tem #cfg=..., importa antes de checar localStorage
+  _hashCfgImport();
   const raw=localStorage.getItem(_DCEF_KEY);
   if(!raw){showSetup();return false;}
   try{
@@ -2728,26 +2814,31 @@ document.addEventListener('click',e=>{
 function setAuthUI(ok){
   const ind=document.getElementById('auth-ind'),btn=document.getElementById('btn-auth');
   const lbl=document.getElementById('auth-popover-label');
+  const entrar=document.getElementById('btn-entrar');
+  const dotBtn=document.getElementById('auth-dot-btn');
   if(ok){
-    ind.textContent='● Autenticado';
-    ind.classList.add('auth-authenticated');  // mantém .auth-info — só adiciona a classe de estado
+    if(entrar)entrar.style.display='none';
+    if(dotBtn)dotBtn.style.display='';
+    ind.textContent='●';
+    ind.classList.add('auth-authenticated');
     if(lbl)lbl.textContent='Autenticado';
     btn.textContent='Sair';
     btn.onclick=()=>{
       google.accounts.oauth2.revoke(TOKEN);TOKEN=null;AUTH=false;Auth.clear();
       if(_AUTH_REFRESH_TIMER){clearTimeout(_AUTH_REFRESH_TIMER);_AUTH_REFRESH_TIMER=null;}
       setAuthUI(false);
-      // fecha popover após logout
       const p=document.getElementById('auth-popover');if(p)p.classList.remove('open');
     };
     const w=document.getElementById('nova-warn');if(w)w.style.display='none';
   }else{
-    ind.textContent='● Não autenticado';
+    if(entrar)entrar.style.display='';
+    if(dotBtn)dotBtn.style.display='none';
     ind.classList.remove('auth-authenticated');
-    ind.style.color='';
     if(lbl)lbl.textContent='Não autenticado';
     btn.textContent='Entrar';
     btn.onclick=doAuth;
+    // Fecha popover caso esteja aberto
+    const p=document.getElementById('auth-popover');if(p)p.classList.remove('open');
   }
 }
 
@@ -6846,6 +6937,7 @@ async function setupConcluir(){
     txt_folder_dest: 'root'
   };
   localStorage.setItem(_DCEF_KEY,JSON.stringify(cfg));
+  _hashCfgUpdate(); // sincroniza URL com a config (para abrir em outro device)
   showToast('✅ Configuração salva! Carregando...');
   hideSetup();
   setupLoader();
@@ -6878,6 +6970,7 @@ function setupImportar(ev){
     try{
       JSON.parse(e.target.result); // valida JSON
       localStorage.setItem(_DCEF_KEY,e.target.result);
+      _hashCfgUpdate();
       showToast('✅ Configuração importada!');
       setupCarregarExistente();
     }catch(err){showToast('❌ Arquivo JSON inválido');}
@@ -8245,7 +8338,38 @@ function previewFotos(files){
   document.getElementById('foto-input').value='';
 }
 
+// Lê EXIF do JPEG original (data URL) usando piexifjs. Retorna string EXIF ou null.
+async function _lerExif(file){
+  if(!window.piexif || file.type!=='image/jpeg') return null;
+  try{
+    const dataUrl=await new Promise((res,rej)=>{
+      const fr=new FileReader();
+      fr.onload=()=>res(fr.result);
+      fr.onerror=rej;
+      fr.readAsDataURL(file);
+    });
+    const exifObj=piexif.load(dataUrl);
+    // Atualiza dimensões caso a imagem tenha sido redimensionada (preenchido depois).
+    return exifObj;
+  }catch(e){
+    console.warn('EXIF read falhou:',e);
+    return null;
+  }
+}
+
+// dataURL → Blob
+function _dataUrlToBlob(dataUrl){
+  const [head,b64]=dataUrl.split(',');
+  const mime=(head.match(/data:([^;]+)/)||[])[1]||'image/jpeg';
+  const bin=atob(b64);
+  const ab=new ArrayBuffer(bin.length);
+  const ia=new Uint8Array(ab);
+  for(let i=0;i<bin.length;i++) ia[i]=bin.charCodeAt(i);
+  return new Blob([ab],{type:mime});
+}
+
 // Comprime imagem antes do upload: redimensiona p/ máx. 1920px no maior lado e exporta JPEG 85%.
+// Preserva metadados EXIF (data, GPS, câmera, etc.) quando o original é JPEG.
 // Pula arquivos pequenos (<500KB) e formatos não-suportados (GIF). Em qualquer erro, devolve o original.
 async function _comprimirImagem(file, maxDim, quality){
   maxDim=maxDim||1920; quality=quality||0.85;
@@ -8253,41 +8377,110 @@ async function _comprimirImagem(file, maxDim, quality){
   if(file.size<500*1024)return file;
   if(!file.type.startsWith('image/')||file.type==='image/gif')return file;
   try{
+    const exifObj=await _lerExif(file);
     const bitmap=await createImageBitmap(file);
     const ratio=Math.min(1,maxDim/Math.max(bitmap.width,bitmap.height));
-    // Sem necessidade de redimensionar, mas ainda comprime via toBlob para reduzir tamanho.
     const w=Math.round(bitmap.width*ratio), h=Math.round(bitmap.height*ratio);
     const canvas=document.createElement('canvas');
     canvas.width=w; canvas.height=h;
     canvas.getContext('2d').drawImage(bitmap,0,0,w,h);
     if(bitmap.close)bitmap.close();
-    const blob=await new Promise(r=>canvas.toBlob(r,'image/jpeg',quality));
-    if(!blob||blob.size>=file.size)return file; // não ajudou: mantém original
+    let blob=await new Promise(r=>canvas.toBlob(r,'image/jpeg',quality));
+    if(!blob) return file;
+
+    // Reinjeta EXIF no JPEG comprimido
+    if(exifObj && window.piexif){
+      try{
+        // Atualiza dimensões no EXIF para refletirem o novo tamanho
+        if(exifObj['Exif']){
+          exifObj['Exif'][piexif.ExifIFD.PixelXDimension]=w;
+          exifObj['Exif'][piexif.ExifIFD.PixelYDimension]=h;
+        }
+        // Remove thumbnail (pode estar inconsistente com a imagem redimensionada)
+        if(exifObj['thumbnail']) exifObj['thumbnail']=null;
+        if(exifObj['1st']) exifObj['1st']={};
+        const exifStr=piexif.dump(exifObj);
+        const compressedDataUrl=await new Promise((res,rej)=>{
+          const fr=new FileReader();
+          fr.onload=()=>res(fr.result);
+          fr.onerror=rej;
+          fr.readAsDataURL(blob);
+        });
+        const withExif=piexif.insert(exifStr,compressedDataUrl);
+        blob=_dataUrlToBlob(withExif);
+      }catch(e){console.warn('EXIF insert falhou:',e);}
+    }
+
+    // Se a compressão não ajudou E não tínhamos metadados a preservar, mantém original
+    if(blob.size>=file.size && !exifObj) return file;
     const newName=file.name.replace(/\.[^.]+$/,'.jpg');
-    return new File([blob],newName,{type:'image/jpeg',lastModified:Date.now()});
+    return new File([blob],newName,{type:'image/jpeg',lastModified:file.lastModified||Date.now()});
   }catch(e){
     console.warn('Compressão falhou, enviando original:',e);
     return file;
   }
 }
 
+// ── Widget flutuante de upload em segundo plano ──────────────────────
+let _bgUploadAtivo=false;
+function _toggleBgUpload(){
+  document.getElementById('bg-upload').classList.toggle('collapsed');
+}
+function _showBgUpload(osLabel,total){
+  const w=document.getElementById('bg-upload');
+  w.style.display='block';
+  w.classList.remove('collapsed','done','err');
+  document.getElementById('bg-upload-ico').textContent='⬆️';
+  document.getElementById('bg-upload-tit').textContent='Enviando fotos...';
+  document.getElementById('bg-upload-os').textContent=osLabel||'';
+  document.getElementById('bg-upload-stat').textContent='0 / '+total;
+  document.getElementById('bg-upload-bar').style.width='0%';
+}
+function _setBgUploadProg(done,total,pct){
+  document.getElementById('bg-upload-stat').textContent=done+' / '+total;
+  document.getElementById('bg-upload-bar').style.width=(pct||0)+'%';
+}
+function _finishBgUpload(ok,err,total){
+  const w=document.getElementById('bg-upload');
+  const allOk=err===0;
+  w.classList.add(allOk?'done':'err');
+  document.getElementById('bg-upload-ico').textContent=allOk?'✅':'⚠️';
+  document.getElementById('bg-upload-tit').textContent=allOk?'Fotos enviadas':'Envio com falhas';
+  document.getElementById('bg-upload-stat').textContent=
+    ok+' enviada(s)'+(err?' · '+err+' com erro':'')+' de '+total;
+  document.getElementById('bg-upload-bar').style.width='100%';
+  setTimeout(()=>{ w.style.display='none'; _bgUploadAtivo=false; }, allOk?5000:8000);
+}
+
 async function uploadFotos(){
   if(!FOTO_OS){showToast('Selecione uma OS primeiro');return;}
   if(!_fotoFiles.length){showToast('Nenhuma foto selecionada');return;}
   if(!AUTH){showToast('Faça login antes de enviar');return;}
+  if(_bgUploadAtivo){showToast('⏳ Aguarde o envio atual terminar');return;}
 
+  // Snapshot: o usuário pode limpar/selecionar novas fotos ou trocar de OS sem afetar este envio
+  const arquivos=_fotoFiles.slice();
+  const osCtx=FOTO_OS;
   const btn=document.getElementById('foto-send-btn');
   const progWrap=document.getElementById('foto-prog-wrap');
   const resultado=document.getElementById('foto-resultado');
-  btn.disabled=true;
-  progWrap.style.display='block';
+
+  // Libera a UI imediatamente para o usuário continuar trabalhando
+  _fotoFiles=[];
+  document.getElementById('foto-preview-grid').innerHTML='';
+  btn.style.display='none';
+  progWrap.style.display='none';
   progWrap.innerHTML='';
-  resultado.textContent='⏳ Localizando pasta no Drive...';
+  resultado.textContent='';
+
+  _bgUploadAtivo=true;
+  _showBgUpload('OS '+osCtx.os+' — '+(osCtx.end||''), arquivos.length);
+  showToast('⬆️ Upload iniciado em segundo plano');
 
   try{
     // 1. Localiza pasta da OS
-    const pf=mes2pasta(FOTO_OS.mes);
-    const np=nomePasta(FOTO_OS.item,FOTO_OS.atv,FOTO_OS.osp);
+    const pf=mes2pasta(osCtx.mes);
+    const np=nomePasta(osCtx.item,osCtx.atv,osCtx.osp);
 
     const mesRes=await gapi.client.drive.files.list({
       q:`name='${pf}' and '${CFG.DID}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
@@ -8304,13 +8497,11 @@ async function uploadFotos(){
     const osFolderId=osRes.result.files[0].id;
 
     // 2. Localiza subpasta de fotos (role='fotos' ou nome fallback)
-    resultado.textContent='⏳ Localizando subpasta de fotos...';
     let fotoFolderId=await findFolderByRole(osFolderId,'fotos');
     const targetSubp = (SUBP||[]).find(s=>s.role==='fotos');
     const fotoFolderName = targetSubp ? targetSubp.nm : 'RELATORIO FOTOGRAFICO';
 
     if(!fotoFolderId){
-      // Tenta fallback pelo nome canônico
       const fbRes=await gapi.client.drive.files.list({
         q:`name='${fotoFolderName}' and '${osFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
         fields:'files(id)',pageSize:1
@@ -8318,17 +8509,14 @@ async function uploadFotos(){
       fotoFolderId=fbRes.result.files[0]?.id||null;
     }
     if(!fotoFolderId){
-      // Cria a pasta automaticamente
       const cr=await gapi.client.drive.files.create({
         resource:{name:fotoFolderName,mimeType:'application/vnd.google-apps.folder',parents:[osFolderId]},
         fields:'id'
       });
       fotoFolderId=cr.result.id;
-      showToast(`📁 Pasta "${fotoFolderName}" criada`);
     }
 
-    // 3. Descobre o próximo número de "Imagem_XXX" já existente na pasta (contagem contínua)
-    resultado.textContent='⏳ Verificando fotos existentes...';
+    // 3. Descobre o próximo número de "Imagem_XXX"
     let startNum=1;
     try{
       const existentes=await gapi.client.drive.files.list({
@@ -8341,50 +8529,41 @@ async function uploadFotos(){
       if(nums.length)startNum=Math.max.apply(null,nums)+1;
     }catch(e){console.warn('Não foi possível listar fotos existentes:',e);}
 
-    // 4. Upload de cada foto com barra de progresso (comprime + renomeia Imagem_NNN)
+    // 4. Upload de cada foto, atualizando o widget flutuante
     let ok=0, err=0;
-    for(let i=0;i<_fotoFiles.length;i++){
-      const original=_fotoFiles[i];
-
-      const pItem=document.createElement('div');
-      pItem.className='foto-prog-item';
-      pItem.innerHTML=`<div class="foto-prog-label">${original.name}</div><div class="foto-prog-bar-bg"><div class="foto-prog-bar" id="fpb-${i}"></div></div>`;
-      progWrap.appendChild(pItem);
-      resultado.textContent=`⏳ Processando foto ${i+1} de ${_fotoFiles.length}...`;
-
+    const total=arquivos.length;
+    for(let i=0;i<total;i++){
+      const original=arquivos[i];
       try{
         const file=await _comprimirImagem(original);
         const ext=(file.name.split('.').pop()||'jpg').toLowerCase();
         const nomeDest=`Imagem_${String(startNum+i).padStart(3,'0')}.${ext}`;
-        resultado.textContent=`⏳ Enviando ${nomeDest} (${i+1}/${_fotoFiles.length})...`;
-        await _uploadFotoParaDrive(file, nomeDest, fotoFolderId, `fpb-${i}`);
-        const bar=document.getElementById(`fpb-${i}`);
-        if(bar){bar.style.width='100%';bar.classList.add('done');}
+        await _uploadFotoParaDrive(file, nomeDest, fotoFolderId, null, (pct)=>{
+          const overall=Math.round(((i+pct/100)/total)*100);
+          _setBgUploadProg(i, total, overall);
+        });
         ok++;
+        _setBgUploadProg(ok+err, total, Math.round(((i+1)/total)*100));
       }catch(e){
-        const bar=document.getElementById(`fpb-${i}`);
-        if(bar)bar.classList.add('err');
         err++;
+        _setBgUploadProg(ok+err, total, Math.round(((i+1)/total)*100));
         console.error('Erro upload foto:',e);
       }
     }
 
-    resultado.textContent=`✅ ${ok} foto(s) enviada(s)${err?' · ❌ '+err+' com erro':''}`;
-    showToast(ok===_fotoFiles.length?'✅ Fotos enviadas!':'⚠️ '+ok+' foto(s) enviada(s), '+err+' com erro');
-    if(ok>0){
-      _fotoFiles=[];
-      document.getElementById('foto-preview-grid').innerHTML='';
-      btn.style.display='none';
-    }
+    _finishBgUpload(ok, err, total);
+    showToast(err===0?'✅ Fotos enviadas!':'⚠️ '+ok+' enviada(s), '+err+' com erro');
   }catch(e){
-    resultado.textContent='❌ '+e.message;
+    document.getElementById('bg-upload').classList.add('err');
+    document.getElementById('bg-upload-ico').textContent='❌';
+    document.getElementById('bg-upload-tit').textContent='Falha no envio';
+    document.getElementById('bg-upload-stat').textContent=e.message;
+    setTimeout(()=>{document.getElementById('bg-upload').style.display='none';_bgUploadAtivo=false;},8000);
     showToast('❌ '+e.message);
-  }finally{
-    btn.disabled=false;
   }
 }
 
-async function _uploadFotoParaDrive(file, nome, folderId, barId){
+async function _uploadFotoParaDrive(file, nome, folderId, barId, onProgress){
   const mime=file.type||'image/jpeg';
   const metadata={name:nome,mimeType:mime,parents:[folderId]};
 
@@ -8408,8 +8587,11 @@ async function _uploadFotoParaDrive(file, nome, folderId, barId){
     xhr.upload.onprogress=e=>{
       if(e.lengthComputable){
         const pct=Math.round(e.loaded/e.total*100);
-        const bar=document.getElementById(barId);
-        if(bar)bar.style.width=pct+'%';
+        if(barId){
+          const bar=document.getElementById(barId);
+          if(bar)bar.style.width=pct+'%';
+        }
+        if(typeof onProgress==='function') onProgress(pct);
       }
     };
     xhr.onload=()=>{
@@ -8858,8 +9040,12 @@ async function _uploadFotoParaDrive(file, nome, folderId, barId){
           ✅ Tudo pronto! Ao clicar em <b>Concluir</b>, o sistema será configurado e carregado imediatamente.<br><br>
           🔄 Para editar depois: ⚙️ → <b>Reconfigurar sistema</b> · As atividades e municípios podem ser importados a qualquer momento.
         </div>
-        <div style="display:flex;gap:10px;margin-top:10px">
-          <button class="setup-add-btn" onclick="setupExportar()">📤 Exportar configuração</button>
+        <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap">
+          <button class="setup-add-btn" onclick="setupExportar()">📤 Exportar JSON</button>
+          <button class="setup-add-btn" onclick="copiarUrlConfigurada()">🔗 Copiar URL configurada</button>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:8px;line-height:1.4">
+          Cole a URL copiada no navegador de outro dispositivo para abrir o dashboard já configurado — sem precisar refazer este wizard.
         </div>
       </div>
 
