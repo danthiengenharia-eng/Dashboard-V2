@@ -2790,14 +2790,56 @@ function initGSI(){
         Auth.save(resp.access_token,resp.expires_in);
         scheduleAuthRefresh(Date.now()+(resp.expires_in||3600)*1000);
         setAuthUI(true);
-        // Recarrega os dados após autenticação fresh (caso o load inicial tenha falhado)
         if(typeof gapi!=='undefined'&&gapi.client&&gapi.client.sheets)loadData();
       }
     }
   });
-  // Só pede token se não tem um salvo válido (evita popup desnecessário)
+  // Sem token salvo: tenta silent (renova sem popup se já está logado no Google)
   if(!Auth.load())TC.requestAccessToken({prompt:''});
 }
+
+// Silent refresh on demand — retorna Promise que resolve com novo token ou null
+function silentRefresh(){
+  return new Promise(resolve=>{
+    if(!TC){resolve(null);return;}
+    let resolved=false;
+    const prev=TC.callback;
+    const timeoutId=setTimeout(()=>{
+      if(resolved)return;
+      resolved=true;
+      try{TC.callback=prev;}catch(_){}
+      resolve(null);
+    },5000);
+    TC.callback=(resp)=>{
+      try{TC.callback=prev;}catch(_){}
+      if(resolved){if(prev)prev(resp);return;}
+      resolved=true;
+      clearTimeout(timeoutId);
+      if(resp&&resp.access_token){
+        TOKEN=resp.access_token;AUTH=true;
+        gapi.client.setToken({access_token:TOKEN});
+        Auth.save(resp.access_token,resp.expires_in);
+        scheduleAuthRefresh(Date.now()+(resp.expires_in||3600)*1000);
+        setAuthUI(true);
+        resolve(resp.access_token);
+      }else{resolve(null);}
+    };
+    try{TC.requestAccessToken({prompt:''});}catch(e){
+      clearTimeout(timeoutId);resolved=true;
+      try{TC.callback=prev;}catch(_){}
+      resolve(null);
+    }
+  });
+}
+
+// Quando a aba volta a ficar visível, renova silenciosamente se o token está próximo de expirar
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState!=='visible')return;
+  if(!TC)return;
+  const exp=parseInt(localStorage.getItem('danthi-token-exp')||'0');
+  // Faltam menos de 10 minutos OU já expirou: refresh silencioso
+  if(!exp || Date.now() > exp - 10*60000) silentRefresh();
+});
 
 function doAuth(){if(TC)TC.requestAccessToken();else showToast('Aguarde...');}
 function toggleAuthMenu(event){
@@ -2889,11 +2931,13 @@ async function loadData(){
     // Re-popula dropdowns que dependem de ALL (município na rota)
     if(TAB==='rota'||SPLIT_TAB==='rota')initRota();
   }catch(e){
-    // Token expirado/inválido: limpa cache e tenta renovar silenciosamente
+    // Token expirado/inválido: tenta renovar silenciosamente antes de limpar
     const code=e.status||e.result?.error?.code;
     if(code===401||code===403){
+      const novoToken=await silentRefresh();
+      if(novoToken){loadData();return;}
+      // Silent falhou: aí sim limpa e mostra botão de login
       Auth.clear();TOKEN=null;AUTH=false;setAuthUI(false);
-      if(TC)TC.requestAccessToken({prompt:''});
       return;
     }
     document.getElementById('tbody').innerHTML=`<tr><td colspan="13" style="padding:1.5rem;text-align:center;color:#f87171">Erro ao carregar dados: ${e.message}<br><small style="opacity:.6">Verifique conexão e autenticação</small></td></tr>`;
