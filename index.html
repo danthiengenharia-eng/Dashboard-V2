@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Terceto Engenharia — Dashboard</title>
+<title>Sistema Caixa Econômica — Dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800&family=Figtree:wght@600;700&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://bernardo-castilho.github.io/DragDropTouch/DragDropTouch.js"></script>
@@ -208,6 +208,26 @@ body.light-mode .fbar-wrap{background:var(--chrome-fbar-bg)}
 .btn-add-filter:hover{border-color:var(--mica-border-light);color:var(--text-primary)}
 .btn-clr-all{background:rgba(var(--accent-rgb),0.08);border:1px solid rgba(var(--accent-rgb),0.25);color:var(--accent);padding:4px 12px;border-radius:6px;font-size:11px;cursor:pointer;transition:.15s;font-family:'Inter',sans-serif}
 .btn-clr-all:hover{background:rgba(var(--accent-rgb),0.16)}
+
+/* Export button + menu (na barra de filtros) */
+.export-wrap{position:relative}
+.btn-export{display:flex;align-items:center;gap:5px;background:rgba(var(--accent-rgb),0.10);border:1px solid rgba(var(--accent-rgb),0.28);color:var(--accent);padding:5px 11px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;height:28px;transition:.15s}
+.btn-export:hover{background:rgba(var(--accent-rgb),0.18);border-color:rgba(var(--accent-rgb),0.45)}
+.btn-export svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.btn-export .caret{font-size:9px;opacity:.7}
+.export-menu{display:none;position:absolute;top:calc(100% + 6px);right:0;background:var(--mica-bg);border:1px solid var(--mica-border-light);border-radius:8px;padding:6px;min-width:220px;z-index:300;box-shadow:0 8px 28px rgba(0,0,0,.45);flex-direction:column;gap:1px}
+body.light-mode .export-menu{background:#fff;box-shadow:0 8px 28px rgba(0,0,0,.18)}
+.export-menu.open{display:flex}
+.export-menu-title{font-size:9.5px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;font-weight:600;padding:4px 8px 6px}
+.export-menu button{display:flex;align-items:center;gap:9px;background:transparent;border:none;color:var(--text-primary);text-align:left;padding:7px 10px;border-radius:5px;font-size:12px;cursor:pointer;font-family:'Inter',sans-serif;transition:.1s;width:100%}
+.export-menu button:hover{background:var(--mica-surface-hover)}
+.export-menu button .ex-ico{width:22px;height:22px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}
+.export-menu button .ex-ico.xlsx{background:rgba(33,118,67,0.18);color:#21a063}
+.export-menu button .ex-ico.csv{background:rgba(15,108,189,0.18);color:#3a92d6}
+.export-menu button .ex-ico.pdf{background:rgba(214,48,48,0.18);color:#e25656}
+.export-menu button .ex-sub{display:block;font-size:9.5px;color:var(--text-muted);font-weight:400;margin-top:1px}
+.export-menu hr{border:none;border-top:1px solid var(--mica-border);margin:5px 4px}
+.export-menu-foot{font-size:9.5px;color:var(--text-muted);padding:4px 10px 2px;line-height:1.35}
 
 /* Split view */
 .main.split-mode{display:flex;gap:10px;align-items:flex-start}
@@ -1409,6 +1429,21 @@ body.light-mode .ficha-single-cbox{border-color:rgba(0,0,0,0.12);background:rgba
       <span>Entrar</span>
     </button>
     <span class="fcount-bar" id="fcnt"></span>
+    <div class="export-wrap" id="export-wrap">
+      <button class="btn-export" id="btn-export" type="button" onclick="toggleExportMenu(event)" title="Exportar tabela filtrada">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <span>Exportar</span>
+        <span class="caret">▾</span>
+      </button>
+      <div class="export-menu" id="export-menu" role="menu">
+        <div class="export-menu-title">Exportar tabela filtrada</div>
+        <button type="button" onclick="exportarTabela('xlsx')"><span class="ex-ico xlsx">X</span><span><strong>Excel (.xlsx)</strong><span class="ex-sub">Planilha formatada para Microsoft Excel</span></span></button>
+        <button type="button" onclick="exportarTabela('csv')"><span class="ex-ico csv">G</span><span><strong>CSV (Google Sheets)</strong><span class="ex-sub">Importe direto no Sheets ou Excel</span></span></button>
+        <button type="button" onclick="exportarTabela('pdf')"><span class="ex-ico pdf">P</span><span><strong>PDF</strong><span class="ex-sub">Documento A3 paisagem pronto p/ impressão</span></span></button>
+        <hr>
+        <div class="export-menu-foot">Inclui apenas as OS visíveis com os filtros atuais.</div>
+      </div>
+    </div>
   </div>
   <div class="filter-panel" id="filter-panel">
     <div class="filter-panel-title">Mostrar registros onde:</div>
@@ -2153,6 +2188,7 @@ body.light-mode .ficha-single-cbox{border-color:rgba(0,0,0,0.12);background:rgba
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/piexifjs@1.0.6/piexif.min.js"></script>
 <script>
@@ -3255,6 +3291,156 @@ function renderTable(){
 }
 
 // ═══════════════════════════════════════════════════════════
+//  EXPORTAÇÃO DA TABELA (Excel / CSV / PDF)
+// ═══════════════════════════════════════════════════════════
+function toggleExportMenu(ev){
+  if(ev)ev.stopPropagation();
+  const menu=document.getElementById('export-menu');
+  if(!menu)return;
+  const open=menu.classList.toggle('open');
+  if(open){
+    const close=(e)=>{if(!document.getElementById('export-wrap').contains(e.target)){menu.classList.remove('open');document.removeEventListener('click',close);document.removeEventListener('keydown',esc);}};
+    const esc=(e)=>{if(e.key==='Escape'){menu.classList.remove('open');document.removeEventListener('click',close);document.removeEventListener('keydown',esc);}};
+    setTimeout(()=>{document.addEventListener('click',close);document.addEventListener('keydown',esc);},0);
+  }
+}
+
+function _exportRows(){
+  const rows=(typeof FIL!=='undefined'&&FIL&&FIL.length)?FIL:(ALL||[]);
+  const headers=['#','OS','Endereço','Bairro','Município','Atividade','Tipologia','Área (m²)','Mês','Status','Valor Total','Valor Avaliado','R$/m²'];
+  const data=rows.map(r=>{
+    const rsm=(r.area>0&&r.va>0)?(r.va/r.area):0;
+    return [
+      r.item||'',
+      r.os||'',
+      titleCase(r.end||''),
+      titleCase(r.bairro||''),
+      titleCase(nMun(r.mun)||''),
+      r.atv||'',
+      r.tip||'',
+      Number(r.area)||0,
+      r.mes||'',
+      r.st||'',
+      Number(r.vt)||0,
+      Number(r.va)||0,
+      rsm
+    ];
+  });
+  return {headers,data,rows};
+}
+
+function _exportFilename(ext){
+  const d=new Date();
+  const ts=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  return `OS-Danthi-${ts}.${ext}`;
+}
+
+function _downloadBlob(blob,name){
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=name;
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+
+async function exportarTabela(fmt){
+  document.getElementById('export-menu')?.classList.remove('open');
+  const {headers,data,rows}=_exportRows();
+  if(!rows.length){showToast('Nenhuma OS para exportar');return;}
+
+  if(fmt==='csv'){
+    const csv=[headers,...data].map(row=>row.map(c=>{
+      if(typeof c==='number')c=c.toString().replace('.',',');
+      const s=String(c??'').replace(/"/g,'""');
+      return /[";\n,]/.test(s)?`"${s}"`:s;
+    }).join(';')).join('\r\n');
+    _downloadBlob(new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'}),_exportFilename('csv'));
+    showToast(`📋 ${rows.length} OS exportadas — CSV pronto p/ Sheets/Excel`);
+    return;
+  }
+
+  if(fmt==='xlsx'){
+    if(!window.XLSX){showToast('Aguarde — biblioteca de Excel carregando…');return;}
+    const aoa=[headers,...data];
+    const ws=XLSX.utils.aoa_to_sheet(aoa);
+    // Larguras de coluna
+    ws['!cols']=[{wch:5},{wch:16},{wch:34},{wch:18},{wch:20},{wch:18},{wch:14},{wch:10},{wch:9},{wch:18},{wch:14},{wch:14},{wch:12}];
+    // Formato BRL nas colunas de valor (K, L) e número na R$/m² (M)
+    const last=aoa.length;
+    for(let i=2;i<=last;i++){
+      ['K','L'].forEach(col=>{const c=ws[col+i];if(c&&typeof c.v==='number'){c.t='n';c.z='[$R$ -416] #,##0.00';}});
+      const cm=ws['M'+i];if(cm&&typeof cm.v==='number'){cm.t='n';cm.z='#,##0.00';}
+      const ca=ws['H'+i];if(ca&&typeof ca.v==='number'){ca.t='n';ca.z='#,##0.00';}
+    }
+    // Estilo do cabeçalho (negrito via cell.s — XLSX styles não funcionam na build community sem write-styles, então só freeze)
+    ws['!freeze']={ySplit:1};
+    ws['!autofilter']={ref:XLSX.utils.encode_range({s:{r:0,c:0},e:{r:last-1,c:headers.length-1}})};
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,'OS');
+    XLSX.writeFile(wb,_exportFilename('xlsx'));
+    showToast(`📊 ${rows.length} OS exportadas para Excel`);
+    return;
+  }
+
+  if(fmt==='pdf'){
+    if(!window.html2pdf){showToast('Aguarde — biblioteca de PDF carregando…');return;}
+    showToast('📕 Gerando PDF…');
+    const totVt=rows.reduce((s,r)=>s+(Number(r.vt)||0),0);
+    const totVa=rows.reduce((s,r)=>s+(Number(r.va)||0),0);
+    const dt=new Date().toLocaleDateString('pt-BR');
+    const tbodyHtml=data.map((row,i)=>{
+      const tds=row.map((c,j)=>{
+        let txt=c;
+        if(j===10||j===11)txt=(Number(c)>0)?brl(Number(c)):'—';
+        else if(j===7)txt=(Number(c)>0)?(Number(c).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})):'—';
+        else if(j===12)txt=(Number(c)>0)?brl(Number(c)):'—';
+        else txt=String(c??'')||'—';
+        const align=(j===0||j===7||j===10||j===11||j===12)?'text-align:right':'';
+        return `<td style="padding:3px 5px;border:1px solid #d4d4d4;${align}">${txt}</td>`;
+      }).join('');
+      return `<tr style="background:${i%2?'#f6f7f8':'#fff'}">${tds}</tr>`;
+    }).join('');
+    const html=`
+      <div style="font-family:Inter,Arial,sans-serif;color:#111;padding:18px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #003c6e;padding-bottom:8px;margin-bottom:12px">
+          <div>
+            <div style="font-size:16px;font-weight:700;color:#003c6e">Ordens de Serviço — CAIXA</div>
+            <div style="font-size:10px;color:#555">Danthi Engenharia · gerado em ${dt}</div>
+          </div>
+          <div style="font-size:10px;color:#444;text-align:right">
+            <div><b>${rows.length}</b> OS exportadas</div>
+            <div>Valor Total: <b>${brl(totVt)}</b></div>
+            <div>Valor Avaliado: <b>${brl(totVa)}</b></div>
+          </div>
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:8px">
+          <thead><tr style="background:#003c6e;color:#fff">
+            ${headers.map(h=>`<th style="padding:5px 5px;text-align:left;border:1px solid #002a4c;font-weight:600">${h}</th>`).join('')}
+          </tr></thead>
+          <tbody>${tbodyHtml}</tbody>
+        </table>
+      </div>`;
+    const wrap=document.createElement('div');wrap.style.cssText='position:fixed;left:-99999px;top:0;width:1500px';wrap.innerHTML=html;
+    document.body.appendChild(wrap);
+    try{
+      await html2pdf().set({
+        margin:6,
+        filename:_exportFilename('pdf'),
+        image:{type:'jpeg',quality:0.95},
+        html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff'},
+        jsPDF:{unit:'mm',format:'a3',orientation:'landscape'},
+        pagebreak:{mode:['css','legacy']}
+      }).from(wrap.firstElementChild).save();
+      showToast(`📕 ${rows.length} OS exportadas em PDF`);
+    }catch(e){
+      console.error(e);showToast('Erro ao gerar PDF: '+e.message);
+    }finally{
+      wrap.remove();
+    }
+    return;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
 //  DASHBOARD
 // ═══════════════════════════════════════════════════════════
 // Estado dos filtros do dashboard
@@ -3286,11 +3472,21 @@ function initDashFilters(){
     Object.keys(POLO_CORES).forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=POLO_NOME[p]||p;selPolo.appendChild(o);});
   }
   const selIni=document.getElementById('dash-mes-ini'),selFim=document.getElementById('dash-mes-fim');
-  if(selIni&&selIni.options.length===1){
-    MES_ORD.forEach(m=>{
+  if(selIni&&selFim){
+    // Mantém só meses que realmente aparecem nos dados, ordenados cronologicamente.
+    const mesesPresentes=new Set();
+    (ALL||[]).forEach(r=>{if(r&&r.mes)mesesPresentes.add(r.mes);});
+    const mesesDisponiveis=[...mesesPresentes].sort((a,b)=>MOS_ORD_IDX(a)-MOS_ORD_IDX(b));
+    // Preserva a seleção atual (se ainda válida) antes de repopular
+    const prevIni=selIni.value,prevFim=selFim.value;
+    selIni.innerHTML='<option value="">Mês inicial</option>';
+    selFim.innerHTML='<option value="">Mês final</option>';
+    mesesDisponiveis.forEach(m=>{
       const o1=document.createElement('option');o1.value=m;o1.textContent=m;selIni.appendChild(o1);
       const o2=document.createElement('option');o2.value=m;o2.textContent=m;selFim.appendChild(o2);
     });
+    if(prevIni&&mesesDisponiveis.includes(prevIni))selIni.value=prevIni;
+    if(prevFim&&mesesDisponiveis.includes(prevFim))selFim.value=prevFim;
   }
 }
 
@@ -8902,7 +9098,7 @@ async function _uploadFotoParaDrive(file, nome, folderId, barId, onProgress){
         <div class="setup-field-row">
           <div class="setup-field">
             <label>Nome da empresa</label>
-            <input id="s-emp" placeholder="Ex: Terceto Engenharia">
+            <input id="s-emp" placeholder="Ex: Sua Empresa">
           </div>
           <div class="setup-field">
             <label>Subtítulo da marca</label>
