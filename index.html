@@ -2273,7 +2273,11 @@ const FILTER_FIELDS=[
   {key:'bairro',label:'Bairro',type:'text'},
   {key:'mun',label:'Município',type:'text'},
   {key:'tip',label:'Tipologia',type:'text'},
-  {key:'mes',label:'Mês',type:'select',opts:()=>MES_ORD.map(m=>({v:m,l:m}))},
+  {key:'mes',label:'Mês',type:'select',opts:()=>{
+    // Só os meses que realmente aparecem nas OS atuais (evita dropdown enorme com jan-24..dez-30)
+    const presentes=new Set();(ALL||[]).forEach(r=>{if(r&&r.mes)presentes.add(r.mes);});
+    return [...presentes].sort((a,b)=>MOS_ORD_IDX(a)-MOS_ORD_IDX(b)).map(m=>({v:m,l:m}));
+  }},
   {key:'siopi',label:'Data de entrada',type:'date'},
   {key:'ent',label:'Data entrega',type:'date'},
   {key:'st',label:'Status',type:'select',opts:()=>Object.entries(STCFG).map(([k,v])=>({v:k,l:v.lbl}))},
@@ -3031,16 +3035,42 @@ document.addEventListener('visibilitychange',()=>{
 });
 
 function doAuth(){if(TC)TC.requestAccessToken();else showToast('Aguarde...');}
+// Posiciona o popover de auth via JS (igual ao split-menu): a sidebar/bottom-nav
+// usa overflow:hidden + backdrop-filter, que recortariam o flyout se ele ficasse
+// no fluxo do DOM. Movemos pro <body> e usamos position:fixed.
+function positionAuthPopover(p,btn){
+  const r=btn.getBoundingClientRect();
+  p.style.position='fixed';
+  if(window.innerWidth<=576){
+    // Mobile: popover acima do dot, alinhado à direita do botão
+    p.style.right=Math.round(Math.max(8,window.innerWidth-r.right))+'px';
+    p.style.left='auto';
+    p.style.bottom=Math.round(window.innerHeight-r.top+6)+'px';
+    p.style.top='auto';
+  }else{
+    // Desktop: popover à direita da sidebar, base alinhada com o dot
+    p.style.left=Math.round(r.right+8)+'px';
+    p.style.right='auto';
+    p.style.bottom=Math.round(Math.max(8,window.innerHeight-r.bottom))+'px';
+    p.style.top='auto';
+  }
+}
 function toggleAuthMenu(event){
   if(event){event.stopPropagation();}
   const p=document.getElementById('auth-popover');
-  if(p)p.classList.toggle('open');
+  const btn=document.getElementById('auth-dot-btn');
+  if(!p||!btn)return;
+  if(p.parentElement!==document.body)document.body.appendChild(p);
+  const willOpen=!p.classList.contains('open');
+  if(willOpen)positionAuthPopover(p,btn);
+  p.classList.toggle('open');
 }
-// Fecha popover ao clicar fora
+// Fecha popover ao clicar fora (popover agora vive no <body>, então testamos
+// tanto o auth-corner quanto o próprio popover)
 document.addEventListener('click',e=>{
   const a=document.getElementById('auth-corner');
   const p=document.getElementById('auth-popover');
-  if(a&&p&&!a.contains(e.target))p.classList.remove('open');
+  if(a&&p&&!a.contains(e.target)&&!p.contains(e.target))p.classList.remove('open');
 });
 function setAuthUI(ok){
   const ind=document.getElementById('auth-ind'),btn=document.getElementById('btn-auth');
