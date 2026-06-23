@@ -18,6 +18,10 @@
   --mica-border:rgba(255,255,255,0.08);--mica-border-light:rgba(255,255,255,0.14);
   --glass-bg:rgba(var(--accent-rgb),0.08);--glass-border:rgba(var(--accent-rgb),0.20);
   --text-primary:#ffffff;--text-secondary:#aeaeb2;--text-muted:#8e8e93;
+  /* Tokens semânticos — sempre WCAG AA contra o fundo do tema (≥4.5:1). */
+  --text-success:#4ade80;--text-danger:#f87171;--text-warning:#fbbf24;--text-info:#7dd3fc;
+  --bg-success:rgba(34,197,94,0.12);--bg-danger:rgba(239,68,68,0.12);--bg-warning:rgba(251,191,36,0.12);
+  --bd-success:rgba(34,197,94,0.30);--bd-danger:rgba(239,68,68,0.30);--bd-warning:rgba(251,191,36,0.30);
   --radius-sm:8px;--radius-md:10px;--radius-lg:14px;
   /* DARK — chrome tingido com a cor do usuário (accent) */
   --topbar-bg:linear-gradient(180deg, rgba(var(--accent-rgb),0.28), rgba(var(--accent-rgb),0.16)), rgba(14,14,16,0.92);
@@ -30,6 +34,10 @@ body.light-mode{
   --mica-border:rgba(0,0,0,0.08);--mica-border-light:rgba(0,0,0,0.12);
   --glass-bg:rgba(255,255,255,0.72);--glass-border:rgba(var(--accent-rgb),0.16);
   --text-primary:#000000;--text-secondary:#3a3a3c;--text-muted:#68686d;
+  /* Tokens semânticos no light — todos AA (≥4.5:1) sobre branco. */
+  --text-success:#15803d;--text-danger:#b91c1c;--text-warning:#a16207;--text-info:#0369a1;
+  --bg-success:rgba(22,163,74,0.10);--bg-danger:rgba(185,28,28,0.08);--bg-warning:rgba(161,98,7,0.10);
+  --bd-success:rgba(22,163,74,0.30);--bd-danger:rgba(185,28,28,0.30);--bd-warning:rgba(161,98,7,0.30);
   /* LIGHT — chrome tingido com a cor do usuário (mais opacidade pra aparecer sobre branco) */
   --topbar-bg:linear-gradient(180deg, rgba(var(--accent-rgb),0.22), rgba(var(--accent-rgb),0.12)), rgba(255,255,255,0.92);
   --chrome-fbar-bg:linear-gradient(180deg, rgba(var(--accent-rgb),0.14), rgba(var(--accent-rgb),0.06)), rgba(255,255,255,0.94);
@@ -60,10 +68,13 @@ body.light-mode tr.st-vistoriada:hover { background: linear-gradient(90deg, rgba
 body.light-mode tr.st-revisao:hover    { background: linear-gradient(90deg, rgba(126,34,206,0.24) 0%, rgba(126,34,206,0.24) 85%, var(--mica-surface-hover) 100%); }
 body.light-mode tr.st-andamento:hover  { background: linear-gradient(90deg, rgba(71,85,105,0.18) 0%, rgba(71,85,105,0.18) 85%, var(--mica-surface-hover) 100%); }
 body.light-mode .badge-atrasado{background:rgba(220,38,38,0.10);border-color:rgba(220,38,38,0.35);color:#dc2626}
-body.light-mode .err-msg{color:#dc2626 !important}
-body.light-mode label span[style*="color:#4ade80"]{color:#16a34a !important}
-body.light-mode .metric .val[style*="color:#f87171"]{color:#dc2626 !important}
-body.light-mode .metric .val[style*="color:#4ade80"]{color:#16a34a !important}
+body.light-mode .err-msg{color:var(--text-danger) !important}
+body.light-mode .metric-red{color:var(--text-danger) !important}
+body.light-mode label span[style*="color:#4ade80"]{color:var(--text-success) !important}
+body.light-mode .metric .val[style*="color:#f87171"]{color:var(--text-danger) !important}
+body.light-mode .metric .val[style*="color:#4ade80"]{color:var(--text-success) !important}
+/* Mensagem inline de erro na tabela (carregamento) */
+body.light-mode #tbody td[style*="color:#f87171"]{color:var(--text-danger) !important}
 body{
   font-family:-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   background:var(--mica-bg);
@@ -591,6 +602,18 @@ tbody tr:focus-visible {
 .bg-upload-stat{font-size:11px;color:var(--text-secondary);margin-top:.25rem;margin-bottom:.3rem}
 .bg-upload-bar-bg{height:5px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden}
 .bg-upload-bar{height:100%;background:var(--accent);width:0%;transition:width .25s;border-radius:3px}
+
+/* ── STATUS CHIP (mensagens de feedback inline — ex.: SIOPI) ── */
+.status-chip{
+  font-size:11.5px;font-weight:500;line-height:1.45;
+  margin-top:8px;padding:8px 11px;border-radius:8px;
+  border:1px solid var(--mica-border);background:var(--mica-bg);
+  display:flex;flex-wrap:wrap;gap:6px 12px;
+}
+.status-chip.chip-success{background:var(--bg-success);border-color:var(--bd-success)}
+.status-chip.chip-danger {background:var(--bg-danger); border-color:var(--bd-danger)}
+.status-chip.chip-warning{background:var(--bg-warning);border-color:var(--bd-warning)}
+.status-chip.chip-info   {background:var(--mica-surface);border-color:var(--mica-border-light)}
 .bg-upload.collapsed .bg-upload-body{display:none}
 .bg-upload.done .bg-upload-bar{background:#22c55e;width:100% !important}
 .bg-upload.err .bg-upload-bar{background:#ef4444}
@@ -792,11 +815,23 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
   .spacer{flex:0 0 4px}
 
   /* Filter bar compacta */
-  .fbar-toggle{padding:.35rem .5rem;flex-wrap:wrap}
+  /* Toolbar em uma linha: Filtros | contagem (flex, truncada) | Exportar */
+  .fbar-toggle{padding:.4rem .6rem;flex-wrap:nowrap;gap:6px;align-items:center}
+  .fbar-toggle-btn{flex-shrink:0}
+  .active-chips{flex:0 1 auto;min-width:0;overflow:hidden}
   .filter-row{flex-wrap:wrap;gap:4px}
   .sel-field,.sel-op{min-width:0;flex:1 1 45%}
   .inp-val{flex:1 1 100%}
-  .fcount-bar{font-size:10px;flex-basis:100%;text-align:right;margin-left:0}
+  .fcount-bar{font-size:10.5px;flex:1 1 auto;text-align:right;margin-left:auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .export-wrap{flex-shrink:0}
+  .btn-export{padding:5px 10px}
+  .btn-export svg{width:13px;height:13px}
+  /* Em telas bem estreitas (≤400px) reduz Exportar pra só ícone + caret pra
+     garantir que Filtros / contagem / Exportar caibam na mesma linha. */
+  @media (max-width:400px){
+    .btn-export span:not(.caret){display:none}
+    .btn-export{padding:5px 8px}
+  }
 
   /* Métricas e charts no dashboard */
   .main{padding:.45rem}
@@ -864,30 +899,39 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
     border-top:1px solid var(--mica-border);border-bottom:none;
     overflow:hidden;gap:0;z-index:200;
   }
-  /* Ícones de nav: coluna com label */
+  /* Ícones de nav: coluna com label, distribuídos igualmente sem max-width fixo
+     (cabe sem sobreposição em telas a partir de 320px) */
   .nav-ico{
-    flex-direction:column;width:auto;min-width:44px;height:auto;min-height:48px;
-    padding:4px 6px;border-radius:10px;border-left:none;gap:2px;flex:1;max-width:66px;
+    flex-direction:column;width:auto;min-width:0;height:auto;min-height:48px;
+    padding:4px 2px;border-radius:10px;border-left:none;gap:2px;
+    flex:1 1 0;max-width:none;
     transform:none !important;
   }
   .nav-ico.active{border-left:none;border-top:2px solid var(--accent);background:rgba(var(--accent-rgb),0.12)}
   .nav-ico:hover{transform:none}
-  .nav-ico svg{width:20px;height:20px}
-  /* Labels visíveis */
+  .nav-ico svg{width:20px;height:20px;flex-shrink:0}
+  /* Labels visíveis — encolhem antes de quebrar layout */
   .nav-ico .tip{
     display:block !important;position:static;transform:none;opacity:1;
     background:transparent;color:inherit;font-size:9px;padding:0;
     border-radius:0;pointer-events:none;z-index:auto;white-space:nowrap;
-    overflow:hidden;text-overflow:ellipsis;max-width:64px;text-align:center;
-    transition:none;
+    overflow:hidden;text-overflow:ellipsis;max-width:100%;text-align:center;
+    transition:none;line-height:1.1;
   }
+  /* Telas muito estreitas (≤360px — ex.: Galaxy A0x, iPhone SE 1ª ger.):
+     label vira ainda menor pra não sobrepor */
+  @media (max-width:360px){.nav-ico .tip{font-size:8px}.nav-ico svg{width:18px;height:18px}}
   /* Ocultar itens secundários da nav */
   .nav-sep,.nav-section-label,.spacer{display:none !important}
   #btn-split{display:none !important}
   .brand-logo-fallback,.brand-logo{display:none !important}
 
-  /* Auth: bolinha fica inline no bottom-nav (não flutua sobre conteúdo) */
-  .auth-corner{position:static;margin:0;padding:0}
+  /* Auth no bottom-nav: só a bolinha (autenticado). O botão "Entrar" nunca
+     aparece aqui no mobile — quando deslogado, `body.no-auth .auth-corner`
+     já some inteiro e o `.btn-entrar-top` cobre o login na toolbar superior. */
+  .auth-corner{position:static;margin:0;padding:0;flex:0 0 auto}
+  .auth-corner .btn-entrar{display:none !important}
+  .auth-dot-btn{padding:4px;min-width:32px;min-height:32px}
   /* Popover sai PRA CIMA do dot (porque dot está no bottom-nav, embaixo da tela) */
   .auth-popover{
     top:auto;bottom:calc(100% + 6px);right:0;
@@ -1967,7 +2011,7 @@ body.light-mode .ficha-single-cbox{border-color:rgba(0,0,0,0.12);background:rgba
       <button id="d-siopi-btn" class="btn" onclick="enriquecerComSIOPI()" style="width:100%;padding:10px;background:linear-gradient(135deg,rgba(var(--accent-rgb),0.15),rgba(83,112,130,0.15));border:1px solid rgba(var(--accent-rgb),0.3);color:var(--text-primary);display:flex;align-items:center;justify-content:center;gap:8px;font-weight:500">
         🔍 Buscar complementos no SIOPI
       </button>
-      <div id="d-siopi-status" style="font-size:11px;color:var(--text-muted);margin-top:8px;display:none"></div>
+      <div id="d-siopi-status" class="status-chip" style="display:none"></div>
     </div>
 
     <div class="ds"><h3>Documentos no Drive</h3>
@@ -3991,6 +4035,11 @@ async function enriquecerComSIOPI(){
     statusEl.style.display='block';
     statusEl.textContent=msg;
     statusEl.style.color=color||'var(--text-muted)';
+    // Variante do chip combina com a cor passada
+    statusEl.classList.remove('chip-success','chip-danger','chip-info');
+    if(color&&color.includes('--text-success'))statusEl.classList.add('chip-success');
+    else if(color&&color.includes('--text-danger'))statusEl.classList.add('chip-danger');
+    else statusEl.classList.add('chip-info');
   };
   
   // Verifica se a extensão está disponível (com pequeno retry caso ainda esteja carregando)
@@ -4000,13 +4049,13 @@ async function enriquecerComSIOPI(){
     tentativas++;
   }
   if(!window.danthiSIOPI||typeof window.danthiSIOPI.extract!=='function'){
-    setStatus('❌ Extensão SIOPI Extractor não detectada. Instale-a e recarregue esta página (Ctrl+F5).','#fca5a5');
+    setStatus('❌ Extensão SIOPI Extractor não detectada. Instale-a e recarregue esta página (Ctrl+F5).','var(--text-danger)');
     return;
   }
   
   const osCompleta=COS.os;
   if(!osCompleta){
-    setStatus('❌ Esta OS não tem número válido','#fca5a5');
+    setStatus('❌ Esta OS não tem número válido','var(--text-danger)');
     return;
   }
   
@@ -4034,7 +4083,7 @@ async function enriquecerComSIOPI(){
     }
     
     if(result.errors&&result.errors.length&&!result.complemento&&!result.area_privativa){
-      setStatus('❌ '+result.errors.join('; '),'#fca5a5');
+      setStatus('❌ '+result.errors.join('; '),'var(--text-danger)');
       btn.disabled=false;btn.style.opacity='1';btn.innerHTML='🔍 Buscar complementos no SIOPI';
       return;
     }
@@ -4204,7 +4253,7 @@ async function enriquecerComSIOPI(){
 
     // 4. Finalização
     if(etapas.length){
-      setStatus('✅ '+etapas.join(' · '),'#86efac');
+      setStatus('✅ '+etapas.join(' · '),'var(--text-success)');
       showToast('✅ Dados do SIOPI aplicados');
       // Recarrega lista de pastas do drawer
       loadDrive(COS);
@@ -4215,7 +4264,7 @@ async function enriquecerComSIOPI(){
     
   }catch(e){
     console.error('[SIOPI] erro:',e);
-    setStatus('❌ '+e.message,'#fca5a5');
+    setStatus('❌ '+e.message,'var(--text-danger)');
   }finally{
     btn.disabled=false;
     btn.style.opacity='1';
