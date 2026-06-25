@@ -2662,6 +2662,15 @@ let DRAGGED_IDX = null;
 const P=v=>(v===null||v===undefined)?'':String(v).trim();
 const B=v=>{const s=P(v).toUpperCase();return s==='TRUE'||s==='VERDADEIRO';};
 const nMun=m=>(m||'').replace(/\s*\(Deslocamento especial\)/i,'').trim();
+// Retorna true se a atividade exige deslocamento. Lê o flag `d` da configuração
+// (ATV_DYN tem prioridade sobre ATV). Para atividades sem o flag definido,
+// mantém o comportamento legado: G402/G402A nunca tem deslocamento; resto tem.
+function _atvTemDesloc(atv){
+  if(!atv)return false;
+  const cfg=(typeof ATV_DYN!=='undefined'&&ATV_DYN[atv])||(typeof ATV!=='undefined'&&ATV[atv]);
+  if(cfg&&typeof cfg.d==='boolean')return cfg.d;
+  return atv!=='G402'&&atv!=='G402A';
+}
 // Title Case com preposições minúsculas: "RIO DE JANEIRO" → "Rio de Janeiro".
 // Mantém siglas de 1–2 letras em caixa alta (ex.: "RJ", "VR", "MG").
 function titleCase(str){
@@ -3828,7 +3837,7 @@ function recalcDrawerVOS(){
   // Deslocamento: Planilha 1 primeiro, fallback MUN hardcoded
   const munKey=findMunKey(munRaw)||nMun(COS.mun);
   let vDesloc=0;
-  if(atv!=='G402'&&atv!=='G402A'&&munKey){
+  if(_atvTemDesloc(atv)&&munKey){
     const vBase=MUN_DESL_DYN[munKey]||(MUN[munKey]?MUN[munKey].v:0);
     vDesloc=isEsp?Math.round(vBase*0.21*100)/100:vBase;
   }
@@ -3891,9 +3900,9 @@ async function saveDrawerEdits(){
       let vOS=COS.vos||0;
       const cfgAtv=ATV[atvNow];
       if(cfgAtv)vOS=cfgAtv.v;
-      // vDesloc determinado pelo município; G402/G402A = 0; especial = 21% do valor padrão
+      // vDesloc determinado pelo município; atividade marcada como "sem deslocamento" = 0; especial = 21% do valor padrão
       let vDesloc=0;
-      if(atvNow!=='G402'&&atvNow!=='G402A'){
+      if(_atvTemDesloc(atvNow)){
         const kMun=findMunKey(baseMun);
         if(kMun){
           vDesloc=MUN[kMun].v;
@@ -5872,9 +5881,9 @@ function onMun(){
   if(document.getElementById('nmun').value!==key)document.getElementById('nmun').value=key;
   const cfg=MUN[key];document.getElementById('npolo').value=(POLO_NOME&&POLO_NOME[cfg.polo])||cfg.polo||'';
   const curAtv=document.getElementById('na').value;
-  // G402 e G402A não possuem valor de deslocamento
+  // Atividade marcada como "sem deslocamento" não soma valor de deslocamento
   let vd=0;
-  if(curAtv!=='G402'&&curAtv!=='G402A'){
+  if(_atvTemDesloc(curAtv)){
     const espEl=document.getElementById('nesp');
     const isEsp=espEl&&espEl.value==='1';
     vd=isEsp?Math.round(cfg.v*0.21*100)/100:cfg.v;
@@ -6039,8 +6048,8 @@ async function updSt(ns){
       const cfgAtv = ATV[atv];
       if(cfgAtv) vOS = cfgAtv.v;
       let vDesloc = 0;
-      // G402 e G402A não possuem valor de deslocamento
-      if(atv !== 'G402' && atv !== 'G402A'){
+      // Atividade marcada como "sem deslocamento" não soma valor de deslocamento
+      if(_atvTemDesloc(atv)){
         const keyMun = findMunKey(nMun(mun));
         if(keyMun){
           vDesloc = MUN[keyMun].v;
@@ -7110,7 +7119,7 @@ function setupAplicarPreset(cor,corEsc){
 }
 
 // ── Passo 5: Atividades ───────────────────────────────────────────────────
-function setupAddAtv(cod='', val='', prz=''){
+function setupAddAtv(cod='', val='', prz='', desloc=undefined){
   const tbody=document.getElementById('s-atv-tbody');
   const tr=tbody.insertRow();
   ['',val||'',prz||''].forEach((v,i)=>{
@@ -7122,6 +7131,19 @@ function setupAddAtv(cod='', val='', prz=''){
     if(i===0)inp.value=cod;
     td.appendChild(inp);
   });
+  // Checkbox "Exige deslocamento?"
+  const tdD=tr.insertCell();
+  tdD.style.textAlign='center';
+  const cb=document.createElement('input');
+  cb.type='checkbox';
+  cb.className='atv-desloc-cb';
+  cb.style.cssText='width:18px;height:18px;cursor:pointer;accent-color:var(--accent)';
+  // Default: marcado, salvo se a config explicitamente trouxer false, ou se o
+  // código for legado G402/G402A (que historicamente não tem deslocamento).
+  const codUp=(cod||'').toUpperCase();
+  if(typeof desloc==='boolean') cb.checked=desloc;
+  else cb.checked=!(codUp==='G402'||codUp==='G402A');
+  tdD.appendChild(cb);
   const tdRm=tr.insertCell();
   const btn=document.createElement('button');
   btn.className='rm-btn';btn.textContent='✕';btn.onclick=()=>tr.remove();
@@ -7131,11 +7153,12 @@ function setupAddAtv(cod='', val='', prz=''){
 function setupGetATV(){
   const atv={};
   document.querySelectorAll('#s-atv-tbody tr').forEach(tr=>{
-    const inps=tr.querySelectorAll('input');
+    const inps=tr.querySelectorAll('input:not([type="checkbox"])');
+    const cb=tr.querySelector('input.atv-desloc-cb');
     const cod=(inps[0]?.value||'').trim().toUpperCase();
     const v=_parseBRL(inps[1]?.value||'')||0;
     const p=inps[2]?.value?parseInt(inps[2].value):null;
-    if(cod)atv[cod]={v,p};
+    if(cod)atv[cod]={v,p,d:cb?cb.checked:(cod!=='G402'&&cod!=='G402A')};
   });
   return atv;
 }
@@ -7281,7 +7304,7 @@ function setupCarregarExistente(){
     if(subpTbody&&c.subp){'innerHTML' in subpTbody&&(subpTbody.innerHTML='');_subpIdx=0;(c.subp||[]).forEach(s=>setupAddSubpasta(s.nm,s.role));}
     // Step 5
     const atvTbody=document.getElementById('s-atv-tbody');
-    if(atvTbody){atvTbody.innerHTML='';Object.entries(c.atv||{}).forEach(([k,v])=>setupAddAtv(k,v.v,v.p));}
+    if(atvTbody){atvTbody.innerHTML='';Object.entries(c.atv||{}).forEach(([k,v])=>setupAddAtv(k,v.v,v.p,typeof v.d==='boolean'?v.d:undefined));}
     // Step 6 - polos
     const poloTbody=document.getElementById('s-polo-tbody');
     if(poloTbody){poloTbody.innerHTML='';(c.polos||[]).forEach(p=>setupAddPolo(p.nome,p.key,p.cor));}
@@ -8809,7 +8832,13 @@ async function _comprimirImagem(file, maxDim, quality){
   if(!file.type.startsWith('image/')||file.type==='image/gif')return file;
   try{
     const exifObj=await _lerExif(file);
-    const bitmap=await createImageBitmap(file);
+    // imageOrientation:'from-image' faz o navegador aplicar o EXIF Orientation
+    // antes de entregar o bitmap, "achatando" a rotação no pixel. Sem isso,
+    // visualizadores que respeitam EXIF (Google Drive, iOS) rotacionam de novo
+    // a imagem já corretamente orientada e ela aparece de cabeça pra baixo.
+    let bitmap;
+    try{ bitmap=await createImageBitmap(file,{imageOrientation:'from-image'}); }
+    catch(_){ bitmap=await createImageBitmap(file); }
     const ratio=Math.min(1,maxDim/Math.max(bitmap.width,bitmap.height));
     const w=Math.round(bitmap.width*ratio), h=Math.round(bitmap.height*ratio);
     const canvas=document.createElement('canvas');
@@ -8827,6 +8856,9 @@ async function _comprimirImagem(file, maxDim, quality){
           exifObj['Exif'][piexif.ExifIFD.PixelXDimension]=w;
           exifObj['Exif'][piexif.ExifIFD.PixelYDimension]=h;
         }
+        // Como já aplicamos a rotação nos pixels (imageOrientation:'from-image'),
+        // zeramos o Orientation pra 1 (normal) pra evitar dupla rotação no visualizador.
+        if(exifObj['0th']) exifObj['0th'][piexif.ImageIFD.Orientation]=1;
         // Remove thumbnail (pode estar inconsistente com a imagem redimensionada)
         if(exifObj['thumbnail']) exifObj['thumbnail']=null;
         if(exifObj['1st']) exifObj['1st']={};
@@ -9315,7 +9347,7 @@ async function _uploadFotoParaDrive(file, nome, folderId, barId, onProgress){
           </div>
           <div style="max-height:280px;overflow-y:auto">
             <table class="setup-table">
-              <thead><tr><th>Código</th><th>Valor OS (R$)</th><th>Prazo (dias)</th><th></th></tr></thead>
+              <thead><tr><th>Código</th><th>Valor OS (R$)</th><th>Prazo (dias)</th><th title="Marque se a atividade exige deslocamento até o imóvel. Atividades sem deslocamento (ex.: análise documental) terão R$ 0 no campo deslocamento ao gerar a OS.">Exige deslocamento?</th><th></th></tr></thead>
               <tbody id="s-atv-tbody"></tbody>
             </table>
           </div>
