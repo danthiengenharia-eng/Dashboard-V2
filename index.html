@@ -4484,7 +4484,8 @@ async function gerarComprovante(){
     const firstPage=pages[0];
     
     // 3. Adicionar texto nas coordenadas corretas
-    const font=await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
+    // Negrito e sans-serif humanista, próximo da Trebuchet MS usada no PDF v04
+    const font=await pdfDoc.embedFont(PDFLib.StandardFonts.HelveticaBold);
     
     // Coordenadas do modelo v04 (A4 595.6x842pt). Caixas medidas do PDF:
     // Data → caixa x39..286 top133.9; OS → caixa full-width top184.6. Origem pdf-lib = base inferior.
