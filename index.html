@@ -4067,7 +4067,9 @@ async function enriquecerComSIOPI(){
   try{
     // 1. Chama a extensão — ela abre o SIOPI, consulta, extrai e retorna.
     //    Passamos o código da atividade pra ativar fluxos especiais (ex.: E401 = acompanhamento de obra)
-    const result=await window.danthiSIOPI.extract(osCompleta, COS.atv);
+    // 3º arg: data de entrada/SIOPI (dd/mm/aaaa) — alimenta o fluxo alternativo por
+    // Período de Abertura quando a busca por número devolve "Operação não permitida".
+    const result=await window.danthiSIOPI.extract(osCompleta, COS.atv, COS.siopi);
     console.log('[SIOPI] resultado completo:',result);
     console.log('[SIOPI] documentos:',result?.documentos);
     if(result?.documentos){
