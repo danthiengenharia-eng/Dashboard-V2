@@ -1413,6 +1413,21 @@ tbody tr.st-andamento{--st:#64748b}
 tbody tr.st-cancelada>td{color:var(--text-muted)}
 tbody tr.st-cancelada>td:nth-child(3){text-decoration:line-through;text-decoration-color:rgba(0,0,0,.2)}
 
+/* ── LOGIN sempre alcançável no celular e no tablet ──
+   Antes o "Entrar" só existia na barra de filtros, que desaparece fora
+   da aba de OS. Agora ele é um item da própria barra inferior. */
+@media (max-width:1024px){
+  body.no-auth .auth-corner{display:inline-flex !important;flex:0 0 auto}
+  body.no-auth .auth-corner .btn-entrar{
+    display:inline-flex !important;flex-direction:column;align-items:center;justify-content:center;
+    height:48px;min-width:64px;padding:0 10px;gap:2px;border-radius:12px;
+    font-size:10.5px;font-weight:600;white-space:nowrap;
+  }
+  body.no-auth .auth-corner .btn-entrar svg{width:20px;height:20px}
+  body.no-auth .btn-entrar-top{display:none !important}
+  body.no-auth #fcnt{display:inline !important}
+}
+
 /* ── DESKTOP (≥1025px): navegação no topo, não na lateral ──
    A .topbar volta a ser barra horizontal com rótulos sempre visíveis:
    sai o rail de 64px que só revela os nomes no hover. */
@@ -1456,6 +1471,10 @@ tbody tr.st-cancelada>td:nth-child(3){text-decoration:line-through;text-decorati
   /* O conteúdo não é mais empurrado 64px para a direita */
   .fbar-wrap{margin-left:0;top:50px}
   .main{margin-left:0}
+  /* Todas as células no mesmo corpo — # e OS Caixa vinham em 11px/10px
+     por estilo inline, menores que o resto da linha. */
+  tbody td{font-size:13px !important}
+  tbody td .badge,tbody td .badge-atrasado,tbody td .badge-vence{font-size:11px !important}
   .twrap{height:calc(100vh - 162px)}
   .main.split-mode>[id^="tab-"] .twrap{height:calc(100vh - 182px)}
 }
@@ -1488,6 +1507,13 @@ tbody tr:hover>td{background:var(--mica-surface-hover)}
 @media (max-width:576px){
   .nav-ico{min-height:48px}
   .nav-ico .tip{font-size:10.5px}
+  /* Sem depender de :has() — a classe vem do JS, então funciona em
+     iOS antigo também. Sem isso a <table> mantém as 14 colunas e o
+     valor da OS fica fora da tela. */
+  .twrap{overflow-x:hidden}
+  table.mob-cards{display:block;width:100%;table-layout:fixed}
+  table.mob-cards thead{display:none}
+  table.mob-cards tbody{display:block;width:100%}
   table:has(.os-card-row) thead{display:none}
   tr.os-card-row{background:transparent !important;display:block;margin:0 0 8px}
   tr.os-card-row>td{display:block;padding:0 !important;border:none !important;background:transparent !important;box-shadow:none !important}
@@ -3493,9 +3519,14 @@ function _cardOS(r,c,i){
   td.querySelectorAll('.oc-btn').forEach(b=>b.addEventListener('click',e=>{
     e.stopPropagation();
     const a=b.dataset.act;
-    if(a==='ficha'&&typeof abrirFichaTab==='function')abrirFichaTab(r);
-    else if(a==='foto'&&typeof abrirFotoTab==='function')abrirFotoTab(r);
-    else openD(i);
+    try{
+      if(a==='ficha'&&typeof abrirFichaTab==='function'){abrirFichaTab(r);window.scrollTo(0,0);}
+      else if(a==='foto'&&typeof abrirFotoTab==='function'){abrirFotoTab(r);window.scrollTo(0,0);}
+      else openD(i);
+    }catch(err){
+      console.error('[card OS]',a,err);
+      if(typeof showToast==='function')showToast('Erro ao abrir '+a+': '+(err&&err.message||err));
+    }
   }));
   tr.appendChild(td);return tr;
 }
@@ -3505,6 +3536,7 @@ function renderTable(){
   applySortClass();
   document.getElementById('fcnt').textContent=`${FIL.length.toLocaleString('pt-BR')} OS`;
   const tbody=document.getElementById('tbody');tbody.innerHTML='';
+  const _tbl=tbody.closest('table');if(_tbl)_tbl.classList.toggle('mob-cards',_isMobCards());
   FIL.forEach((r,i)=>{
     const c=stCfg(r);
     if(_isMobCards()){tbody.appendChild(_cardOS(r,c,i));return;}
