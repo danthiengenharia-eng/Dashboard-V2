@@ -614,6 +614,16 @@ tbody tr:focus-visible {
 .status-chip.chip-danger {background:var(--bg-danger); border-color:var(--bd-danger)}
 .status-chip.chip-warning{background:var(--bg-warning);border-color:var(--bd-warning)}
 .status-chip.chip-info   {background:var(--mica-surface);border-color:var(--mica-border-light)}
+/* ── FAT MODE TOGGLE (dashboard: Realizado / Previsto) ── */
+.fat-mode-toggle{display:inline-flex;padding:2px;background:var(--mica-bg);border:1px solid var(--mica-border);border-radius:8px;gap:2px}
+.fat-mode-toggle button{
+  background:transparent;border:none;color:var(--text-muted);
+  font:500 11px/1 'Inter',sans-serif;letter-spacing:.02em;
+  padding:6px 12px;border-radius:6px;cursor:pointer;transition:all .15s ease;
+}
+.fat-mode-toggle button:hover{color:var(--text-secondary);background:var(--mica-surface-hover)}
+.fat-mode-toggle button.active{background:var(--accent);color:#fff;box-shadow:0 1px 2px rgba(0,0,0,.15)}
+.fat-mode-toggle button.active:hover{background:var(--accent);color:#fff}
 .bg-upload.collapsed .bg-upload-body{display:none}
 .bg-upload.done .bg-upload-bar{background:#22c55e;width:100% !important}
 .bg-upload.err .bg-upload-bar{background:#ef4444}
@@ -1804,7 +1814,13 @@ body:not(.light-mode) .badge.st-vistoriada{background:rgba(234,179,8,.18) !impor
         <div class="cc"><h3>Interna vs Adjudicado</h3><div id="ltv" class="leg"></div><div style="position:relative;height:145px"><canvas id="ctv"></canvas></div></div>
         <div class="cc full"><h3>Top municípios</h3><div style="position:relative;height:210px"><canvas id="cmun"></canvas></div></div>
         <div class="cc full">
-          <h3>Faturamento por polo e período <span style="font-size:10px;font-weight:400;color:var(--text-muted);letter-spacing:.02em">(apenas OS concluídas)</span></h3>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:6px">
+            <h3 style="margin:0">Faturamento por polo e período</h3>
+            <div class="fat-mode-toggle" role="group" aria-label="Modo de faturamento" title="Realizado: só OS concluídas (bate com o faturamento real). Previsto: inclui OS em andamento com Mês faturamento preenchido.">
+              <button type="button" data-fat-mode="realizado" onclick="setFatMode('realizado')">Realizado</button>
+              <button type="button" data-fat-mode="previsto" onclick="setFatMode('previsto')">Previsto</button>
+            </div>
+          </div>
           <div class="leg">
             <span><span class="lsq" style="background:#1a6b2a"></span>Campos Dos Goytacazes</span>
             <span><span class="lsq" style="background:#1a5a9e"></span>Rio De Janeiro</span>
@@ -3838,6 +3854,19 @@ async function exportarTabela(fmt){
 // ═══════════════════════════════════════════════════════════
 // Estado dos filtros do dashboard
 const DASH_F={polo:'',mesIni:'',mesFim:''};
+// Modo do faturamento no dashboard: 'realizado' considera só OS concluídas (ou com laudo entregue),
+// 'previsto' considera todas as OS com "Mês faturamento" preenchido (inclui em andamento).
+let FAT_MODE=(()=>{try{return localStorage.getItem('fat_mode')||'realizado';}catch(e){return 'realizado';}})();
+const _isFaturado=r=>r.st==='OS Concluída'||!!r.lau;
+function setFatMode(m){
+  if(m!=='realizado'&&m!=='previsto')return;
+  FAT_MODE=m;
+  try{localStorage.setItem('fat_mode',m);}catch(e){}
+  document.querySelectorAll('[data-fat-mode]').forEach(el=>{
+    el.classList.toggle('active',el.dataset.fatMode===m);
+  });
+  renderDash();
+}
 
 function resolvePoloKey(pStr){
   if(!pStr)return '';
@@ -3922,6 +3951,10 @@ function filterDashData(D){
 
 function renderDash(){
   initDashFilters();
+  // Sincroniza estado ativo do toggle Realizado/Previsto com FAT_MODE
+  document.querySelectorAll('[data-fat-mode]').forEach(el=>{
+    el.classList.toggle('active',el.dataset.fatMode===FAT_MODE);
+  });
   let D=FIL.length?FIL:ALL;
   D=filterDashData(D);
   const info=document.getElementById('dash-info');
@@ -3929,10 +3962,13 @@ function renderDash(){
     const ativo=DASH_F.polo||DASH_F.mesIni||DASH_F.mesFim;
     info.textContent=ativo?`${D.length.toLocaleString('pt-BR')} OS após filtro`:'';
   }
-  const tot=D.length,concl=D.filter(r=>r.st==='OS Concluída').length,canc=D.filter(r=>r.st==='OS Cancelada').length,recTotal=D.reduce((s,r)=>s+r.vt,0);
-  const mesesComFat=new Set(D.filter(r=>r.vt>0&&r.mes).map(r=>r.mes));
+  const tot=D.length,concl=D.filter(r=>r.st==='OS Concluída').length,canc=D.filter(r=>r.st==='OS Cancelada').length;
+  // Métricas de faturamento respeitam FAT_MODE (Realizado = só concluídas; Previsto = tudo com mês)
+  const Dfat=FAT_MODE==='realizado'?D.filter(_isFaturado):D;
+  const recTotal=Dfat.reduce((s,r)=>s+r.vt,0);
+  const mesesComFat=new Set(Dfat.filter(r=>r.vt>0&&r.mes).map(r=>r.mes));
   const fatMedio=mesesComFat.size>0?recTotal/mesesComFat.size:0;
-  const mesAtual=getMesAtual(),fatAtual=D.filter(r=>r.mes===mesAtual).reduce((s,r)=>s+r.vt,0);
+  const mesAtual=getMesAtual(),fatAtual=Dfat.filter(r=>r.mes===mesAtual).reduce((s,r)=>s+r.vt,0);
   document.getElementById('mwrap').innerHTML=`<div class="metrics-grid"><div class="metric"><div class="lbl">Total OS</div><div class="val">${tot.toLocaleString('pt-BR')}</div><div class="metric-accent"></div></div><div class="metric"><div class="lbl">Concluídas</div><div class="val metric-green">${concl.toLocaleString('pt-BR')}</div><div class="sub">${tot?Math.round(concl/tot*100):0}%</div><div class="metric-accent"></div></div><div class="metric"><div class="lbl">Em andamento</div><div class="val metric-blue">${(tot-concl-canc).toLocaleString('pt-BR')}</div><div class="metric-accent"></div></div><div class="metric"><div class="lbl">Canceladas</div><div class="val metric-red">${canc.toLocaleString('pt-BR')}</div><div class="metric-accent"></div></div><div class="metric"><div class="lbl">Fat. médio/mês</div><div class="val" style="font-size:14px">${brl(fatMedio)}</div><div class="sub">${mesesComFat.size} meses</div><div class="metric-accent"></div></div><div class="metric"><div class="lbl">Fat. atual <span style="font-size:9px;opacity:.7">${mesAtual.replace('-','/')}</span></div><div class="val" style="font-size:14px">${fatAtual>0?brl(fatAtual):'—'}</div><div class="metric-accent"></div></div></div>`;
   document.getElementById('charts').style.display='block';renderCharts(D);
 }
@@ -3993,8 +4029,9 @@ function renderCharts(D){
   document.getElementById('lst').innerHTML=atvTop.map(([k,n],i)=>`<span><span class="lsq" style="background:${atvColors[i]}"></span>${k} (${n})</span>`).join('');
   mkC('cst',{type:'doughnut',data:{labels:atvLabels,datasets:[{data:atvData,backgroundColor:atvColors,borderWidth:2,borderColor:chartBgColor,hoverBorderColor:'rgba(255,255,255,.15)'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.label}: ${c.parsed} OS`}}}}});
 
-  // Receita mensal
-  const rM={};D.forEach(r=>{if(r.mes&&r.vt>0)rM[r.mes]=(rM[r.mes]||0)+r.vt;});const rL=Object.keys(rM).sort((a,b)=>MOS_ORD_IDX(a)-MOS_ORD_IDX(b));
+  // Receita mensal — respeita FAT_MODE (mesmo critério do "Faturamento por polo")
+  const _Drec=FAT_MODE==='realizado'?D.filter(_isFaturado):D;
+  const rM={};_Drec.forEach(r=>{if(r.mes&&r.vt>0)rM[r.mes]=(rM[r.mes]||0)+r.vt;});const rL=Object.keys(rM).sort((a,b)=>MOS_ORD_IDX(a)-MOS_ORD_IDX(b));
   mkC('crec',{type:'line',data:{labels:rL,datasets:[{data:rL.map(m=>Math.round(rM[m])),borderColor:accent,backgroundColor:`rgba(${rgbAccent},${isDark ? 0.2 : 0.12})`,fill:true,tension:.4,pointRadius:3,pointBackgroundColor:accent,pointBorderColor:'rgba(255,255,255,.3)',pointBorderWidth:1}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>brl(c.raw)}}},scales:{x:{ticks:{maxRotation:45},grid:{display:false}},y:{ticks:{callback:v=>fmtK(v)}}}}});
 
   // Interna vs Adjudicado — exibido em % no rótulo, absoluto no tooltip
@@ -4009,13 +4046,12 @@ function renderCharts(D){
   const bMu={};D.forEach(r=>{const m=titleCase(nMun(r.mun));if(m)bMu[m]=(bMu[m]||0)+1;});const mTop=Object.entries(bMu).sort((a,b)=>b[1]-a[1]).slice(0,12);
   mkC('cmun',{type:'bar',data:{labels:mTop.map(e=>e[0]),datasets:[{data:mTop.map(e=>e[1]),backgroundColor:mTop.map((_,i)=>munPalette[i%munPalette.length]),borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.parsed.x} OS`}}},scales:{x:{ticks:{stepSize:1}},y:{ticks:{font:{size:9,family:"'Inter',sans-serif"}}}}}});
 
-  // Faturamento por polo — só considera OS Concluídas (ou com laudo entregue), que são as
-  // que realmente geraram faturamento. OS ainda em andamento entram no "Mês faturamento"
-  // como previsão, mas não devem contar aqui, senão o gráfico não bate com o faturamento real.
-  const _faturado=r=>r.st==='OS Concluída'||!!r.lau;
-  const Dfat=D.filter(_faturado);
+  // Faturamento por polo — respeita FAT_MODE (Realizado = só concluídas / com laudo entregue;
+  // Previsto = todas as OS com "Mês faturamento" preenchido). Mesmo critério do "Receita mensal"
+  // acima e das métricas de faturamento, pra que os números batam entre si.
+  const _Dpolo=FAT_MODE==='realizado'?D.filter(_isFaturado):D;
   const poloSet=new Set();
-  Dfat.forEach(r=>{
+  _Dpolo.forEach(r=>{
     // Garante que usamos a chave de polo resolvida
     const rawPolo=r.polo||(nMun(r.mun)&&MUN[nMun(r.mun)]?MUN[nMun(r.mun)].polo:'')||'';
     const poloKey=resolvePoloKey(rawPolo);
@@ -4025,13 +4061,13 @@ function renderCharts(D){
     }
   });
   const polosReal=[...poloSet].sort();
-  const mesSet=new Set();Dfat.forEach(r=>{if(r.mes)mesSet.add(r.mes);});
+  const mesSet=new Set();_Dpolo.forEach(r=>{if(r.mes)mesSet.add(r.mes);});
   const mesL=[...mesSet].sort((a,b)=>MOS_ORD_IDX(a)-MOS_ORD_IDX(b));
   const datasets=polosReal.map(poloKey=>{
     const cor=POLO_CORES[poloKey]||POLO_CORES[poloKey.toUpperCase()]||accentPurple;
     return{
       label:POLO_NOME[poloKey]||POLO_NOME[poloKey.toUpperCase()]||titleCase(poloKey),
-      data:mesL.map(mes=>Math.round(Dfat.filter(r=>r.mes===mes&&r._resolvedPoloKey===poloKey).reduce((s,r)=>{
+      data:mesL.map(mes=>Math.round(_Dpolo.filter(r=>r.mes===mes&&r._resolvedPoloKey===poloKey).reduce((s,r)=>{
         const val=r.vt||r.vos||(ATV_DYN[r.atv]?ATV_DYN[r.atv].v:(ATV[r.atv]?ATV[r.atv].v:0));
         return s+val;
       },0))),
