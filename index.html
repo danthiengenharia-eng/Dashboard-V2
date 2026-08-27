@@ -4274,6 +4274,67 @@ async function enriquecerComSIOPI(){
       }
     }
 
+    // 3.6. Upload em 01 - Convocação — PNG (screenshot) e .txt sintético (contato).
+    // Só sobe se ainda NÃO houver arquivo do mesmo tipo na pasta (respeita .txt real
+    // e não duplica screenshot). Isso vale tanto pra Avaliação quanto pro E401 —
+    // rodam por caminhos diferentes do content.js mas retornam o mesmo payload.
+    try{
+      const convFolderId = await acharPastaConvocacao(COS);
+      if(convFolderId){
+        const existentesConv = await listarArquivosExistentes(convFolderId);
+        const jaTemTxt = [...existentesConv].some(n => /\.txt$/i.test(n));
+        const jaTemPng = [...existentesConv].some(n => /\.png$/i.test(n));
+
+        // PNG (screenshot da tela da demanda)
+        if(result.screenshot_png && !jaTemPng){
+          try{
+            const osLimpo = String(COS.os||'').replace(/[\/\.]/g,'');
+            const nomePng = `convocacao_${osLimpo}.png`;
+            const bytesB64 = result.screenshot_png.replace(/^data:image\/png;base64,/, '');
+            await uploadDocumentoParaDrive(
+              { nome: nomePng, bytes: bytesB64, mimeType: 'image/png' },
+              nomePng, convFolderId
+            );
+            etapas.push('📸 Screenshot salvo em 01 - Convocação');
+          }catch(e){console.warn('[SIOPI drawer] upload PNG falhou:', e);}
+        }
+
+        // .txt sintético (formato lido pelo parseTxt → drawer mostra Nome/Telefone/WhatsApp)
+        const cn = result.contato_nome || '';
+        const ct = result.contato_telefone || '';
+        if((cn || ct) && !jaTemTxt){
+          try{
+            const osLimpo = String(COS.os||'').replace(/[\/\.]/g,'');
+            const linhas = [
+              `Ordem de Serviço: ${COS.os||''}`,
+              result.data_abertura ? `Data de abertura: ${result.data_abertura}` : '',
+              COS.atv ? `Atividade: ${COS.atv}` : '',
+              '',
+              (result.endereco || COS.end) ? `Endereço: ${result.endereco || COS.end}` : '',
+              (result.bairro || COS.bairro) ? `Bairro: ${result.bairro || COS.bairro}` : '',
+              (result.municipio || COS.mun) ? `Município: ${result.municipio || COS.mun}` : '',
+              (result.cep || COS.cep) ? `CEP: ${result.cep || COS.cep}` : '',
+              '',
+              cn ? `Nome do contato: ${cn}` : '',
+              ct ? `Telefone do contato: ${ct}` : '',
+            ].filter(l => l !== '').join('\r\n') + '\r\n';
+            const utf8Bytes = new TextEncoder().encode(linhas);
+            let bin = '';
+            for(let i=0;i<utf8Bytes.length;i++) bin += String.fromCharCode(utf8Bytes[i]);
+            const txtB64 = btoa(bin);
+            const nomeTxt = `convocacao_${osLimpo}.txt`;
+            await uploadDocumentoParaDrive(
+              { nome: nomeTxt, bytes: txtB64, mimeType: 'text/plain; charset=utf-8' },
+              nomeTxt, convFolderId
+            );
+            etapas.push(`📇 Contato salvo (${cn || '—'})`);
+          }catch(e){console.warn('[SIOPI drawer] upload .txt sintético falhou:', e);}
+        }else if((cn || ct) && jaTemTxt){
+          console.log('[SIOPI drawer] .txt já existe em 01 - Convocação — mantendo o original');
+        }
+      }
+    }catch(e){console.warn('[SIOPI drawer] pasta de convocação:', e);}
+
     // 4. Finalização
     if(etapas.length){
       setStatus('✅ '+etapas.join(' · '),'var(--text-success)');
