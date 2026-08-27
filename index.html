@@ -4329,6 +4329,34 @@ async function acharPasta02Documentos(os){
   }catch(e){console.error('acharPasta02Documentos:',e);return null;}
 }
 
+// Acha a pasta de CONVOCAÇÃO da OS (subpasta com role='txt' — geralmente "01 - Convocação").
+// Usada pra subir o screenshot da tela da demanda quando o e-mail não trouxe o .txt.
+async function acharPastaConvocacao(os){
+  const pf=mes2pasta(os.mes);
+  if(!pf||!AUTH)return null;
+  try{
+    // Pasta do mês
+    const r1=await gapi.client.drive.files.list({q:`name='${pf}' and '${CFG.DID}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,fields:'files(id)',pageSize:1});
+    if(!r1.result.files.length)return null;
+    const mesFolderId=r1.result.files[0].id;
+    // Pasta da OS
+    const np=nomePasta(os.item,os.atv,os.osp);
+    let r2=await gapi.client.drive.files.list({q:`name='${np}' and '${mesFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,fields:'files(id)',pageSize:1});
+    if(!r2.result.files.length){
+      r2=await gapi.client.drive.files.list({q:`name contains '${os.item}-' and '${mesFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,fields:'files(id)',pageSize:1});
+    }
+    if(!r2.result.files.length)return null;
+    const osFolderId=r2.result.files[0].id;
+    // Subpasta com role='txt' (usa a mesma helper que já existe)
+    const convId=await findFolderByRole(osFolderId,'txt');
+    if(convId) return convId;
+    // Fallback: busca por nome que contenha "convoca"
+    const r3=await gapi.client.drive.files.list({q:`'${osFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,fields:'files(id,name)',pageSize:50});
+    const conv=(r3.result.files||[]).find(f=>/convoca/i.test(f.name));
+    return conv?conv.id:osFolderId; // Último recurso: pasta da OS
+  }catch(e){console.error('acharPastaConvocacao:',e);return null;}
+}
+
 // Lista nomes de arquivos numa pasta (pra evitar conflitos)
 async function listarArquivosExistentes(folderId){
   const set=new Set();
@@ -6012,6 +6040,7 @@ async function buscarViaSIOPINovaOS(){
       tipo_peca_tecnica: r.tipo_peca_tecnica || '',
       data_abertura: r.data_abertura || '',  // vai pra coluna "abr"
       documentos: r.documentos || [],  // usado em salvar() → criarPastasDrive → 02 - Documentos
+      screenshot_png: r.screenshot_png || '',  // PNG full-page da tela — vira convocação quando não há .txt
     };
     console.log('[SIOPI Nova OS] extras guardados:', NOVA_SIOPI_EXTRAS);
 
@@ -6146,28 +6175,52 @@ async function salvar(){
 
     // Se veio via SIOPI e trouxe documentos, sobe todos para 02 - Documentos (num passo só,
     // logo após as pastas serem criadas — sem janela em que a subpasta fica vazia).
+    // E, se não houve upload do .txt de convocação MAS a extensão capturou o screenshot da
+    // tela da demanda, sobe o PNG na pasta de convocação (role='txt') como substituto.
     const docs = NOVA_SIOPI_EXTRAS && NOVA_SIOPI_EXTRAS.documentos;
-    if(docs && docs.length){
+    const screenshotPng = NOVA_SIOPI_EXTRAS && NOVA_SIOPI_EXTRAS.screenshot_png;
+    if((docs && docs.length) || (!TXT_FILE_CONVOCACAO && screenshotPng)){
       try{
         const osTemp = {mes, item:novoItem, atv, osp};
-        const docsFolderId = await acharPasta02Documentos(osTemp);
-        if(docsFolderId){
-          const existentes = await listarArquivosExistentes(docsFolderId);
-          let enviados = 0;
-          for(const doc of docs){
-            if(!doc.bytes) continue;  // pula documentos que não baixaram
-            try{
-              const nome = gerarNomeUnico(doc.nome, existentes);
-              await uploadDocumentoParaDrive(doc, nome, docsFolderId);
-              existentes.add(nome);
-              enviados++;
-            }catch(err){console.warn('[SIOPI Nova OS] upload falhou:', doc.nome, err);}
+
+        // Documentos → 02 - Documentos
+        if(docs && docs.length){
+          const docsFolderId = await acharPasta02Documentos(osTemp);
+          if(docsFolderId){
+            const existentes = await listarArquivosExistentes(docsFolderId);
+            let enviados = 0;
+            for(const doc of docs){
+              if(!doc.bytes) continue;  // pula documentos que não baixaram
+              try{
+                const nome = gerarNomeUnico(doc.nome, existentes);
+                await uploadDocumentoParaDrive(doc, nome, docsFolderId);
+                existentes.add(nome);
+                enviados++;
+              }catch(err){console.warn('[SIOPI Nova OS] upload falhou:', doc.nome, err);}
+            }
+            if(enviados) showToast(`📁 ${enviados}/${docs.length} documento(s) salvos`);
+          }else{
+            console.warn('[SIOPI Nova OS] pasta 02-Documentos não encontrada');
           }
-          if(enviados) showToast(`📁 ${enviados}/${docs.length} documento(s) salvos`);
-        }else{
-          console.warn('[SIOPI Nova OS] pasta 02-Documentos não encontrada');
         }
-      }catch(err){console.error('[SIOPI Nova OS] erro ao subir docs:', err);}
+
+        // Screenshot → 01 - Convocação (só se NÃO houve .txt de convocação)
+        if(!TXT_FILE_CONVOCACAO && screenshotPng){
+          const convFolderId = await acharPastaConvocacao(osTemp);
+          if(convFolderId){
+            const osLimpo = String(osp||'').replace(/[\/\.]/g,'');
+            const nomePng = `convocacao_${osLimpo}.png`;
+            const bytesBase64 = screenshotPng.replace(/^data:image\/png;base64,/, '');
+            await uploadDocumentoParaDrive(
+              { nome: nomePng, bytes: bytesBase64, mimeType: 'image/png' },
+              nomePng, convFolderId
+            );
+            showToast('📸 Screenshot da demanda salvo em 01 - Convocação');
+          }else{
+            console.warn('[SIOPI Nova OS] subpasta de convocação (role=txt) não encontrada');
+          }
+        }
+      }catch(err){console.error('[SIOPI Nova OS] erro nos uploads pós-salvar:', err);}
     }
 
     await loadData();
