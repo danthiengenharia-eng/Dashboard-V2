@@ -6052,6 +6052,11 @@ async function buscarViaSIOPINovaOS(){
       data_abertura: r.data_abertura || '',  // vai pra coluna "abr"
       documentos: r.documentos || [],  // usado em salvar() → criarPastasDrive → 02 - Documentos
       screenshot_png: r.screenshot_png || '',  // PNG full-page da tela — vira convocação quando não há .txt
+      // Contato para vistoria — NÃO persiste na planilha. Vira um .txt sintético em
+      // 01 - Convocação (quando não houver .txt real), pra o parseTxt/showContato
+      // do drawer funcionarem exatamente como antes.
+      contato_nome: r.contato_nome || '',
+      contato_telefone: r.contato_telefone || '',
     };
     console.log('[SIOPI Nova OS] extras guardados:', NOVA_SIOPI_EXTRAS);
 
@@ -6216,17 +6221,58 @@ async function salvar(){
         }
 
         // Screenshot → 01 - Convocação (só se NÃO houve .txt de convocação)
-        if(!TXT_FILE_CONVOCACAO && screenshotPng){
+        // Além do PNG, também gera um .txt SINTÉTICO com os dados do contato — em
+        // formato compatível com o parseTxt() — pra que o showContato() do drawer
+        // renderize nome/telefone/WhatsApp exatamente como fazia quando havia .txt
+        // real da CAIXA. Sem persistir nada na planilha.
+        if(!TXT_FILE_CONVOCACAO && (screenshotPng || NOVA_SIOPI_EXTRAS.contato_nome || NOVA_SIOPI_EXTRAS.contato_telefone)){
           const convFolderId = await acharPastaConvocacao(osTemp);
           if(convFolderId){
             const osLimpo = String(osp||'').replace(/[\/\.]/g,'');
-            const nomePng = `convocacao_${osLimpo}.png`;
-            const bytesBase64 = screenshotPng.replace(/^data:image\/png;base64,/, '');
-            await uploadDocumentoParaDrive(
-              { nome: nomePng, bytes: bytesBase64, mimeType: 'image/png' },
-              nomePng, convFolderId
-            );
-            showToast('📸 Screenshot da demanda salvo em 01 - Convocação');
+
+            // PNG (screenshot)
+            if(screenshotPng){
+              try{
+                const nomePng = `convocacao_${osLimpo}.png`;
+                const bytesBase64 = screenshotPng.replace(/^data:image\/png;base64,/, '');
+                await uploadDocumentoParaDrive(
+                  { nome: nomePng, bytes: bytesBase64, mimeType: 'image/png' },
+                  nomePng, convFolderId
+                );
+                showToast('📸 Screenshot da demanda salvo em 01 - Convocação');
+              }catch(err){console.warn('[SIOPI Nova OS] upload do PNG falhou:', err);}
+            }
+
+            // .txt sintético (contato + dados básicos, formato reconhecido pelo parseTxt)
+            const extras = NOVA_SIOPI_EXTRAS || {};
+            if(extras.contato_nome || extras.contato_telefone){
+              try{
+                const linhas = [
+                  `Ordem de Serviço: ${os}`,
+                  extras.data_abertura ? `Data de abertura: ${extras.data_abertura}` : '',
+                  atv ? `Atividade: ${atv}` : '',
+                  '',
+                  end ? `Endereço: ${end}` : '',
+                  bairro ? `Bairro: ${bairro}` : '',
+                  mn ? `Município: ${mn}` : '',
+                  cep ? `CEP: ${cep}` : '',
+                  '',
+                  extras.contato_nome ? `Nome do contato: ${extras.contato_nome}` : '',
+                  extras.contato_telefone ? `Telefone do contato: ${extras.contato_telefone}` : '',
+                ].filter(l => l !== '').join('\r\n') + '\r\n';
+                // Codifica em UTF-8 e base64 — o uploadDocumentoParaDrive espera bytes base64
+                const utf8Bytes = new TextEncoder().encode(linhas);
+                let bin = '';
+                for(let i=0;i<utf8Bytes.length;i++) bin += String.fromCharCode(utf8Bytes[i]);
+                const txtBase64 = btoa(bin);
+                const nomeTxt = `convocacao_${osLimpo}.txt`;
+                await uploadDocumentoParaDrive(
+                  { nome: nomeTxt, bytes: txtBase64, mimeType: 'text/plain; charset=utf-8' },
+                  nomeTxt, convFolderId
+                );
+                showToast('📇 Contato salvo em 01 - Convocação');
+              }catch(err){console.warn('[SIOPI Nova OS] upload do .txt sintético falhou:', err);}
+            }
           }else{
             console.warn('[SIOPI Nova OS] subpasta de convocação (role=txt) não encontrada');
           }
