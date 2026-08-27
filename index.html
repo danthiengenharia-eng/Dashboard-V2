@@ -1585,6 +1585,48 @@ body:not(.light-mode) tbody tr[class*="st-"]>td{background:color-mix(in srgb, va
 body:not(.light-mode) tbody tr[class*="st-"]:nth-child(even)>td{background:color-mix(in srgb, var(--st,#8e8e93) 13%, #18181b) !important}
 body:not(.light-mode) tbody tr[class*="st-"]:hover>td,body:not(.light-mode) tbody tr:hover>td{background:color-mix(in srgb, var(--st,#8e8e93) 22%, #202024) !important}
 body:not(.light-mode) tbody tr.st-cancelada>td{color:#8e8e93 !important}
+
+/* ═════════ CORREÇÕES v8 ═════════ */
+
+/* 1 · Marca: apenas o logo, encaixado no espaço da barra */
+@media (min-width:1025px){
+  .topbar .brand-nm,.topbar .brand-sub{display:none !important}
+  .topbar .brand-logo-fallback{
+    padding:0 !important;gap:0 !important;border:none !important;
+    left:14px !important;display:flex !important;align-items:center !important;
+  }
+  .topbar .brand-logo,.topbar #brand-logo,
+  body .topbar #brand-logo,body.light-mode .topbar #brand-logo{
+    width:auto !important;height:34px !important;max-height:34px !important;
+    object-fit:contain !important;border-radius:0 !important;
+  }
+}
+
+/* 2 · CONTRASTE — o badge do número da demanda (S1269).
+   Vinha com fundo var(--accent-wine) e texto #d1d1d6: quando o tema
+   deixa esse fundo claro, texto claro sobre fundo claro = ilegível.
+   Par fixo, legível nos dois modos. */
+.d-item-badge,#d-item-badge{
+  background:#00478E !important;color:#ffffff !important;
+  font-weight:800 !important;border:1px solid rgba(255,255,255,.22) !important;
+}
+body:not(.light-mode) .d-item-badge,body:not(.light-mode) #d-item-badge{
+  background:#0a63c9 !important;color:#ffffff !important;
+}
+
+/* Cabeçalho do drawer: número da OS e título sempre legíveis */
+.dhd .onum,#d-num{color:#f5f5f7 !important;font-weight:600}
+body.light-mode .dhd .onum,body.light-mode #d-num{color:#1c1c1e !important}
+.dhd h2,#d-tit{color:#f5f5f7 !important}
+body.light-mode .dhd h2,body.light-mode #d-tit{color:#1c1c1e !important}
+
+/* 3 · Botões de status do drawer: texto escuro sobre fundos claros
+   (amarelo/verde-claro/ciano), branco sobre os escuros. */
+.stbtn{color:#fff;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.35)}
+
+/* 4 · Badge "Vistoriada" (amarelo) — texto escuro no claro, âmbar no escuro */
+body.light-mode .badge.st-vistoriada{background:rgba(161,98,7,.16) !important;color:#7c4a04 !important}
+body:not(.light-mode) .badge.st-vistoriada{background:rgba(234,179,8,.18) !important;color:#fde047 !important}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 </head>
@@ -3588,7 +3630,15 @@ function _cardOS(r,c,i){
       if(a==='ficha'){abrirFichaTab(r);window.scrollTo(0,0);}
       else if(a==='foto'){abrirFotoTab(r);window.scrollTo(0,0);}
       else if(a==='comprovante'){COS=r;gerarComprovante();}
-      else if(a==='docs'){openD(i);window.scrollTo(0,0);setTimeout(_scrollDrawerDocs,150);setTimeout(_scrollDrawerDocs,600);}
+      else if(a==='docs'){(async function(){
+        try{
+          if(!AUTH){showToast('Entre com Google primeiro.');return;}
+          showToast('Abrindo pasta de documentos...');
+          var id=await acharPasta02Documentos(r);
+          if(id)window.open('https://drive.google.com/drive/folders/'+id,'_blank');
+          else showToast('Pasta de documentos nao encontrada no Drive.');
+        }catch(e){console.error('[docs]',e);showToast('Erro ao abrir documentos.');}
+      })();}
       else{openD(i);window.scrollTo(0,0);}
     }catch(err){console.error('[card OS]',a,err);if(typeof showToast==='function')showToast('Erro ao abrir '+a+': '+(err&&err.message||err));}
   }));
