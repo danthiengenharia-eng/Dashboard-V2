@@ -5977,9 +5977,20 @@ async function buscarViaSIOPINovaOS(){
     // funciona (que é o cenário atual), tudo se resolve com esta chamada só.
     const r = await window.danthiSIOPI.extract(osCompleta, '', '');
     console.log('[SIOPI Nova OS] resultado:', r);
+    console.log('[SIOPI Nova OS] errors:', (r && r.errors) || []);
+    console.log('[SIOPI Nova OS] log fases:', (r && r.log) || []);
 
     if(r.errors && r.errors.length && !r.endereco && !r.cep && !r.area_privativa){
       setStatus('❌ ' + r.errors.join('; '),'erro');
+      return;
+    }
+
+    // Se nenhum campo veio E não há erro explícito, mostra pistas no status
+    // (o objeto completo já está no console pra investigação).
+    if(!r.endereco && !r.cep && !r.area_privativa && (!r.errors || !r.errors.length)){
+      const ultimasFases = ((r && r.log) || []).slice(-5).join(' | ');
+      setStatus('⚠️ Nada foi extraído. Últimas fases: ' + (ultimasFases || '(vazio)'), 'aviso');
+      console.warn('[SIOPI Nova OS] extração sem dados nem erros — investigue r.log completo');
       return;
     }
 
