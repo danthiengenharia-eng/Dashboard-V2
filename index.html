@@ -1375,6 +1375,15 @@ body.light-mode .ficha-single-cbox{border-color:rgba(0,0,0,0.12);background:rgba
 .ficha-send-btn{background:var(--accent)}
 .ficha-info-card .os-badge-v{background:var(--accent)}
 /* ═════════════ PATCH DE REFINO — interface ═════════════ */
+
+/* Botão ENTRAR fixo — sempre alcançável em celular e tablet quando deslogado */
+@media (max-width:1024px){
+  body.no-auth #auth-corner{position:fixed !important;right:14px;bottom:calc(78px + env(safe-area-inset-bottom));top:auto !important;left:auto !important;z-index:9999;margin:0 !important;display:block !important}
+  body.no-auth #auth-corner .btn-entrar{display:inline-flex !important;flex-direction:row !important;align-items:center;justify-content:center;gap:8px;height:48px;min-width:0;width:auto;padding:0 18px !important;border-radius:24px;font-size:14px !important;font-weight:700;white-space:nowrap;background:#00478E !important;color:#fff !important;border:none !important;box-shadow:0 6px 18px rgba(0,0,0,.28)}
+  body.no-auth #auth-corner .btn-entrar svg{width:20px;height:20px;stroke:#fff}
+  body.no-auth #auth-corner .btn-entrar span{display:inline !important;color:#fff}
+}
+
 /* Acento derivado da cor escolhida em Configurações. */
 :root{
   --ac:var(--accent, #00478E);
@@ -1393,6 +1402,18 @@ body:not(.light-mode) .drawer{background:#111114 !important;border-left:1px soli
 body:not(.light-mode) .drawer .card{background:#1a1a1e !important;border:1px solid rgba(255,255,255,.06)}
 body:not(.light-mode) .fbar-wrap{background:#0e0e10 !important;border-bottom:1px solid rgba(255,255,255,.08)}
 
+
+/* Contraste no modo escuro — classes reais do drawer */
+body:not(.light-mode) .drawer,body:not(.light-mode) #drawer{background:#111114 !important}
+body:not(.light-mode) .drawer .ds{background:#1a1a1e !important;border:1px solid rgba(255,255,255,.07) !important}
+body:not(.light-mode) .drawer .ds h3,body:not(.light-mode) .drawer h2,body:not(.light-mode) .drawer h4{color:#f5f5f7 !important}
+body:not(.light-mode) .drawer .dl{color:#a0a0a6 !important}
+body:not(.light-mode) .drawer .dv,body:not(.light-mode) .drawer .dv-input{color:#f5f5f7 !important}
+body:not(.light-mode) .drawer .dv-input{background:#232327 !important;border-color:rgba(255,255,255,.14) !important}
+body:not(.light-mode) .drawer #d-num,body:not(.light-mode) .drawer #d-tit{color:#f5f5f7 !important}
+body:not(.light-mode) .drawer .ficha-section-title,body:not(.light-mode) .os-card-grid span{color:#a0a0a6 !important}
+body:not(.light-mode) .ficha-tab-btn{color:#c7c7cc !important}
+body:not(.light-mode) .ficha-tab-btn.active{color:#fff !important}
 /* Tipografia uniforme */
 body,button,input,select,textarea,.brand-nm,.metric .val{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif}
 .brand-nm{letter-spacing:.05em}
@@ -1456,7 +1477,7 @@ tbody tr:hover>td{background:var(--mica-surface-hover)}
   .nav-ico{flex-direction:column;width:96px;height:52px;border-left:none;border-radius:12px;gap:3px;transform:none !important}
   .nav-ico.active{border-left:none;background:var(--ac-10);color:var(--accent)}
   .nav-ico svg{width:23px;height:23px}
-  .nav-ico .tip{display:block !important;position:static;transform:none;opacity:1;background:transparent;color:inherit;font-size:10px;padding:0;border-radius:0;white-space:nowrap;transition:none}
+  .nav-ico .tip{display:block !important;position:static;transform:none;opacity:1;background:transparent;color:inherit;font-size:9px;padding:0;border-radius:0;white-space:nowrap;transition:none}
   .nav-sep,.nav-section-label,.spacer,#btn-split,.brand-logo,.brand-logo-fallback{display:none !important}
   .fbar-wrap{top:0 !important;position:sticky !important}
   .main{padding-bottom:calc(84px + env(safe-area-inset-bottom)) !important}
@@ -1471,7 +1492,7 @@ tbody tr:hover>td{background:var(--mica-surface-hover)}
   body.no-auth .auth-corner .btn-entrar{display:inline-flex !important;flex-direction:column;align-items:center;justify-content:center;height:48px;min-width:46px;padding:0 6px;gap:2px;border-radius:12px;font-size:10px;font-weight:600;white-space:nowrap}
   body.no-auth .auth-corner .btn-entrar svg{width:19px;height:19px}
   body.no-auth .topbar .nav-ico{padding:4px 0;min-width:0}
-  body.no-auth .topbar .nav-ico .tip{font-size:9.5px}
+  body.no-auth .topbar .nav-ico .tip{font-size:9px}
   body.no-auth .btn-entrar-top{display:none !important}
   body.no-auth #fcnt{display:inline !important}
 }
@@ -1480,7 +1501,7 @@ tbody tr:hover>td{background:var(--mica-surface-hover)}
 @media (max-width:576px){
   #ico-dash,#ico-rota,#btn-split{display:none !important}
   .nav-ico{min-height:48px}
-  .nav-ico .tip{font-size:10px}
+  .nav-ico .tip{font-size:9px}
   .twrap{overflow-x:hidden}
   table.mob-cards{display:block;width:100%;table-layout:fixed}
   table.mob-cards thead{display:none}
@@ -1508,9 +1529,12 @@ tbody tr:hover>td{background:var(--mica-surface-hover)}
   .os-card-grid span{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted)}
   .os-card-grid b{font-size:12px;font-weight:500;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
   .os-card-acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px 14px 14px;border-top:1px solid var(--mica-border)}
-  .oc-btn{height:44px;border-radius:11px;border:1px solid var(--mica-border-light);background:var(--mica-surface);color:var(--text-secondary);font-family:inherit;font-size:14px;font-weight:500;cursor:pointer}
-  body.light-mode .oc-btn{background:#fff}
-  .oc-btn.oc-primary{background:var(--ac);border-color:var(--ac);color:#fff;font-weight:600}
+  .oc-btn.oc-full{grid-column:1 / -1}
+  .oc-btn{display:flex;align-items:center;justify-content:center;gap:7px;height:46px;border-radius:11px;border:1px solid rgba(0,0,0,.14);background:#fff;color:#1c1c1e;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer}
+  body:not(.light-mode) .oc-btn{background:#2a2a2e;border-color:rgba(255,255,255,.16);color:#f5f5f7}
+  .oc-btn svg{width:17px;height:17px;flex:0 0 17px}
+  .oc-btn.oc-primary{background:#00478E;border-color:#00478E;color:#fff}
+  body:not(.light-mode) .oc-btn.oc-primary{background:#0a63c9;border-color:#0a63c9;color:#fff}
   .oc-btn.oc-second{background:var(--ac-10);border-color:var(--ac-28);color:var(--accent);font-weight:600}
   .os-card-chev{width:8px;height:14px;align-self:center;margin:0 14px 0 4px;flex:0 0 8px;color:var(--text-muted)}
   tr.os-card-row.open .os-card-chev{transform:rotate(-90deg);color:var(--accent)}
@@ -3503,10 +3527,11 @@ function _cardOS(r,c,i){
     +'<div><span>Val. avaliado</span><b>'+(r.va>0?_brl(r.va):'&mdash;')+'</b></div>'
     +'<div><span>R$/m&sup2;</span><b>'+_rm(r)+'</b></div></div>'
     +'<div class="os-card-acts">'
-    +'<button class="oc-btn oc-primary" data-act="ficha">Ficha</button>'
-    +'<button class="oc-btn oc-second" data-act="foto">Fotos</button>'
-    +'<button class="oc-btn" data-act="drawer">Documentos</button>'
-    +'<button class="oc-btn" data-act="drawer">Comprovante</button>'
+    +'<button class="oc-btn oc-primary" data-act="ficha"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/></svg>Ficha</button>'
+    +'<button class="oc-btn oc-second" data-act="foto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="15" rx="2"/><circle cx="12" cy="12.5" r="3.5"/></svg>Fotos</button>'
+    +'<button class="oc-btn" data-act="docs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>Documentos</button>'
+    +'<button class="oc-btn" data-act="comprovante"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Comprovante</button>'
+    +'<button class="oc-btn oc-detalhes oc-full" data-act="detalhes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>Mais detalhes da demanda</button>'
     +'</div></div></div>'
     +'<svg class="os-card-chev" viewBox="0 0 8 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 1l5.5 6L1 13"/></svg></div>';
   td.querySelector('.os-card').addEventListener('click',e=>{if(e.target.closest('.oc-btn'))return;tr.classList.toggle('open');});
@@ -3523,6 +3548,7 @@ function _cardOS(r,c,i){
 }
 try{window.matchMedia('(max-width:576px)').addEventListener('change',()=>{if(typeof FIL!=='undefined'&&document.getElementById('tbody'))renderTable();});}catch(e){}
 
+function _scrollDrawerDocs(){try{var body=document.getElementById("drawer-body");if(!body)return;var h=[].slice.call(body.querySelectorAll("h3")).find(function(x){return /documentos/i.test(x.textContent);});if(h){var sec=h.closest(".ds")||h;body.scrollTop=sec.offsetTop-8;}}catch(e){console.error("[docs scroll]",e);}}
 function renderTable(){
   applySortClass();
   document.getElementById('fcnt').textContent=`${FIL.length.toLocaleString('pt-BR')} OS`;
