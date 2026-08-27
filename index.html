@@ -1539,6 +1539,52 @@ tbody tr:hover>td{background:var(--mica-surface-hover)}
   .os-card-chev{width:8px;height:14px;align-self:center;margin:0 14px 0 4px;flex:0 0 8px;color:var(--text-muted)}
   tr.os-card-row.open .os-card-chev{transform:rotate(-90deg);color:var(--accent)}
 }
+
+/* ═════════ CORREÇÕES v7 ═════════ */
+
+/* FAB Entrar — vive no <body>, imune ao backdrop-filter da topbar */
+#om-fab-entrar{display:none}
+@media (max-width:1024px){
+  body.no-auth #om-fab-entrar{
+    display:inline-flex;align-items:center;gap:8px;
+    position:fixed;right:16px;bottom:calc(74px + env(safe-area-inset-bottom));
+    z-index:100000;height:50px;padding:0 20px;border:none;border-radius:25px;
+    background:#00478E;color:#fff;font-family:inherit;font-size:15px;font-weight:700;
+    box-shadow:0 8px 22px rgba(0,0,0,.34);cursor:pointer;
+  }
+  body.no-auth #om-fab-entrar svg{width:20px;height:20px;stroke:#fff}
+  body.no-auth #om-fab-entrar span{color:#fff}
+}
+
+/* Desktop: nav REALMENTE centralizada — o .spacer com flex:1 era o que
+   impedia a centralização, empurrando os itens para a esquerda. */
+@media (min-width:1025px){
+  .topbar .spacer{display:none !important}
+  .topbar,.topbar:hover{justify-content:center !important;gap:4px !important}
+  .topbar .brand-logo-fallback{position:absolute !important;left:8px;top:50%;transform:translateY(-50%);margin:0 !important;border:none !important}
+  .topbar .auth-corner,.topbar #btn-dark{position:absolute !important;right:10px;top:50%;transform:translateY(-50%);margin:0 !important}
+  .topbar #btn-dark{right:44px}
+
+  /* Colunas inteiras: OS e Endereço deixam de ser cortados; a tabela
+     rola na horizontal quando não couber, em vez de truncar. */
+  .twrap{overflow-x:auto !important}
+  table{font-size:12.5px}
+  tbody td{padding:0 10px !important;height:40px;font-size:12.5px !important}
+  tbody td .badge,tbody td .badge-atrasado,tbody td .badge-vence{font-size:11px !important}
+  thead th:nth-child(2),tbody td:nth-child(2){min-width:238px;white-space:nowrap}
+  thead th:nth-child(3),tbody td:nth-child(3){min-width:300px}
+}
+
+/* Modo escuro: linhas com base sólida (não tinta transparente sobre preto,
+   que virava marrom lavado) e texto claro de verdade. */
+body:not(.light-mode) thead th{background:#0e0e10 !important;color:#a0a0a6 !important}
+body:not(.light-mode) tbody td{color:#e8e8ea !important}
+body:not(.light-mode) tbody tr>td{background:#141416 !important}
+body:not(.light-mode) tbody tr:nth-child(even)>td{background:#18181b !important}
+body:not(.light-mode) tbody tr[class*="st-"]>td{background:color-mix(in srgb, var(--st,#8e8e93) 13%, #141416) !important}
+body:not(.light-mode) tbody tr[class*="st-"]:nth-child(even)>td{background:color-mix(in srgb, var(--st,#8e8e93) 13%, #18181b) !important}
+body:not(.light-mode) tbody tr[class*="st-"]:hover>td,body:not(.light-mode) tbody tr:hover>td{background:color-mix(in srgb, var(--st,#8e8e93) 22%, #202024) !important}
+body:not(.light-mode) tbody tr.st-cancelada>td{color:#8e8e93 !important}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 </head>
@@ -3539,9 +3585,11 @@ function _cardOS(r,c,i){
     e.stopPropagation();
     const a=b.dataset.act;
     try{
-      if(a==='ficha'&&typeof abrirFichaTab==='function'){abrirFichaTab(r);window.scrollTo(0,0);}
-      else if(a==='foto'&&typeof abrirFotoTab==='function'){abrirFotoTab(r);window.scrollTo(0,0);}
-      else openD(i);
+      if(a==='ficha'){abrirFichaTab(r);window.scrollTo(0,0);}
+      else if(a==='foto'){abrirFotoTab(r);window.scrollTo(0,0);}
+      else if(a==='comprovante'){COS=r;gerarComprovante();}
+      else if(a==='docs'){openD(i);window.scrollTo(0,0);setTimeout(_scrollDrawerDocs,150);setTimeout(_scrollDrawerDocs,600);}
+      else{openD(i);window.scrollTo(0,0);}
     }catch(err){console.error('[card OS]',a,err);if(typeof showToast==='function')showToast('Erro ao abrir '+a+': '+(err&&err.message||err));}
   }));
   tr.appendChild(td);return tr;
@@ -3549,6 +3597,21 @@ function _cardOS(r,c,i){
 try{window.matchMedia('(max-width:576px)').addEventListener('change',()=>{if(typeof FIL!=='undefined'&&document.getElementById('tbody'))renderTable();});}catch(e){}
 
 function _scrollDrawerDocs(){try{var body=document.getElementById("drawer-body");if(!body)return;var h=[].slice.call(body.querySelectorAll("h3")).find(function(x){return /documentos/i.test(x.textContent);});if(h){var sec=h.closest(".ds")||h;body.scrollTop=sec.offsetTop-8;}}catch(e){console.error("[docs scroll]",e);}}
+/* ── Botão ENTRAR flutuante (fora da .topbar, que tem backdrop-filter) ── */
+(function(){
+  function montarFabEntrar(){
+    if(document.getElementById("om-fab-entrar"))return;
+    var b=document.createElement("button");
+    b.id="om-fab-entrar";b.type="button";
+    b.setAttribute("aria-label","Fazer login");
+    b.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg><span>Entrar</span>';
+    b.addEventListener("click",function(){try{doAuth();}catch(e){console.error("[fab entrar]",e);}});
+    document.body.appendChild(b);
+  }
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",montarFabEntrar);
+  else montarFabEntrar();
+})();
+
 function renderTable(){
   applySortClass();
   document.getElementById('fcnt').textContent=`${FIL.length.toLocaleString('pt-BR')} OS`;
