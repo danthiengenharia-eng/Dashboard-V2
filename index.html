@@ -1374,187 +1374,6 @@ body.light-mode .ficha-single-cbox{border-color:rgba(0,0,0,0.12);background:rgba
 }
 .ficha-send-btn{background:var(--accent)}
 .ficha-info-card .os-badge-v{background:var(--accent)}
-
-/* ═════════════ PATCH DE REFINO — interface ═════════════ */
-/* --ac herda a cor escolhida em Configurações → Cor Principal (--accent,
-   já ajustada para contraste por tema). Todas as tintas derivam dela. */
-:root{
-  --ac:var(--accent, #00478E);
-  --ac-06:color-mix(in srgb, var(--ac) 6%, transparent);
-  --ac-10:color-mix(in srgb, var(--ac) 10%, transparent);
-  --ac-28:color-mix(in srgb, var(--ac) 28%, transparent);
-}
-body,button,input,select,textarea,.brand-nm,.metric .val{
-  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
-}
-.brand-nm{letter-spacing:.05em}
-table td,table th,.metric .val{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
-
-/* A cor da linha continua — só mais baixa (8% em vez de 18%) e sem o
-   gradiente que desbotava no fim. Somada ao trilho de 4px, o status
-   segue legível de longe sem lavar o texto. */
-tr[class*="st-"],body.light-mode tr[class*="st-"]{background:transparent !important}
-tbody tr[class*="st-"]>td{background:color-mix(in srgb, var(--st,#8e8e93) 8%, transparent) !important}
-body:not(.light-mode) tbody tr[class*="st-"]>td{background:color-mix(in srgb, var(--st,#8e8e93) 14%, transparent) !important}
-tbody tr[class*="st-"]:hover>td{background:color-mix(in srgb, var(--st,#8e8e93) 16%, transparent)}
-body:not(.light-mode) tbody tr[class*="st-"]:hover>td{background:color-mix(in srgb, var(--st,#8e8e93) 24%, transparent)}
-tbody tr[class*="st-"]>td:first-child{position:relative;box-shadow:inset 4px 0 0 0 var(--st,#8e8e93)}
-tbody tr:not([class*="st-"]):nth-child(even)>td{background:rgba(0,0,0,.018)}
-body:not(.light-mode) tbody tr:not([class*="st-"]):nth-child(even)>td{background:rgba(255,255,255,.02)}
-tbody tr.st-concluida{--st:#16a34a}
-tbody tr.st-cancelada{--st:#dc2626}
-tbody tr.st-vistoriada{--st:#a16207}
-tbody tr.st-revisao{--st:#7e22ce}
-tbody tr.st-semvist,tbody tr.st-semvist-nao-agend{--st:#475569}
-tbody tr.st-semvist-agend{--st:#0284c7}
-tbody tr.st-pept-n{--st:#1d4ed8}
-tbody tr.st-pept-v{--st:#c2410c}
-tbody tr.st-andamento{--st:#64748b}
-tbody tr.st-cancelada>td{color:var(--text-muted)}
-tbody tr.st-cancelada>td:nth-child(3){text-decoration:line-through;text-decoration-color:rgba(0,0,0,.2)}
-
-/* ── LOGIN sempre alcançável no celular e no tablet ──
-   Antes o "Entrar" só existia na barra de filtros, que desaparece fora
-   da aba de OS. Agora ele é um item da própria barra inferior. */
-@media (max-width:1024px){
-  body.no-auth .auth-corner{display:inline-flex !important;flex:0 0 auto}
-  body.no-auth .auth-corner .btn-entrar{
-    display:inline-flex !important;flex-direction:column;align-items:center;justify-content:center;
-    height:48px;min-width:46px;padding:0 6px;gap:2px;border-radius:12px;
-    font-size:9.5px;font-weight:600;white-space:nowrap;
-  }
-  body.no-auth .auth-corner .btn-entrar svg{width:19px;height:19px}
-  /* Em retrato a barra tem 5 abas + Entrar: as abas cedem espaço para
-     que o Entrar nunca seja empurrado fora da tela. */
-  body.no-auth .topbar .nav-ico{padding:4px 0;min-width:0}
-  body.no-auth .topbar .nav-ico .tip{font-size:9px}
-  body.no-auth .btn-entrar-top{display:none !important}
-  body.no-auth #fcnt{display:inline !important}
-}
-
-/* ── DESKTOP (≥1025px): navegação no topo, não na lateral ──
-   A .topbar volta a ser barra horizontal com rótulos sempre visíveis:
-   sai o rail de 64px que só revela os nomes no hover. */
-@media (min-width:1025px){
-  .topbar,.topbar:hover{
-    position:sticky;top:0;left:auto;right:auto;bottom:auto;
-    width:auto;height:50px;min-height:50px;
-    flex-direction:row;align-items:center;justify-content:flex-start;
-    padding:0 12px;gap:3px;
-    border-right:none;border-bottom:1px solid var(--chrome-border);
-    overflow:visible;box-shadow:none;transition:none;
-  }
-  .brand-logo-fallback{
-    flex-direction:column;align-items:flex-start;gap:0;
-    padding:0 12px 0 2px;margin:0 6px 0 0;
-    border-bottom:none;border-right:1px solid var(--mica-border);
-  }
-  .brand-logo-fallback::before{display:none}
-  #brand-logo,body #brand-logo,body.light-mode #brand-logo{width:30px;height:30px}
-  .brand-nm{font-size:13px !important;letter-spacing:.05em !important;text-align:left;opacity:1}
-  .brand-sub{font-size:8.5px;letter-spacing:.2em !important;text-align:left;margin-top:0;opacity:.9}
-
-  .nav-sep{display:block;width:1px;height:22px;background:var(--mica-border-light);margin:0 5px}
-  .nav-section-label{display:none}
-  .nav-ico{
-    width:auto;height:34px;border-radius:8px;
-    justify-content:center;padding:0 12px;gap:7px;border-left:none;
-  }
-  .nav-ico svg{width:16px;height:16px}
-  .nav-ico>.tip{opacity:1 !important;font-size:12.5px;flex:0 0 auto}
-  .nav-ico.active{
-    border-left:none;background:var(--ac-10);color:var(--accent);
-  }
-  .split-wrap{width:auto;margin-top:0;padding-top:0;border-top:none}
-  .split-wrap .nav-ico{width:auto}
-  .spacer{flex:1;min-height:0}
-  .auth-corner{margin:0;align-self:center}
-  .auth-popover{top:calc(100% + 6px);bottom:auto;left:auto;right:0}
-  .btn-dark{width:34px;height:34px;margin:0 0 0 4px;border-radius:8px}
-
-  /* O conteúdo não é mais empurrado 64px para a direita */
-  .fbar-wrap{margin-left:0;top:50px}
-  .main{margin-left:0}
-  /* Todas as células no mesmo corpo — # e OS Caixa vinham em 11px/10px
-     por estilo inline, menores que o resto da linha. */
-  tbody td{font-size:13px !important}
-  tbody td .badge,tbody td .badge-atrasado,tbody td .badge-vence{font-size:11px !important}
-  .twrap{height:calc(100vh - 162px)}
-  .main.split-mode>[id^="tab-"] .twrap{height:calc(100vh - 182px)}
-}
-tbody tr:hover>td{background:var(--mica-surface-hover)}
-
-@media (min-width:1025px){
-  table{font-size:13px}
-  thead th{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;padding:9px 10px;font-weight:600;
-    position:sticky;top:0;z-index:5;background:var(--mica-surface);border-bottom:1.5px solid var(--mica-border-light)}
-  tbody td{padding:0 10px;height:40px}
-}
-
-@media (min-width:769px) and (max-width:1024px){
-  .topbar{position:fixed;bottom:0;top:auto;left:0;right:0;height:auto;min-height:64px;
-    padding:6px 2px calc(8px + env(safe-area-inset-bottom));
-    flex-direction:row;justify-content:center;gap:4px;
-    border-top:1px solid var(--mica-border);border-bottom:none;overflow:visible;z-index:200}
-  .nav-ico{flex-direction:column;width:96px;height:52px;border-left:none;border-radius:12px;gap:3px;transform:none !important}
-  .nav-ico.active{border-left:none;background:var(--ac-10);color:var(--accent)}
-  .nav-ico svg{width:23px;height:23px}
-  .nav-ico .tip{display:block !important;position:static;transform:none;opacity:1;background:transparent;
-    color:inherit;font-size:11px;padding:0;border-radius:0;white-space:nowrap;transition:none}
-  .nav-sep,.nav-section-label,.spacer,#btn-split,.brand-logo,.brand-logo-fallback{display:none !important}
-  .fbar-wrap{top:0 !important;position:sticky !important}
-  .main{padding-bottom:calc(84px + env(safe-area-inset-bottom)) !important}
-  .twrap{height:calc(100vh - 132px - env(safe-area-inset-bottom))}
-  .auth-popover{top:auto;bottom:calc(100% + 6px)}
-}
-
-@media (max-width:576px){
-  .nav-ico{min-height:48px}
-  .nav-ico .tip{font-size:10.5px}
-  /* Sem depender de :has() — a classe vem do JS, então funciona em
-     iOS antigo também. Sem isso a <table> mantém as 14 colunas e o
-     valor da OS fica fora da tela. */
-  .twrap{overflow-x:hidden}
-  table.mob-cards{display:block;width:100%;table-layout:fixed}
-  table.mob-cards thead{display:none}
-  table.mob-cards tbody{display:block;width:100%}
-  table:has(.os-card-row) thead{display:none}
-  tr.os-card-row{background:transparent !important;display:block;margin:0 0 8px}
-  tr.os-card-row>td{display:block;padding:0 !important;border:none !important;background:transparent !important;box-shadow:none !important}
-  tr.os-card-row>td:first-child{box-shadow:none !important}
-  /* O cartão recebe a mesma tinta de status da linha da tabela. */
-  .os-card{display:flex;border:1px solid var(--mica-border);
-    border-radius:14px;overflow:hidden;align-items:stretch;cursor:pointer;
-    background:color-mix(in srgb, var(--st, #8e8e93) 14%, var(--mica-surface))}
-  body.light-mode .os-card{background:color-mix(in srgb, var(--st, #8e8e93) 9%, #fff)}
-  tr.os-card-row.open .os-card{background:color-mix(in srgb, var(--st, #8e8e93) 20%, var(--mica-surface))}
-  body.light-mode tr.os-card-row.open .os-card{background:color-mix(in srgb, var(--st, #8e8e93) 13%, #fff)}
-  .os-card-more{background:rgba(0,0,0,.05)}
-  body.light-mode .os-card-more{background:rgba(255,255,255,.55)}
-  tr.os-card-row.open .os-card{border-color:var(--ac-28);box-shadow:0 6px 20px var(--ac-10)}
-  .os-card-rail{flex:0 0 4px;background:var(--st,#8e8e93)}
-  .os-card-main{flex:1;min-width:0;padding:12px 4px 12px 14px}
-  .os-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:4px}
-  .os-card-id{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--text-muted);min-width:0}
-  .os-card-val{font-size:13.5px;font-weight:500;color:var(--text-primary);white-space:nowrap;font-variant-numeric:tabular-nums}
-  .os-card-end{font-size:15px;font-weight:600;line-height:1.3;color:var(--text-primary);
-    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .os-card-sub{font-size:13px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px}
-  .os-card-more{display:none}
-  tr.os-card-row.open .os-card-more{display:block;margin:12px -4px 0 -14px;border-top:1px solid var(--mica-border)}
-  .os-card-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px;padding:12px 14px}
-  .os-card-grid>div{display:flex;flex-direction:column;gap:2px;min-width:0}
-  .os-card-grid span{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted)}
-  .os-card-grid b{font-size:12px;font-weight:500;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
-  .os-card-acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px 14px 14px;border-top:1px solid var(--mica-border)}
-  .oc-btn{height:44px;border-radius:11px;border:1px solid var(--mica-border-light);background:var(--mica-surface);
-    color:var(--text-secondary);font-family:inherit;font-size:14px;font-weight:500;cursor:pointer}
-  body.light-mode .oc-btn{background:#fff}
-  .oc-btn.oc-primary{background:var(--ac);border-color:var(--ac);color:#fff;font-weight:600}
-  .oc-btn.oc-second{background:var(--ac-10);border-color:var(--ac-28);color:var(--accent);font-weight:600}
-  .os-card-chev{width:8px;height:14px;align-self:center;margin:0 14px 0 4px;flex:0 0 8px;color:var(--text-muted)}
-  tr.os-card-row.open .os-card-chev{transform:rotate(-90deg);color:var(--accent)}
-}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 </head>
@@ -1923,6 +1742,24 @@ tbody tr:hover>td{background:var(--mica-surface-hover)}
         <p style="margin-top:4px;font-size:11px;opacity:.6">Os campos serão preenchidos automaticamente</p>
       </div>
       <input type="file" id="txt-file-input" accept=".txt, .TXT, .txt_, .TXT_, text/plain" onchange="handleTxtFile(this.files[0])">
+
+      <!-- Buscar via SIOPI (alternativa ao .txt: preenche o formulário a partir do número da OS) -->
+      <div style="display:flex;align-items:center;gap:.6rem;margin:.7rem 0;font-size:12px;color:var(--text-muted)">
+        <div style="flex:1;height:1px;background:var(--mica-border)"></div>
+        <span>ou</span>
+        <div style="flex:1;height:1px;background:var(--mica-border)"></div>
+      </div>
+      <div class="fg" style="margin-bottom:.6rem">
+        <div class="ff full">
+          <label>Buscar dados via SIOPI (extensão)</label>
+          <div style="display:flex;gap:.5rem;align-items:stretch">
+            <input id="nova-siopi-os" placeholder="7891.4095.000167944/2025.01.01" style="flex:1"
+              onkeydown="if(event.key==='Enter'){event.preventDefault();buscarViaSIOPINovaOS();}">
+            <button class="btn btn-p" onclick="buscarViaSIOPINovaOS()" id="nova-siopi-btn" style="padding:6px 14px;white-space:nowrap">🔍 Obter dados</button>
+          </div>
+          <div id="nova-siopi-status" style="display:none;margin-top:6px;font-size:11px;padding:6px 10px;border-radius:6px;line-height:1.4"></div>
+        </div>
+      </div>
 
       <div class="fg">
         <div class="ff"><label>Atividade</label><select id="na" onchange="onAtv()"><option value="">Selecione...</option></select></div>
@@ -2939,6 +2776,9 @@ function parseRow(r,i){
     cnm:P(r[ci('cnm',31)]),
     vcv:P(r[ci('vcv',32)]),
     alertaMat:P(r[ci('alertaMat',33)]),
+    // Categoria do Imóvel (Novo/Usado) — extraída do SIOPI. Coluna nova (AI por default);
+    // se a empresa mapeou outro índice em CFG.COLS.categoria, esse prevalece.
+    categoria:P(r[ci('categoria',34)]),
     ord:P(r[ci('item',0)])
   };
 }
@@ -2948,7 +2788,7 @@ const _COL_DEFAULTS={
   item:0,os:1,aceita:2,atv:3,tv:4,polo:5,mun:6,bairro:7,tip:8,end:9,area:10,cep:11,
   mes:12,siopi:13,pept:14,ent:15,vis:16,lau:17,vos:20,fich:21,vd:22,vt:23,
   st:24,va:25,rsm:26,rev:27,abr:28,prz:29,
-  matricula:30,cnm:31,vcv:32,alertaMat:33
+  matricula:30,cnm:31,vcv:32,alertaMat:33,categoria:34
 };
 // Recebe um objeto {campo: valor} e devolve um array de células posicionadas exatamente
 // nas colunas que a empresa configurou via CFG.COLS (ou nos defaults).
@@ -3497,61 +3337,12 @@ function applySortClass(){
   if(idx>=0&&ths[idx])ths[idx].classList.add(SORT_DIR===1?'sort-asc':'sort-desc');
 }
 
-const _isMobCards=()=>window.matchMedia('(max-width:576px)').matches;
-function _cardOS(r,c,i){
-  const tr=document.createElement('tr');
-  tr.className=(c.cls||'')+' os-card-row';
-  const td=document.createElement('td');td.colSpan=14;
-  const pz=prazoStatus(r);
-  const pzH=pz?(pz.type==='atrasado'?'<span class="badge-atrasado">&#9650; '+pz.diff+'d</span>':'<span class="badge-vence">&#9201; '+pz.diff+'d</span>'):'';
-  td.innerHTML='<div class="os-card"><div class="os-card-rail"></div><div class="os-card-main">'
-    +'<div class="os-card-head"><div class="os-card-id">#'+(r.item||'&mdash;')+' '+badge(r)+' '+pzH+'</div>'
-    +'<div class="os-card-val">'+(r.vt>0?brl(r.vt):'&mdash;')+'</div></div>'
-    +'<div class="os-card-end">'+titleCase(r.end||'')+'</div>'
-    +'<div class="os-card-sub">'+[titleCase(r.bairro||''),titleCase(nMun(r.mun)||''),r.tip||''].filter(Boolean).join(' &middot; ')+'</div>'
-    +'<div class="os-card-more"><div class="os-card-grid">'
-    +'<div><span>OS Caixa</span><b>'+(r.os||'&mdash;')+'</b></div>'
-    +'<div><span>Atividade</span><b>'+(r.atv||'&mdash;')+'</b></div>'
-    +'<div><span>&Aacute;rea</span><b>'+fmtArea(r.area)+'</b></div>'
-    +'<div><span>Compet&ecirc;ncia</span><b>'+(r.mes||'&mdash;')+'</b></div>'
-    +'<div><span>Val. avaliado</span><b>'+(r.va>0?brl(r.va):'&mdash;')+'</b></div>'
-    +'<div><span>R$/m&sup2;</span><b>'+rsm2(r)+'</b></div></div>'
-    +'<div class="os-card-acts">'
-    +'<button class="oc-btn oc-primary" data-act="ficha">Ficha</button>'
-    +'<button class="oc-btn oc-second" data-act="foto">Fotos</button>'
-    +'<button class="oc-btn" data-act="drawer">Documentos</button>'
-    +'<button class="oc-btn" data-act="drawer">Comprovante</button>'
-    +'</div></div></div>'
-    +'<svg class="os-card-chev" viewBox="0 0 8 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 1l5.5 6L1 13"/></svg></div>';
-  td.querySelector('.os-card').addEventListener('click',e=>{
-    if(e.target.closest('.oc-btn'))return;
-    tr.classList.toggle('open');
-  });
-  td.querySelectorAll('.oc-btn').forEach(b=>b.addEventListener('click',e=>{
-    e.stopPropagation();
-    const a=b.dataset.act;
-    try{
-      if(a==='ficha'&&typeof abrirFichaTab==='function'){abrirFichaTab(r);window.scrollTo(0,0);}
-      else if(a==='foto'&&typeof abrirFotoTab==='function'){abrirFotoTab(r);window.scrollTo(0,0);}
-      else openD(i);
-    }catch(err){
-      console.error('[card OS]',a,err);
-      if(typeof showToast==='function')showToast('Erro ao abrir '+a+': '+(err&&err.message||err));
-    }
-  }));
-  tr.appendChild(td);return tr;
-}
-try{window.matchMedia('(max-width:576px)').addEventListener('change',()=>{if(typeof FIL!=='undefined'&&document.getElementById('tbody'))renderTable();});}catch(e){}
-
 function renderTable(){
   applySortClass();
   document.getElementById('fcnt').textContent=`${FIL.length.toLocaleString('pt-BR')} OS`;
   const tbody=document.getElementById('tbody');tbody.innerHTML='';
-  const _tbl=tbody.closest('table');if(_tbl)_tbl.classList.toggle('mob-cards',_isMobCards());
   FIL.forEach((r,i)=>{
-    const c=stCfg(r);
-    if(_isMobCards()){tbody.appendChild(_cardOS(r,c,i));return;}
-    const tr=document.createElement('tr');tr.className=c.cls;tr.style.cursor='pointer';
+    const c=stCfg(r),tr=document.createElement('tr');tr.className=c.cls;tr.style.cursor='pointer';
     tr.addEventListener('click',()=>openD(i));
     const pz=prazoStatus(r);
     let prazoHtml='';
@@ -6106,6 +5897,150 @@ function calcTotal(){
   document.getElementById('nvt').value=(vo+vd).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 }
 
+// ═══════════════════════════════════════════════════════════
+//  NOVA OS — BUSCAR VIA SIOPI (extensão)
+// ═══════════════════════════════════════════════════════════
+// Guarda os campos "extras" do SIOPI (que não têm input próprio no form da Nova OS)
+// para o salvar() gravar nas colunas certas depois. Vira {} a cada nova busca.
+let NOVA_SIOPI_EXTRAS = {};
+
+async function buscarViaSIOPINovaOS(){
+  const inp = document.getElementById('nova-siopi-os');
+  const btn = document.getElementById('nova-siopi-btn');
+  const status = document.getElementById('nova-siopi-status');
+  const setStatus = (msg, tipo) => {
+    status.style.display = 'block';
+    status.textContent = msg;
+    const cores = {
+      info:    {bg:'rgba(59,130,246,0.15)',  bd:'rgba(59,130,246,0.4)',  fg:'#60a5fa'},
+      erro:    {bg:'rgba(220,38,38,0.15)',   bd:'rgba(220,38,38,0.4)',   fg:'#f87171'},
+      sucesso: {bg:'rgba(22,163,74,0.15)',   bd:'rgba(22,163,74,0.4)',   fg:'#4ade80'},
+      aviso:   {bg:'rgba(217,119,6,0.15)',   bd:'rgba(217,119,6,0.4)',   fg:'#fbbf24'},
+    }[tipo] || {bg:'rgba(148,163,184,0.15)',bd:'rgba(148,163,184,0.4)',fg:'var(--text-muted)'};
+    status.style.background = cores.bg;
+    status.style.border = '1px solid ' + cores.bd;
+    status.style.color = cores.fg;
+  };
+
+  const osCompleta = (inp.value || '').trim();
+  if(!osCompleta){setStatus('❌ Informe o número da OS (formato 7891.4095.000167944/2025.01.01)','erro');return;}
+  if(!/\d{4}\.\d{4}\.\d{9}\/\d{4}\.\d{2}\.\d{2}/.test(osCompleta)){
+    setStatus('❌ Formato inválido. Ex.: 7891.4095.000167944/2025.01.01','erro');return;
+  }
+
+  // A extensão precisa estar instalada nesta aba
+  let tentativas = 0;
+  while(!window.danthiSIOPI && tentativas < 5){
+    await new Promise(r => setTimeout(r, 200)); tentativas++;
+  }
+  if(!window.danthiSIOPI || typeof window.danthiSIOPI.extract !== 'function'){
+    setStatus('❌ Extensão SIOPI Extractor não detectada. Instale-a e recarregue esta página (Ctrl+F5).','erro');
+    return;
+  }
+
+  btn.disabled = true; btn.style.opacity = '0.6';
+  const rotuloOriginal = btn.innerHTML;
+  btn.innerHTML = '⏳ Buscando…';
+  setStatus('🔍 Iniciando busca no SIOPI. Não feche a aba do SIOPI…','info');
+
+  try{
+    // Sem data de abertura conhecida: se a busca por número falhar, o fallback por data
+    // não roda automaticamente. Mas é o caminho normal — quando a busca por número
+    // funciona (que é o cenário atual), tudo se resolve com esta chamada só.
+    const r = await window.danthiSIOPI.extract(osCompleta, '', '');
+    console.log('[SIOPI Nova OS] resultado:', r);
+
+    if(r.errors && r.errors.length && !r.endereco && !r.cep && !r.area_privativa){
+      setStatus('❌ ' + r.errors.join('; '),'erro');
+      return;
+    }
+
+    // ── Preenche o formulário da Nova OS ─────────────────────────────────
+    const set = (id, val) => { if(val && !document.getElementById(id).value.trim()) document.getElementById(id).value = val; };
+    const setForce = (id, val) => { if(val) document.getElementById(id).value = val; };
+
+    setForce('nos', osCompleta);
+    if(r.endereco) setForce('nend', toTitleCasePT(r.endereco));
+    if(r.bairro)   setForce('nbairro', toTitleCasePT(r.bairro));
+    if(r.cep)      setForce('ncep', r.cep);
+    if(r.area_privativa) setForce('narea', r.area_privativa + (r.area_privativa.match(/m/i) ? '' : ' m²'));
+
+    if(r.municipio){
+      // Casa com um município cadastrado (tolera acento/caixa via findMunKey se existir)
+      const munEl = document.getElementById('nmun');
+      munEl.value = toTitleCasePT(r.municipio);
+      if(typeof onMun === 'function') onMun();
+    }
+
+    // Atividade: A + 413 → "A413". Casa contra o dropdown do dashboard.
+    if(r.atividade_extraida){
+      const sel = document.getElementById('na');
+      const norm = s => String(s||'').toUpperCase().replace(/[\s.\-]/g,'');
+      const alvo = norm(r.atividade_extraida);
+      const opts = [...sel.options];
+      let match = opts.find(o => norm(o.value) === alvo);
+      if(!match) match = opts.find(o => norm(o.value).startsWith(alvo));
+      if(!match) match = opts.find(o => norm(o.value).includes(alvo));
+      if(match){ sel.value = match.value; if(typeof onAtv==='function') onAtv(); }
+      else { console.warn('[SIOPI Nova OS] atividade não cadastrada:', r.atividade_extraida); }
+    }
+
+    // Tipologia: preenche se casar com uma das opções
+    if(r.tipo_construcao || r.tipo_imovel){
+      const selTip = document.getElementById('ntip');
+      const alvo = (r.tipo_construcao || r.tipo_imovel).toLowerCase();
+      const match = [...selTip.options].find(o => o.text.toLowerCase().includes(alvo) || alvo.includes(o.text.toLowerCase()));
+      if(match) selTip.value = match.value;
+    }
+
+    // Data SIOPI = Data de Abertura da demanda
+    if(r.data_abertura){
+      setForce('nsiopi', r.data_abertura);
+      if(typeof onSiopi === 'function') setTimeout(onSiopi, 50);
+    }
+
+    // Guarda os extras para o salvar() usar (categoria vai pra coluna; produto/fonte ficam no log)
+    NOVA_SIOPI_EXTRAS = {
+      categoria: r.categoria || '',
+      produto:   r.produto || '',
+      fonte:     r.fonte || '',
+      matricula: r.matricula || '',
+      cnm:       r.cnm || '',
+      vcv:       r.valor_compra_venda || '',
+      prazo_dias: r.prazo_dias || '',
+      finalidade: r.finalidade || '',
+      tipo_peca_tecnica: r.tipo_peca_tecnica || '',
+      data_abertura: r.data_abertura || '',  // vai pra coluna "abr"
+      documentos: r.documentos || [],  // usado em salvar() → criarPastasDrive → 02 - Documentos
+    };
+    console.log('[SIOPI Nova OS] extras guardados:', NOVA_SIOPI_EXTRAS);
+
+    const partes = [];
+    if(r.endereco) partes.push('📍 ' + r.endereco);
+    if(r.categoria) partes.push('🏷️ ' + r.categoria);
+    if(r.atividade_extraida) partes.push('⚙️ ' + r.atividade_extraida);
+    if(r.documentos && r.documentos.length) partes.push(`📎 ${r.documentos.filter(d=>d.bytes).length}/${r.documentos.length} doc(s)`);
+    setStatus('✅ ' + (partes.join(' · ') || 'Dados obtidos'), 'sucesso');
+    showToast('✅ Dados do SIOPI aplicados. Confira e complete antes de salvar.');
+  }catch(e){
+    console.error('[SIOPI Nova OS] erro:', e);
+    setStatus('❌ ' + e.message, 'erro');
+  }finally{
+    btn.disabled = false; btn.style.opacity = '1'; btn.innerHTML = rotuloOriginal;
+  }
+}
+
+// Title Case pt-BR (mesmas regras do parseTxtOS: preposições em minúsculo se não iniciais)
+function toTitleCasePT(str){
+  if(!str) return str;
+  const lowers = ['da','de','di','do','du','das','dos','e'];
+  return String(str).toLowerCase().split(/[ \t]+/).map((w,i)=>{
+    if(!w) return '';
+    if(lowers.includes(w) && i!==0) return w;
+    return w.charAt(0).toUpperCase() + w.slice(1);
+  }).join(' ');
+}
+
 async function salvar(){
   if(!AUTH){showToast('Entre com Google primeiro.');return;}
   
@@ -6175,8 +6110,13 @@ async function salvar(){
     va:'',
     rsm:'',
     rev:'FALSE',
-    abr:'',
-    prz:''
+    abr:(NOVA_SIOPI_EXTRAS&&NOVA_SIOPI_EXTRAS.data_abertura)||'',
+    prz:'',
+    // Extras vindos do SIOPI (só entram se o usuário usou "Obter dados via SIOPI")
+    matricula:(NOVA_SIOPI_EXTRAS&&NOVA_SIOPI_EXTRAS.matricula)||'',
+    cnm:(NOVA_SIOPI_EXTRAS&&NOVA_SIOPI_EXTRAS.cnm)||'',
+    vcv:(NOVA_SIOPI_EXTRAS&&NOVA_SIOPI_EXTRAS.vcv)?('R$ '+NOVA_SIOPI_EXTRAS.vcv):'',
+    categoria:(NOVA_SIOPI_EXTRAS&&NOVA_SIOPI_EXTRAS.categoria)||''
   });
   try{
     console.log('=== DEBUG SALVAR OS ===');
@@ -6203,6 +6143,33 @@ async function salvar(){
     
     showToast('✅ OS salva!');
     await criarPastasDrive(novoItem,atv,osp,mes);
+
+    // Se veio via SIOPI e trouxe documentos, sobe todos para 02 - Documentos (num passo só,
+    // logo após as pastas serem criadas — sem janela em que a subpasta fica vazia).
+    const docs = NOVA_SIOPI_EXTRAS && NOVA_SIOPI_EXTRAS.documentos;
+    if(docs && docs.length){
+      try{
+        const osTemp = {mes, item:novoItem, atv, osp};
+        const docsFolderId = await acharPasta02Documentos(osTemp);
+        if(docsFolderId){
+          const existentes = await listarArquivosExistentes(docsFolderId);
+          let enviados = 0;
+          for(const doc of docs){
+            if(!doc.bytes) continue;  // pula documentos que não baixaram
+            try{
+              const nome = gerarNomeUnico(doc.nome, existentes);
+              await uploadDocumentoParaDrive(doc, nome, docsFolderId);
+              existentes.add(nome);
+              enviados++;
+            }catch(err){console.warn('[SIOPI Nova OS] upload falhou:', doc.nome, err);}
+          }
+          if(enviados) showToast(`📁 ${enviados}/${docs.length} documento(s) salvos`);
+        }else{
+          console.warn('[SIOPI Nova OS] pasta 02-Documentos não encontrada');
+        }
+      }catch(err){console.error('[SIOPI Nova OS] erro ao subir docs:', err);}
+    }
+
     await loadData();
     limparFormNovaOS();
     sw('os',document.getElementById('ico-os'));
@@ -6225,6 +6192,11 @@ function limparFormNovaOS() {
   if(document.getElementById('nesp')) document.getElementById('nesp').value = '0';
   if(document.getElementById('ntip')) document.getElementById('ntip').value = 'Apartamento';
   TXT_FILE_CONVOCACAO=null; // Limpa arquivo .txt armazenado
+  NOVA_SIOPI_EXTRAS={};      // Limpa extras da busca SIOPI (matrícula, categoria, docs...)
+  const siopiInp=document.getElementById('nova-siopi-os');
+  if(siopiInp) siopiInp.value='';
+  const siopiSt=document.getElementById('nova-siopi-status');
+  if(siopiSt){siopiSt.style.display='none';siopiSt.textContent='';}
   showToast('🗑 Formulário limpo.');
 }
 
