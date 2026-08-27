@@ -4275,15 +4275,16 @@ async function enriquecerComSIOPI(){
     }
 
     // 3.6. Upload em 01 - Convocação — PNG (screenshot) e .txt sintético (contato).
-    // Só sobe se ainda NÃO houver arquivo do mesmo tipo na pasta (respeita .txt real
-    // e não duplica screenshot). Isso vale tanto pra Avaliação quanto pro E401 —
-    // rodam por caminhos diferentes do content.js mas retornam o mesmo payload.
+    console.log('[SIOPI drawer] contato do SIOPI → nome=' + JSON.stringify(result.contato_nome) +
+                ' | telefone=' + JSON.stringify(result.contato_telefone));
     try{
       const convFolderId = await acharPastaConvocacao(COS);
+      console.log('[SIOPI drawer] pasta de convocação id=' + convFolderId);
       if(convFolderId){
         const existentesConv = await listarArquivosExistentes(convFolderId);
         const jaTemTxt = [...existentesConv].some(n => /\.txt$/i.test(n));
         const jaTemPng = [...existentesConv].some(n => /\.png$/i.test(n));
+        console.log('[SIOPI drawer] pasta convocação:', {arquivos: [...existentesConv], jaTemTxt, jaTemPng});
 
         // PNG (screenshot da tela da demanda)
         if(result.screenshot_png && !jaTemPng){
@@ -4302,7 +4303,14 @@ async function enriquecerComSIOPI(){
         // .txt sintético (formato lido pelo parseTxt → drawer mostra Nome/Telefone/WhatsApp)
         const cn = result.contato_nome || '';
         const ct = result.contato_telefone || '';
-        if((cn || ct) && !jaTemTxt){
+        if(!cn && !ct){
+          etapas.push('ℹ️ Contato não veio do SIOPI (talvez sem "Contato para Vistoria" preenchido)');
+        }else if(jaTemTxt){
+          // Já tem .txt real na pasta — respeita, mas força atualização do card de contato
+          console.log('[SIOPI drawer] .txt já existe em 01 - Convocação — mantendo o original');
+          showContato(cn, ct);
+          etapas.push(`📇 Contato: ${cn || '—'}${ct ? ' · ' + ct : ''} (mantido .txt existente)`);
+        }else{
           try{
             const osLimpo = String(COS.os||'').replace(/[\/\.]/g,'');
             const linhas = [
@@ -4327,11 +4335,13 @@ async function enriquecerComSIOPI(){
               { nome: nomeTxt, bytes: txtB64, mimeType: 'text/plain; charset=utf-8' },
               nomeTxt, convFolderId
             );
-            etapas.push(`📇 Contato salvo (${cn || '—'})`);
+            // Atualiza IMEDIATAMENTE o card de contato no drawer (sem esperar reabrir)
+            showContato(cn, ct);
+            etapas.push(`📇 Contato salvo (${cn || '—'}${ct ? ' · ' + ct : ''})`);
           }catch(e){console.warn('[SIOPI drawer] upload .txt sintético falhou:', e);}
-        }else if((cn || ct) && jaTemTxt){
-          console.log('[SIOPI drawer] .txt já existe em 01 - Convocação — mantendo o original');
         }
+      }else{
+        etapas.push('⚠️ Pasta "01 - Convocação" não encontrada');
       }
     }catch(e){console.warn('[SIOPI drawer] pasta de convocação:', e);}
 
