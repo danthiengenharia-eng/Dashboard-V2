@@ -6407,7 +6407,9 @@ async function buscarViaSIOPINovaOS(){
     // Sem data de abertura conhecida: se a busca por número falhar, o fallback por data
     // não roda automaticamente. Mas é o caminho normal — quando a busca por número
     // funciona (que é o cenário atual), tudo se resolve com esta chamada só.
-    const r = await window.danthiSIOPI.extract(osCompleta, '', '');
+    // Se o .txt de convocação já foi importado, os dados de contato/endereço vêm dele:
+    // a extensão pula o print da demanda (e o salvar() não gera PNG nem .txt sintético).
+    const r = await window.danthiSIOPI.extract(osCompleta, '', '', { skipScreenshot: !!TXT_FILE_CONVOCACAO });
     console.log('[SIOPI Nova OS] resultado:', r);
     console.log('[SIOPI Nova OS] errors:', (r && r.errors) || []);
     console.log('[SIOPI Nova OS] log fases:', (r && r.log) || []);
@@ -6625,6 +6627,9 @@ async function salvar(){
     console.log('Resultado:', result);
 
     showToast('✅ OS salva!');
+    // criarPastasDrive zera TXT_FILE_CONVOCACAO após subir o .txt — guarda antes pra saber
+    // depois que já havia convocação anexada (e não gerar PNG/.txt sintético por cima).
+    const temTxtAnexado = !!TXT_FILE_CONVOCACAO;
     await criarPastasDrive(novoItem,atv,osp,mes);
 
     // Se veio via SIOPI e trouxe documentos, sobe todos para 02 - Documentos (num passo só,
@@ -6633,7 +6638,7 @@ async function salvar(){
     // tela da demanda, sobe o PNG na pasta de convocação (role='txt') como substituto.
     const docs = NOVA_SIOPI_EXTRAS && NOVA_SIOPI_EXTRAS.documentos;
     const screenshotPng = NOVA_SIOPI_EXTRAS && NOVA_SIOPI_EXTRAS.screenshot_png;
-    if((docs && docs.length) || (!TXT_FILE_CONVOCACAO && screenshotPng)){
+    if((docs && docs.length) || (!temTxtAnexado && screenshotPng)){
       try{
         const osTemp = {mes, item:novoItem, atv, osp};
 
@@ -6663,7 +6668,7 @@ async function salvar(){
         // formato compatível com o parseTxt() — pra que o showContato() do drawer
         // renderize nome/telefone/WhatsApp exatamente como fazia quando havia .txt
         // real da CAIXA. Sem persistir nada na planilha.
-        if(!TXT_FILE_CONVOCACAO && (screenshotPng || NOVA_SIOPI_EXTRAS.contato_nome || NOVA_SIOPI_EXTRAS.contato_telefone)){
+        if(!temTxtAnexado && (screenshotPng || NOVA_SIOPI_EXTRAS.contato_nome || NOVA_SIOPI_EXTRAS.contato_telefone)){
           const convFolderId = await acharPastaConvocacao(osTemp);
           if(convFolderId){
             const osLimpo = String(osp||'').replace(/[\/\.]/g,'');
