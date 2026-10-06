@@ -2713,7 +2713,7 @@ function setupLoader(){
 }
 
 const MSG_AV_DEFAULT='{{saudacao}}\n\nQuem fala é o {{resp}}, engenheiro responsável pela vistoria de avaliações imobiliárias.\nEstou entrando em contato a respeito da OS nº {{osNum}}, referente ao imóvel na {{endereco}}.\nGostaria de agendar a vistoria para {{data}}, entre {{hora}} hrs.\n\nAtenciosamente,\n{{resp}}';
-const MSG_INI_DEFAULT='Olá! Somos a Danthi Engenharia, empresa credenciada pela CAIXA.\n\nRecebemos a Ordem de Serviço nº {{osNum}} e estamos entrando em contato por este número, que foi disponibilizado na referida OS, para confirmar se este é o melhor canal de contato para tratarmos dos assuntos relacionados à avaliação.\n\nNo momento, estamos na etapa de análise documental. Caso não seja identificado nenhum impedimento, entraremos em contato posteriormente para realizar o agendamento da vistoria.\n\nPor gentileza, poderia confirmar se este é o melhor número para contato?\n\nAgradecemos desde já!';
+const MSG_INI_DEFAULT='Olá! Somos a Danthi Engenharia, empresa credenciada pela CAIXA.\n\nRecebemos a Ordem de Serviço nº {{osNum}}, referente ao imóvel na {{endereco}}, e estamos entrando em contato por este número, que foi disponibilizado na referida OS, para confirmar se este é o melhor canal de contato para tratarmos dos assuntos relacionados à avaliação.\n\nNo momento, estamos na etapa de análise documental. Caso não seja identificado nenhum impedimento, entraremos em contato posteriormente para realizar o agendamento da vistoria.\n\nPor gentileza, poderia confirmar se este é o melhor número para contato?\n\nAgradecemos desde já!';
 const MSG_MED_DEFAULT='{{saudacao}}\n\nQuem fala é o {{resp}}, engenheiro responsável pela vistoria de medição de obras.\nEstou entrando em contato a respeito da OS nº {{osNum}}, referente ao imóvel na {{endereco}}.\nGostaria de agendar a vistoria para {{data}}, entre {{hora}} hrs.\n\nAtenciosamente,\n{{resp}}';
 
 function hexToRgb(hex){try{const h=hex.replace('#','');return`${parseInt(h.slice(0,2),16)},${parseInt(h.slice(2,4),16)},${parseInt(h.slice(4,6),16)}`;}catch(e){return'0,71,142';}}
@@ -4418,7 +4418,9 @@ async function enriquecerComSIOPI(){
     //    Passamos o código da atividade pra ativar fluxos especiais (ex.: E401 = acompanhamento de obra)
     // 3º arg: data de entrada/SIOPI (dd/mm/aaaa) — alimenta o fluxo alternativo por
     // Período de Abertura quando a busca por número devolve "Operação não permitida".
-    const result=await window.danthiSIOPI.extract(osCompleta, COS.atv, COS.siopi);
+    // Se a OS já tem .txt de convocação no Drive, dispensa o print e o .txt sintético.
+    const temTxtConv=await osTemTxtConvocacao(COS);
+    const result=await window.danthiSIOPI.extract(osCompleta, COS.atv, COS.siopi, { skipScreenshot: temTxtConv });
     console.log('[SIOPI] resultado completo:',result);
     console.log('[SIOPI] documentos:',result?.documentos);
     if(result?.documentos){
@@ -4610,12 +4612,12 @@ async function enriquecerComSIOPI(){
       console.log('[SIOPI drawer] pasta de convocação id=' + convFolderId);
       if(convFolderId){
         const existentesConv = await listarArquivosExistentes(convFolderId);
-        const jaTemTxt = [...existentesConv].some(n => /\.txt$/i.test(n));
+        const jaTemTxt = temTxtConv || [...existentesConv].some(n => /\.txt_?$/i.test(n));
         const jaTemPng = [...existentesConv].some(n => /\.png$/i.test(n));
         console.log('[SIOPI drawer] pasta convocação:', {arquivos: [...existentesConv], jaTemTxt, jaTemPng});
 
         // PNG (screenshot da tela da demanda)
-        if(result.screenshot_png && !jaTemPng){
+        if(result.screenshot_png && !jaTemPng && !jaTemTxt){
           try{
             const osLimpo = String(COS.os||'').replace(/[\/\.]/g,'');
             const nomePng = `convocacao_${osLimpo}.png`;
@@ -4754,6 +4756,23 @@ async function acharPastaConvocacao(os){
     const conv=(r3.result.files||[]).find(f=>/convoca/i.test(f.name));
     return conv?conv.id:osFolderId; // Último recurso: pasta da OS
   }catch(e){console.error('acharPastaConvocacao:',e);return null;}
+}
+
+// A OS já tem .txt de convocação? Procura em "01 - Convocação" e, se a pasta for essa,
+// também na raiz da OS (destino padrão do .txt anexado na Nova OS é a raiz).
+async function osTemTxtConvocacao(os){
+  try{
+    const isTxt=n=>/\.txt_?$/i.test(n);
+    const convId=await acharPastaConvocacao(os);
+    if(!convId)return false;
+    if([...await listarArquivosExistentes(convId)].some(isTxt))return true;
+    const g=await gapi.client.drive.files.get({fileId:convId,fields:'name,parents'});
+    const parent=g.result.parents&&g.result.parents[0];
+    if(parent&&/convoca/i.test(g.result.name||'')){
+      return [...await listarArquivosExistentes(parent)].some(isTxt);
+    }
+  }catch(e){console.warn('osTemTxtConvocacao:',e);}
+  return false;
 }
 
 // Lista nomes de arquivos numa pasta (pra evitar conflitos)
@@ -5184,7 +5203,10 @@ function enviarContatoInicial(tel){
   if(!COS){showToast('Abra uma OS primeiro.');return;}
   const num=String(tel||'').replace(/\D/g,'');
   if(!num){showToast('Contato sem telefone.');return;}
-  const msg=(CONFIG_USER.msg_ini||MSG_INI_DEFAULT).replace(/\{\{osNum\}\}/g,COS.os||'');
+  const end=[COS.end,COS.bairro,COS.mun?titleCase(nMun(COS.mun)):''].filter(Boolean).join(', ');
+  const msg=(CONFIG_USER.msg_ini||MSG_INI_DEFAULT)
+    .replace(/\{\{osNum\}\}/g,COS.os||'')
+    .replace(/\{\{endereco\}\}/g,end);
   window.open(`https://wa.me/55${num}?text=${encodeURIComponent(msg)}`,'_blank','noopener');
 }
 function showContato(nome,tel){
@@ -9957,7 +9979,7 @@ async function _uploadFotoParaDrive(file, nome, folderId, barId, onProgress){
 
     <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px">WhatsApp: Contato inicial (botão no detalhe da OS)</div>
     <textarea id="cfg-msg-ini" rows="8" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--mica-border);background:var(--mica-surface);color:var(--text-primary);font-size:11px;margin-bottom:4px;resize:vertical;box-sizing:border-box"></textarea>
-    <div style="font-size:10px;color:var(--text-muted);margin-bottom:20px">Chave disponível: <b>{{osNum}}</b> (número da OS aberta). Apague o texto e salve para restaurar o padrão.</div>
+    <div style="font-size:10px;color:var(--text-muted);margin-bottom:20px">Chaves disponíveis: <b>{{osNum}}</b> (número da OS) e <b>{{endereco}}</b> (endereço, bairro, município). Apague o texto e salve para restaurar o padrão.</div>
 
     <hr style="border:none;border-top:1px solid var(--mica-border);margin-bottom:14px">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
