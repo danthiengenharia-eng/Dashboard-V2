@@ -9711,7 +9711,47 @@ let _bgUploadAtivo=false;
 function _toggleBgUpload(){
   document.getElementById('bg-upload').classList.toggle('collapsed');
 }
+// ── Mantém a tela ligada / avisa progresso durante o envio (celular) ──
+// Limites: página web não roda com a tela bloqueada nem aparece na Ilha Dinâmica;
+// o que dá é impedir que a tela apague (Wake Lock), mostrar progresso no título/ícone
+// e notificar o término quando o navegador permitir.
+let _wakeLock=null;
+const _tituloOriginal=document.title;
+async function _wakeAcquire(){
+  try{
+    if(!('wakeLock' in navigator)||_wakeLock||document.visibilityState!=='visible')return;
+    _wakeLock=await navigator.wakeLock.request('screen');
+    _wakeLock.addEventListener('release',()=>{_wakeLock=null;});
+  }catch(e){console.warn('[wakeLock]',e);}
+}
+function _wakeRelease(){
+  try{if(_wakeLock)_wakeLock.release();}catch(e){}
+  _wakeLock=null;
+}
+function _aguardarVisivel(){
+  return new Promise(res=>{
+    if(document.visibilityState==='visible')return res();
+    const f=()=>{if(document.visibilityState==='visible'){document.removeEventListener('visibilitychange',f);res();}};
+    document.addEventListener('visibilitychange',f);
+  });
+}
+document.addEventListener('visibilitychange',()=>{if(_bgUploadAtivo&&document.visibilityState==='visible')_wakeAcquire();});
+window.addEventListener('beforeunload',e=>{if(_bgUploadAtivo){e.preventDefault();e.returnValue='';}});
+function _bgKeepAliveStart(){
+  _wakeAcquire();
+  if(!('wakeLock' in navigator))showToast('⚠️ Este navegador não impede a tela de apagar — mantenha-a ligada durante o envio.');
+  try{if('Notification' in window&&Notification.permission==='default')Notification.requestPermission();}catch(e){}
+}
+function _bgKeepAliveStop(titulo,corpo){
+  _wakeRelease();
+  document.title=_tituloOriginal;
+  try{if(navigator.clearAppBadge)navigator.clearAppBadge();}catch(e){}
+  try{
+    if(document.hidden&&'Notification' in window&&Notification.permission==='granted')new Notification(titulo,{body:corpo});
+  }catch(e){}
+}
 function _showBgUpload(osLabel,total){
+  _bgKeepAliveStart();
   const w=document.getElementById('bg-upload');
   w.style.display='block';
   w.classList.remove('collapsed','done','err');
@@ -9724,8 +9764,11 @@ function _showBgUpload(osLabel,total){
 function _setBgUploadProg(done,total,pct){
   document.getElementById('bg-upload-stat').textContent=done+' / '+total;
   document.getElementById('bg-upload-bar').style.width=(pct||0)+'%';
+  document.title='⬆️ '+done+'/'+total+' ('+(pct||0)+'%)';
+  try{if(navigator.setAppBadge)navigator.setAppBadge(Math.max(total-done,0));}catch(e){}
 }
 function _finishBgUpload(ok,err,total){
+  _bgKeepAliveStop(err?'Envio com falhas':'Fotos enviadas',ok+' de '+total+' foto(s) enviada(s)'+(err?' · '+err+' com erro':''));
   const w=document.getElementById('bg-upload');
   const allOk=err===0;
   w.classList.add(allOk?'done':'err');
@@ -9823,10 +9866,23 @@ async function uploadFotos(){
         const file=await _comprimirImagem(original);
         const ext=(file.name.split('.').pop()||'jpg').toLowerCase();
         const nomeDest=`Imagem_${String(startNum+i).padStart(3,'0')}.${ext}`;
-        await _uploadFotoParaDrive(file, nomeDest, fotoFolderId, null, (pct)=>{
-          const overall=Math.round(((i+pct/100)/total)*100);
-          _setBgUploadProg(i, total, overall);
-        });
+        // Até 3 tentativas: se a tela apagou/aba foi pro fundo e a conexão caiu, espera
+        // voltar a ficar visível e reenvia (o upload resumable interrompido não deixa arquivo).
+        for(let t=1;t<=3;t++){
+          try{
+            await _uploadFotoParaDrive(file, nomeDest, fotoFolderId, null, (pct)=>{
+              const overall=Math.round(((i+pct/100)/total)*100);
+              _setBgUploadProg(i, total, overall);
+            });
+            break;
+          }catch(errUp){
+            if(t===3)throw errUp;
+            console.warn('Upload falhou (tentativa '+t+'), tentando de novo:',errUp);
+            await _aguardarVisivel();
+            await _wakeAcquire();
+            await new Promise(r=>setTimeout(r,1500*t));
+          }
+        }
         ok++;
         _setBgUploadProg(ok+err, total, Math.round(((i+1)/total)*100));
       }catch(e){
@@ -9839,6 +9895,7 @@ async function uploadFotos(){
     _finishBgUpload(ok, err, total);
     showToast(err===0?'✅ Fotos enviadas!':'⚠️ '+ok+' enviada(s), '+err+' com erro');
   }catch(e){
+    _bgKeepAliveStop('Falha no envio das fotos',e.message);
     document.getElementById('bg-upload').classList.add('err');
     document.getElementById('bg-upload-ico').textContent='❌';
     document.getElementById('bg-upload-tit').textContent='Falha no envio';
