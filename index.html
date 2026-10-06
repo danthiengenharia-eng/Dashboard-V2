@@ -6029,21 +6029,14 @@ async function _tracarRota(map,validos,btnConfirm){
       const route=geoData.features[0];
       ROTA_KM_TOTAL=(route.properties.distance||0)/1000;
       document.getElementById('rota-km').value=ROTA_KM_TOTAL.toFixed(1);
-      const legs=route.properties.legs||[];
-      if(legs.length){
-        legs.forEach(leg=>{
-          if(leg.steps){leg.steps.forEach(step=>{
-            if(step.geometry&&step.geometry.coordinates&&step.geometry.coordinates.length>=2){
-              L.polyline(step.geometry.coordinates.map(c=>[c[1],c[0]]),{color:'#00478E',weight:5,opacity:0.85}).addTo(map);
-            }
-          });}
-        });
-      }else{
-        const geom=route.geometry;
-        if(geom.type==='MultiLineString'){geom.coordinates.forEach(seg=>{if(seg.length>=2)L.polyline(seg.map(c=>[c[1],c[0]]),{color:'#00478E',weight:5,opacity:0.85}).addTo(map);});}
-        else if(geom.type==='LineString'){L.polyline(geom.coordinates.map(c=>[c[1],c[0]]),{color:'#00478E',weight:5,opacity:0.85}).addTo(map);}
-      }
+      // A API não manda mais geometria dentro de legs[].steps[] — o traçado vem em route.geometry.
+      const geom=route.geometry;
+      const estilo={color:'#00478E',weight:5,opacity:0.85};
+      if(geom&&geom.type==='MultiLineString'){geom.coordinates.forEach(seg=>{if(seg.length>=2)L.polyline(seg.map(c=>[c[1],c[0]]),estilo).addTo(map);});}
+      else if(geom&&geom.type==='LineString'){L.polyline(geom.coordinates.map(c=>[c[1],c[0]]),estilo).addTo(map);}
+      else L.polyline(coords,{color:'#00478E',weight:4,opacity:0.8,dashArray:'8,6'}).addTo(map);
     }else{
+      console.warn('[rota] Geoapify sem rota:',geoData);
       L.polyline(coords,{color:'#00478E',weight:4,opacity:0.8,dashArray:'8,6'}).addTo(map);
     }
   }catch(e){
