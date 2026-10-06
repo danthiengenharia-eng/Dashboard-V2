@@ -6015,13 +6015,62 @@ async function _gerarRotaMaps(mapBody){
   btnConfirm.addTo(map);
 }
 
+// Decodifica "encoded polyline" (algoritmo do Google, precisão 5) → [[lat,lng],...]
+function _decodePolyline(str){
+  const pts=[];let i=0,lat=0,lng=0;
+  while(i<str.length){
+    let b,shift=0,res=0;
+    do{b=str.charCodeAt(i++)-63;res|=(b&0x1f)<<shift;shift+=5;}while(b>=0x20);
+    lat+=(res&1)?~(res>>1):(res>>1);
+    shift=0;res=0;
+    do{b=str.charCodeAt(i++)-63;res|=(b&0x1f)<<shift;shift+=5;}while(b>=0x20);
+    lng+=(res&1)?~(res>>1):(res>>1);
+    pts.push([lat/1e5,lng/1e5]);
+  }
+  return pts;
+}
+
 async function _tracarRota(map,validos,btnConfirm){
   btnConfirm.remove();
   document.getElementById('rota-map-info').textContent='Calculando rota...';
   const GEO_KEY='e3219b407e77401692c069c3f9eb4f0d';
   const coords=validos.map(x=>x.coord);
 
+  // 1) Google Maps (Routes API) — mesma API Key do Sheets/Drive. Mantém a ordem dos pontos.
+  //    Requer "Routes API" ativada no projeto Google Cloud e liberada nas restrições da chave.
+  let fonteRota='';
   try{
+    if(!CFG.KEY)throw new Error('sem API Key');
+    if(coords.length>27)throw new Error('mais de 25 paradas intermediárias');
+    const wp=c=>({location:{latLng:{latitude:c[0],longitude:c[1]}}});
+    const gRes=await fetch('https://routes.googleapis.com/directions/v2:computeRoutes',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-Goog-Api-Key':CFG.KEY,
+        'X-Goog-FieldMask':'routes.distanceMeters,routes.duration,routes.polyline.encodedPolyline'},
+      body:JSON.stringify({
+        origin:wp(coords[0]),
+        destination:wp(coords[coords.length-1]),
+        intermediates:coords.slice(1,-1).map(wp),
+        travelMode:'DRIVE',
+        routingPreference:'TRAFFIC_UNAWARE',
+        languageCode:'pt-BR',units:'METRIC'
+      })
+    });
+    const gData=await gRes.json();
+    if(!gRes.ok||!gData.routes||!gData.routes.length)
+      throw new Error((gData.error&&gData.error.message)||('HTTP '+gRes.status));
+    const gr=gData.routes[0];
+    ROTA_KM_TOTAL=(gr.distanceMeters||0)/1000;
+    document.getElementById('rota-km').value=ROTA_KM_TOTAL.toFixed(1);
+    L.polyline(_decodePolyline(gr.polyline.encodedPolyline),{color:'#00478E',weight:5,opacity:0.85}).addTo(map);
+    fonteRota='Google Maps';
+  }catch(eG){
+    console.warn('[rota] Google Routes falhou, usando Geoapify:',eG);
+    showToast('⚠️ Google Maps recusou a rota ('+eG.message+') — usando rota alternativa.');
+  }
+
+  // 2) Reserva: Geoapify
+  if(!fonteRota)try{
     const waypointsParam=coords.map(c=>c[0]+','+c[1]).join('|');
     const geoRes=await fetch(`https://api.geoapify.com/v1/routing?waypoints=${encodeURIComponent(waypointsParam)}&mode=drive&details=instruction_details&apiKey=${GEO_KEY}`);
     const geoData=await geoRes.json();
@@ -6042,7 +6091,7 @@ async function _tracarRota(map,validos,btnConfirm){
   }catch(e){
     L.polyline(coords,{color:'#00478E',weight:4,opacity:0.8,dashArray:'8,6'}).addTo(map);
   }
-  document.getElementById('rota-map-info').textContent=`${ROTA_OTIMIZADA.length} paradas • ${ROTA_KM_TOTAL.toFixed(1)} km • OpenStreetMap`;
+  document.getElementById('rota-map-info').textContent=`${ROTA_OTIMIZADA.length} paradas • ${ROTA_KM_TOTAL.toFixed(1)} km • ${fonteRota||'Geoapify'}`;
   document.getElementById('rota-custo-card').style.display='block';
   calcCustoRota();
 }
