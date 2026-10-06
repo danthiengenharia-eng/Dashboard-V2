@@ -2488,7 +2488,7 @@ let MUN={};   // {municipio:{v:desloc,polo:'...'}}
 let MUNE={};  // {municipio: val_km} — gerado automaticamente de MUN
 let SUBP=[];  // [{nm,d,ic,role}] — dinâmico, definido no setup passo 4
 let PDF_BASE_ID='';
-let CONFIG_USER={emp:'',resp:'',crea:'',tel:'',logo:'',msg_av:'',msg_med:'',txt_name_tpl:'convocacao.txt',txt_folder_dest:'root',visionKey:''};
+let CONFIG_USER={emp:'',resp:'',crea:'',tel:'',logo:'',msg_av:'',msg_med:'',msg_ini:'',txt_name_tpl:'convocacao.txt',txt_folder_dest:'root',visionKey:''};
 
 const STCFG={'OS Concluída':{cls:'st-concluida',bg:'#16a34a',lbl:'Concluída'},'OS Cancelada':{cls:'st-cancelada',bg:'#dc2626',lbl:'Cancelada'},'OS em Andamento sem vistoria':{cls:'st-semvist',bg:'#475569',lbl:'Sem vistoria'},'Sem vistoria - não agendado':{cls:'st-semvist-nao-agend',bg:'#64748b',lbl:'S/ vist. - não agend.'},'Sem vistoria - agendado':{cls:'st-semvist-agend',bg:'#0369a1',lbl:'S/ vist. - agendado'},'OS não Vistoriada com PEPT':{cls:'st-pept-n',bg:'#4338ca',lbl:'S/ vist. c/ PEPT'},'OS Vistoriada com PEPT':{cls:'st-pept-v',bg:'#c2410c',lbl:'Vist. c/ PEPT'},'OS Vistoriada':{cls:'st-vistoriada',bg:'#a16207',lbl:'Vistoriada'},'OS em Revisão':{cls:'st-revisao',bg:'#7e22ce',lbl:'Em revisão'},'OS em Andamento':{cls:'st-andamento',bg:'#0f766e',lbl:'Em andamento'}};
 let CALENDAR_FILTERS={};
@@ -2697,7 +2697,7 @@ function setupLoader(){
     CONFIG_USER={
       emp:c.emp||'',resp:c.resp||'',crea:c.crea||'',
       tel:c.tel||'',logo:c.logo||'',
-      msg_av:c.msg_av||MSG_AV_DEFAULT,msg_med:c.msg_med||MSG_MED_DEFAULT,
+      msg_av:c.msg_av||MSG_AV_DEFAULT,msg_med:c.msg_med||MSG_MED_DEFAULT,msg_ini:c.msg_ini||MSG_INI_DEFAULT,
       colorRows:c.colorRows!==undefined?c.colorRows:true,
       txt_name_tpl:c.txt_name_tpl||'convocacao.txt',
       txt_folder_dest:c.txt_folder_dest||'root',
@@ -2713,6 +2713,7 @@ function setupLoader(){
 }
 
 const MSG_AV_DEFAULT='{{saudacao}}\n\nQuem fala é o {{resp}}, engenheiro responsável pela vistoria de avaliações imobiliárias.\nEstou entrando em contato a respeito da OS nº {{osNum}}, referente ao imóvel na {{endereco}}.\nGostaria de agendar a vistoria para {{data}}, entre {{hora}} hrs.\n\nAtenciosamente,\n{{resp}}';
+const MSG_INI_DEFAULT='Olá! Somos a Danthi Engenharia, empresa credenciada pela CAIXA.\n\nRecebemos a Ordem de Serviço nº {{osNum}} e estamos entrando em contato por este número, que foi disponibilizado na referida OS, para confirmar se este é o melhor canal de contato para tratarmos dos assuntos relacionados à avaliação.\n\nNo momento, estamos na etapa de análise documental. Caso não seja identificado nenhum impedimento, entraremos em contato posteriormente para realizar o agendamento da vistoria.\n\nPor gentileza, poderia confirmar se este é o melhor número para contato?\n\nAgradecemos desde já!';
 const MSG_MED_DEFAULT='{{saudacao}}\n\nQuem fala é o {{resp}}, engenheiro responsável pela vistoria de medição de obras.\nEstou entrando em contato a respeito da OS nº {{osNum}}, referente ao imóvel na {{endereco}}.\nGostaria de agendar a vistoria para {{data}}, entre {{hora}} hrs.\n\nAtenciosamente,\n{{resp}}';
 
 function hexToRgb(hex){try{const h=hex.replace('#','');return`${parseInt(h.slice(0,2),16)},${parseInt(h.slice(2,4),16)},${parseInt(h.slice(4,6),16)}`;}catch(e){return'0,71,142';}}
@@ -2801,7 +2802,7 @@ function applyBranding(c){
 // ─── carregarConfig: mantém compatibilidade com modal de config existente ──
 function carregarConfig(){
   const raw=localStorage.getItem(_DCEF_KEY);
-  if(raw){try{const c=JSON.parse(raw);CONFIG_USER={...CONFIG_USER,...{emp:c.emp,resp:c.resp,crea:c.crea,msg_av:c.msg_av,msg_med:c.msg_med,txt_name_tpl:c.txt_name_tpl||'convocacao.txt',txt_folder_dest:c.txt_folder_dest||'root'}};}catch(e){}}
+  if(raw){try{const c=JSON.parse(raw);CONFIG_USER={...CONFIG_USER,...{emp:c.emp,resp:c.resp,crea:c.crea,msg_av:c.msg_av,msg_med:c.msg_med,msg_ini:c.msg_ini||MSG_INI_DEFAULT,txt_name_tpl:c.txt_name_tpl||'convocacao.txt',txt_folder_dest:c.txt_folder_dest||'root'}};}catch(e){}}
 }
 function salvarConfig(){
   CONFIG_USER.emp=document.getElementById('cfg-emp').value;
@@ -2809,6 +2810,7 @@ function salvarConfig(){
   CONFIG_USER.crea=document.getElementById('cfg-crea').value;
   CONFIG_USER.msg_av=document.getElementById('cfg-msg-av').value;
   CONFIG_USER.msg_med=document.getElementById('cfg-msg-med').value;
+  CONFIG_USER.msg_ini=document.getElementById('cfg-msg-ini').value||MSG_INI_DEFAULT;
   CONFIG_USER.colorRows=document.getElementById('cfg-color-rows').checked;
   CONFIG_USER.txt_name_tpl=document.getElementById('cfg-txt-name-tpl').value.trim()||'convocacao.txt';
   CONFIG_USER.txt_folder_dest=document.getElementById('cfg-txt-folder-dest').value;
@@ -2825,6 +2827,7 @@ function salvarConfig(){
       c.crea=CONFIG_USER.crea;
       c.msg_av=CONFIG_USER.msg_av;
       c.msg_med=CONFIG_USER.msg_med;
+      c.msg_ini=CONFIG_USER.msg_ini;
       c.colorRows=CONFIG_USER.colorRows;
       c.txt_name_tpl=CONFIG_USER.txt_name_tpl;
       c.txt_folder_dest=CONFIG_USER.txt_folder_dest;
@@ -2847,6 +2850,7 @@ function abrirConfig(){
   document.getElementById('cfg-crea').value=CONFIG_USER.crea;
   document.getElementById('cfg-msg-av').value=CONFIG_USER.msg_av;
   document.getElementById('cfg-msg-med').value=CONFIG_USER.msg_med;
+  document.getElementById('cfg-msg-ini').value=CONFIG_USER.msg_ini||MSG_INI_DEFAULT;
   document.getElementById('cfg-color-rows').checked=CONFIG_USER.colorRows!==false;
   document.getElementById('cfg-txt-name-tpl').value=CONFIG_USER.txt_name_tpl||'convocacao.txt';
   document.getElementById('cfg-txt-folder-dest').value=CONFIG_USER.txt_folder_dest||'root';
@@ -5175,12 +5179,20 @@ function parseTxt(txt, r){
   }
   return res;
 }
+// Mensagem de primeiro contato (confirmação do canal) — texto editável em Configurações (CONFIG_USER.msg_ini).
+function enviarContatoInicial(tel){
+  if(!COS){showToast('Abra uma OS primeiro.');return;}
+  const num=String(tel||'').replace(/\D/g,'');
+  if(!num){showToast('Contato sem telefone.');return;}
+  const msg=(CONFIG_USER.msg_ini||MSG_INI_DEFAULT).replace(/\{\{osNum\}\}/g,COS.os||'');
+  window.open(`https://wa.me/55${num}?text=${encodeURIComponent(msg)}`,'_blank','noopener');
+}
 function showContato(nome,tel){
   const sec=document.getElementById('d-contato-sec'),body=document.getElementById('d-contato-body');
   if(!nome&&!tel){sec.style.display='none';return;}
   const ini=(nome||'?').charAt(0).toUpperCase();
   const telLink=tel?`<a href="tel:${tel.replace(/\D/g,'')}">${tel}</a>`:null;
-  body.innerHTML=`<div class="contato-card"><div class="contato-avatar">${ini}</div><div><div style="font-size:12px;font-weight:600;color:var(--text-primary)">${nome||'—'}</div><div class="contato-tel">${telLink||'—'}</div></div>${tel?`<a href="https://wa.me/55${tel.replace(/\D/g,'')}" target="_blank" rel="noopener" style="margin-left:auto;background:#25d366;color:#fff;border-radius:6px;padding:5px 9px;text-decoration:none;font-size:11px;font-weight:700">WhatsApp</a>`:''}</div>`;
+  body.innerHTML=`<div class="contato-card"><div class="contato-avatar">${ini}</div><div><div style="font-size:12px;font-weight:600;color:var(--text-primary)">${nome||'—'}</div><div class="contato-tel">${telLink||'—'}</div></div>${tel?`<div style="margin-left:auto;display:flex;gap:6px"><button type="button" onclick="enviarContatoInicial(${JSON.stringify(tel).replace(/"/g,'&quot;')})" title="Envia a mensagem padrão de primeiro contato com o nº da OS" style="background:var(--mica-surface);color:#25d366;border:1px solid #25d366;border-radius:6px;padding:5px 9px;font-size:11px;font-weight:700;cursor:pointer">Contato inicial</button><a href="https://wa.me/55${tel.replace(/\D/g,'')}" target="_blank" rel="noopener" style="background:#25d366;color:#fff;border-radius:6px;padding:5px 9px;text-decoration:none;font-size:11px;font-weight:700">WhatsApp</a></div>`:''}</div>`;
   sec.style.display='block';
 }
 const _MESES_EXT={'jan':'Janeiro','fev':'Fevereiro','mar':'Março','abr':'Abril','mai':'Maio','jun':'Junho','jul':'Julho','ago':'Agosto','set':'Setembro','out':'Outubro','nov':'Novembro','dez':'Dezembro'};
@@ -8172,6 +8184,7 @@ async function setupConcluir(){
     // Mensagens/personalizações — preserva o que o usuário já ajustou nas Configurações gerais
     msg_av:_prev.msg_av||MSG_AV_DEFAULT,
     msg_med:_prev.msg_med||MSG_MED_DEFAULT,
+    msg_ini:_prev.msg_ini||MSG_INI_DEFAULT,
     txt_name_tpl:_prev.txt_name_tpl||'convocacao.txt',
     txt_folder_dest:_prev.txt_folder_dest||'root'
   };
@@ -9941,7 +9954,11 @@ async function _uploadFotoParaDrive(file, nome, folderId, barId, onProgress){
     <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px">WhatsApp: Vistoria de Medição</div>
     <textarea id="cfg-msg-med" rows="5" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--mica-border);background:var(--mica-surface);color:var(--text-primary);font-size:11px;margin-bottom:4px;resize:vertical;box-sizing:border-box"></textarea>
     <div style="font-size:10px;color:var(--text-muted);margin-bottom:20px">Chaves disponíveis: <b>{{saudacao}}</b>, <b>{{osNum}}</b>, <b>{{endereco}}</b>, <b>{{data}}</b>, <b>{{hora}}</b>, <b>{{resp}}</b></div>
-    
+
+    <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px">WhatsApp: Contato inicial (botão no detalhe da OS)</div>
+    <textarea id="cfg-msg-ini" rows="8" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--mica-border);background:var(--mica-surface);color:var(--text-primary);font-size:11px;margin-bottom:4px;resize:vertical;box-sizing:border-box"></textarea>
+    <div style="font-size:10px;color:var(--text-muted);margin-bottom:20px">Chave disponível: <b>{{osNum}}</b> (número da OS aberta). Apague o texto e salve para restaurar o padrão.</div>
+
     <hr style="border:none;border-top:1px solid var(--mica-border);margin-bottom:14px">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
       <button id="btn-reconfig" onclick="document.getElementById('modal-config').style.display='none';reconfigurar()">⚙️ Reconfigurar sistema</button>
