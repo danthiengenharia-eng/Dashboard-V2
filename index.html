@@ -7155,7 +7155,13 @@ function updateAgendaPreview(){
     .replace(/\{\{crea\}\}/g, CONFIG_USER.crea)
     .replace(/\{\{emp\}\}/g, CONFIG_USER.emp);
 
-  if(aviso) msg+='\n\nAlém disso, há algum procedimento específico para acesso ao local? (Por exemplo: abaixar vidros, ligar alerta, luz de salão, passar por barricadas etc.)\nAgradeço desde já pela atenção e colaboração.';
+  if(aviso){
+    const avisoTxt='Além disso, há algum procedimento específico para acesso ao local? (Por exemplo: abaixar vidros, ligar alerta, luz de salão, passar por barricadas etc.)\nAgradeço desde já pela atenção e colaboração.';
+    // Insere o aviso ANTES da despedida ("Atenciosamente,\n<resp>"); sem despedida, vai ao final.
+    const idxDesp=msg.search(/Atenciosamente[^\n]*\n[^\n]*\s*$/i);
+    if(idxDesp>=0) msg=msg.slice(0,idxDesp).replace(/\s+$/,'')+'\n\n'+avisoTxt+'\n\n'+msg.slice(idxDesp);
+    else msg+='\n\n'+avisoTxt;
+  }
   
   prev.textContent=msg;
 }
