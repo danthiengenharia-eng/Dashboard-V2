@@ -10677,7 +10677,6 @@ async function _uploadFotoParaDrive(file, nome, folderId, barId, onProgress){
       ['Etapa 1 gravada como rascunho no SIMIL', /rascunho gravado/i.test(est), est ? 'status atual: ' + est : 'sem status do agente ainda'],
       ['Status da OS = Vistoriada e tipo de vistoria definido', /vistori/i.test(String(R.st || '')) && /^(interna|adjudicad)/i.test(String(R.tv || '')), 'status: ' + (R.st || '—') + ' · tipo: ' + (R.tv || '—')],
       ['Campos obrigatórios do formulário', faltam.length === 0, faltam.length ? 'falta: ' + faltam.join(', ') : ''],
-      ['Região revisada', REGREV, 'marque "Revisei a região" abaixo'],
       ['Requisitos mínimos conferidos', true, REQNAO ? 'há requisito não atendido: confira o SIMIL' : ''],
       ['Fotos: ' + SPEC.fotos.maximo + ' escolhidas, todas com legenda', fotosOk, FOTOS.length + ' escolhidas, ' + FOTOS.filter(f => f.legenda).length + ' com legenda']
     ];
@@ -10711,7 +10710,7 @@ async function _uploadFotoParaDrive(file, nome, folderId, barId, onProgress){
   function montarSaida() {
     return {
       versao: 1, atualizado_em: new Date().toISOString(), os: R.osp || R.os, tipologia: 'apartamento',
-      dados: D, equipamentos: EQUIP, regiao: REGIAO, regiao_revisada: REGREV, requisito_nao_atendido: REQNAO,
+      dados: D, equipamentos: EQUIP, requisito_nao_atendido: REQNAO,
       fotos: FOTOS.map((f, i) => ({ ordem: i + 1, id: f.id, nome: f.nome, legenda: f.legenda, descricao: f.descricao }))
     };
   }
@@ -10727,17 +10726,16 @@ async function _uploadFotoParaDrive(file, nome, folderId, barId, onProgress){
     try {
       if (!AUTH) { showToast('Entre com Google primeiro.'); return; }
       if (!/apart/i.test(String(r.tip || ''))) { showToast('O formulário de vistoria do SIMIL, por enquanto, é só para apartamento.'); return; }
-      R = r; D = {}; EQUIP = []; REGIAO = {}; FOTOS = []; DISPON = []; REGREV = false; REQNAO = false; STATUS = null;
+      R = r; D = {}; EQUIP = []; REGIAO = {}; FOTOS = []; DISPON = []; REQNAO = false; STATUS = null;
       SPEC.secoes.flatMap(s => s.campos).forEach(c => { if (c.padrao !== undefined) D[c.chave] = c.padrao === 'hoje' ? hoje() : c.padrao; });
-      SPEC.regiao.campos.forEach(c => { if (c.padrao !== undefined) D[c.chave] = c.padrao; });
-      fechar();
+            fechar();
       const ov = h('div', { id: 'sv-overlay' }, h('div', { class: 'sv-box' }, h('div', { class: 'sv-load' }, 'Carregando a OS...')));
       document.body.append(ov);
       PASTA = await acharPastaRaizOS(r);
       if (!PASTA) { fechar(); showToast('Pasta da OS não encontrada no Drive.'); return; }
       const [salvo, status] = await Promise.all([lerJson('simil_vistoria.json').catch(() => null), lerJson('simil_status.json').catch(() => null)]);
       STATUS = status;
-      if (salvo) { Object.assign(D, salvo.dados || {}); EQUIP = salvo.equipamentos || []; REGIAO = salvo.regiao || {}; REGREV = !!salvo.regiao_revisada; REQNAO = !!salvo.requisito_nao_atendido; FOTOS = (salvo.fotos || []).map(f => ({ id: f.id, nome: f.nome, legenda: f.legenda, descricao: f.descricao })); }
+      if (salvo) { Object.assign(D, salvo.dados || {}); EQUIP = salvo.equipamentos || []; REQNAO = !!salvo.requisito_nao_atendido; FOTOS = (salvo.fotos || []).map(f => ({ id: f.id, nome: f.nome, legenda: f.legenda, descricao: f.descricao })); }
       const pf = await findFolderByRole(PASTA, 'fotos');
       if (pf) {
         const fl = await gapi.client.drive.files.list({ q: "'" + pf + "' in parents and mimeType contains 'image/' and trashed=false", fields: 'files(id,name,thumbnailLink)', pageSize: 200, orderBy: 'name', supportsAllDrives: true, includeItemsFromAllDrives: true });
@@ -10748,13 +10746,6 @@ async function _uploadFotoParaDrive(file, nome, folderId, barId, onProgress){
       SPEC.secoes.forEach(s => box.append(secao(s.titulo, s.campos)));
       // equipamentos
       box.append(h('div', { class: 'sv-sec' }, h('h3', null, 'Equipamentos do condomínio/unidade'), chips(SPEC.equipamentos.multi, EQUIP, v => { EQUIP = v; }, true)));
-      // região
-      const reg = h('div', { class: 'sv-sec' }, h('h3', null, 'Região (aba Reg./C. Customizáveis)'), h('div', { class: 'sv-nota' }, 'Valores sugeridos; ajuste o que for preciso e marque a revisão.'));
-      SPEC.regiao.campos.forEach(c => reg.append(campo(c)));
-      const ck = h('label', { class: 'sv-rev' }, h('input', { type: 'checkbox', checked: REGREV ? '' : null }), ' Revisei a região');
-      ck.querySelector('input').addEventListener('change', e => { REGREV = e.target.checked; atualizarTrava(); });
-      reg.append(ck);
-      box.append(reg);
       // requisitos
       const rq = h('label', { class: 'sv-rev' }, h('input', { type: 'checkbox', checked: REQNAO ? '' : null }), ' Algum requisito mínimo NÃO foi atendido (o preenchimento deixa as caixas para você marcar no SIMIL)');
       rq.querySelector('input').addEventListener('change', e => { REQNAO = e.target.checked; atualizarTrava(); });
