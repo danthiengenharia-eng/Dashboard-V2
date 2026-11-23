@@ -4057,6 +4057,7 @@ function renderCharts(D){
 // ═══════════════════════════════════════════════════════════
 function openD(idx){
   const r=FIL[idx];if(!r)return;COS=r;EDIT_MODE=false;
+  if(typeof _setSimilStatus==='function'){_setSimilStatus('');if(AUTH)setTimeout(()=>{if(COS===r)carregarStatusSimil(r,false);},500);}
   document.getElementById('drawer-body').classList.remove('edit-mode');
   document.getElementById('btn-edit-drawer').style.display='block';
   document.getElementById('btn-save-drawer').style.display='none';
@@ -7058,6 +7059,7 @@ function _setSimilStatus(txt,tipo){
   el.style.display=txt?'block':'none';
   el.textContent=txt||'';
   el.style.color=tipo==='erro'?'#f87171':(tipo==='ok'?'#4ade80':'var(--text-secondary)');
+  el.style.whiteSpace='pre-wrap';
 }
 async function preencherSimil(r,acao){
   acao=acao==='preencher'?'preencher':'preparar';
@@ -7080,6 +7082,7 @@ async function preencherSimil(r,acao){
     await criarJsonNaPasta(nome,pedido,pastaId);
     _setSimilStatus((acao==='preencher'?'Aprovação enviada':'Pedido de preparação enviado')+' ('+pedido.tipo_vistoria+'). Aguardando o agente local...','ok');
     showToast(acao==='preencher'?'Aprovação enviada ao agente local.':'Pedido de preparação enviado.');
+    _iniciarMonitorSimil(r);
   }catch(e){
     console.error('[simil]',e);
     _setSimilStatus('Erro ao enviar o pedido: '+(e.message||e),'erro');
@@ -7088,6 +7091,20 @@ async function preencherSimil(r,acao){
     const btn=document.getElementById('d-simil-btn');
     if(btn)btn.disabled=false;
   }
+}
+
+let _similTimer=null;
+function _iniciarMonitorSimil(r){
+  if(_similTimer)clearInterval(_similTimer);
+  let n=0,viuTrabalho=false;
+  _similTimer=setInterval(async()=>{
+    n++;
+    if(n>48||!COS||COS.item!==r.item){clearInterval(_similTimer);_similTimer=null;return;}   // ~8 min ou trocou de OS
+    const est=await carregarStatusSimil(r,false);
+    if(!est)return;
+    if(/preparando|preenchendo/i.test(est)){viuTrabalho=true;return;}
+    if(viuTrabalho){clearInterval(_similTimer);_similTimer=null;showToast('SIMIL: '+est);}
+  },10000);
 }
 async function carregarStatusSimil(r,aviso){
   try{
@@ -7099,7 +7116,10 @@ async function carregarStatusSimil(r,aviso){
     if(!arq){_setSimilStatus('Sem status ainda (o agente local ainda não respondeu).');return;}
     const conteudo=await gapi.client.drive.files.get({fileId:arq.id,alt:'media',supportsAllDrives:true});
     const st=typeof conteudo.result==='string'?JSON.parse(conteudo.result):conteudo.result;
-    _setSimilStatus((st.estado||'?')+(st.mensagem?' — '+st.mensagem:'')+(st.atualizado_em?' ('+st.atualizado_em+')':''),/erro|falha/i.test(st.estado||'')?'erro':'ok');
+    const est=String(st.estado||'?');
+    const ic=/rascunho gravado/i.test(est)?'✅ ':(/falha|recusad|n[ãa]o suportada/i.test(est)?'❌ ':(/preparando|preenchendo/i.test(est)?'⏳ ':'⚠️ '));
+    _setSimilStatus(ic+est+(st.mensagem?' — '+st.mensagem:'')+(st.atualizado_em?' ('+st.atualizado_em+')':''),/falha|recusad|n[ãa]o suportada/i.test(est)?'erro':(/rascunho gravado/i.test(est)?'ok':'info'));
+    return est;
   }catch(e){
     console.error('[simil status]',e);
     _setSimilStatus('Não foi possível ler o status: '+(e.message||e),'erro');
