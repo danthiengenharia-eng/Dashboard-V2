@@ -2277,6 +2277,14 @@ body:not(.light-mode) .badge.st-vistoriada{background:rgba(234,179,8,.18) !impor
       <button class="btn" onclick="if(COS)abrirFichaTab(COS)" style="width:100%;padding:10px;margin-top:8px">📋 Ficha de Vistoria</button>
     </div>
 
+    <div class="ds"><h3>SIMIL</h3>
+      <button id="d-simil-btn" class="btn btn-p" onclick="if(COS)preencherSimil(COS,'preparar')" style="width:100%;padding:10px">🏛️ 1 · Preparar SIMIL (ler documentos)</button>
+      <button id="d-simil-aprovar" class="btn" onclick="if(COS)preencherSimil(COS,'preencher')" style="width:100%;padding:10px;margin-top:8px;border:1px solid #4ade80;color:#4ade80">✅ 2 · Aprovar e preencher no SIMIL</button>
+      <button class="btn" onclick="if(COS)carregarStatusSimil(COS,true)" style="width:100%;padding:8px;margin-top:8px;font-size:12px">↻ Ver status do preenchimento</button>
+      <div id="d-simil-status" class="status-chip" style="display:none;margin-top:8px"></div>
+      <div style="font-size:10px;color:var(--text-muted);margin-top:6px">O passo 1 só lê os documentos e deixa um resumo para conferência (simil_conferencia.md na pasta da OS). O passo 2, depois da sua conferência, grava o rascunho no SIMIL. O laudo nunca é concluído nem enviado por aqui.</div>
+    </div>
+
     <div class="ds"><h3>Complementos SIOPI</h3>
       <button id="d-siopi-btn" class="btn" onclick="enriquecerComSIOPI()" style="width:100%;padding:10px;background:linear-gradient(135deg,rgba(var(--accent-rgb),0.15),rgba(83,112,130,0.15));border:1px solid rgba(var(--accent-rgb),0.3);color:var(--text-primary);display:flex;align-items:center;justify-content:center;gap:8px;font-weight:500">
         🔍 Buscar complementos no SIOPI
@@ -3622,6 +3630,7 @@ function _cardOS(r,c,i){
     +'<button class="oc-btn oc-second" data-act="foto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="15" rx="2"/><circle cx="12" cy="12.5" r="3.5"/></svg>Fotos</button>'
     +'<button class="oc-btn" data-act="docs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>Documentos</button>'
     +'<button class="oc-btn" data-act="comprovante"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Comprovante</button>'
+    +'<button class="oc-btn" data-act="simil"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 21h18"/><path d="M5 21V8l7-5 7 5v13"/><path d="M9 21v-6h6v6"/></svg>SIMIL</button>'
     +'<button class="oc-btn oc-detalhes oc-full" data-act="detalhes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>Mais detalhes da demanda</button>'
     +'</div></div></div>'
     +'<svg class="os-card-chev" viewBox="0 0 8 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 1l5.5 6L1 13"/></svg></div>';
@@ -3633,6 +3642,7 @@ function _cardOS(r,c,i){
       if(a==='ficha'){abrirFichaTab(r);window.scrollTo(0,0);}
       else if(a==='foto'){abrirFotoTab(r);window.scrollTo(0,0);}
       else if(a==='comprovante'){COS=r;gerarComprovante();}
+      else if(a==='simil'){preencherSimil(r,'preparar');}
       else if(a==='docs'){(async function(){
         try{
           if(!AUTH){showToast('Entre com Google primeiro.');return;}
@@ -7017,6 +7027,84 @@ document.addEventListener('click',e=>{
 });
 
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3500);}
+
+// ═══════════════════════════════════════════════════════════
+//  SIMIL — pedido de preenchimento (lido pelo agente local da Danthi)
+//  O dashboard só cria/lê arquivos JSON na pasta da OS; quem fala com o SIMIL é o agente local.
+// ═══════════════════════════════════════════════════════════
+async function acharPastaRaizOS(os){
+  const pf=mes2pasta(os.mes);
+  if(!pf||!AUTH)return null;
+  const norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+  const pastasRaiz=await listarPastasFilhas(CFG.DID);
+  const mes=pastasRaiz.find(f=>norm(f.name)===norm(pf));
+  if(!mes)return null;
+  const pasta=await acharPastaOS(mes.id,os);
+  return pasta?pasta.id:null;
+}
+async function criarJsonNaPasta(nome,objeto,pastaId){
+  const meta={name:nome,mimeType:'application/json',parents:[pastaId]};
+  const b='simil'+Date.now();
+  const corpo='--'+b+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+JSON.stringify(meta)+
+    '\r\n--'+b+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+JSON.stringify(objeto,null,1)+'\r\n--'+b+'--';
+  const res=await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true',{
+    method:'POST',headers:{'Authorization':'Bearer '+TOKEN,'Content-Type':'multipart/related; boundary='+b},body:corpo});
+  if(!res.ok)throw new Error(await res.text());
+  return res.json();
+}
+function _setSimilStatus(txt,tipo){
+  const el=document.getElementById('d-simil-status');
+  if(!el)return;
+  el.style.display=txt?'block':'none';
+  el.textContent=txt||'';
+  el.style.color=tipo==='erro'?'#f87171':(tipo==='ok'?'#4ade80':'var(--text-secondary)');
+}
+async function preencherSimil(r,acao){
+  acao=acao==='preencher'?'preencher':'preparar';
+  try{
+    if(!AUTH){showToast('Entre com Google primeiro.');return;}
+    const tv=String(r.tv||'').trim();
+    if(!/^(interna|adjudicad)/i.test(tv)){showToast('Defina o Tipo de vistoria (Interna ou Adjudicado) antes de preencher o SIMIL.');return;}
+    if(acao==='preencher'&&!confirm('Aprovar e gravar o RASCUNHO da etapa 1 no SIMIL para esta OS? Confirme que você conferiu o resumo (simil_conferencia.md).'))return;
+    const btn=document.getElementById('d-simil-btn');
+    if(btn)btn.disabled=true;
+    _setSimilStatus('Localizando a pasta da OS...');
+    const pastaId=await acharPastaRaizOS(r);
+    if(!pastaId){_setSimilStatus('Pasta da OS não encontrada no Drive.','erro');showToast('Pasta da OS não encontrada no Drive.');return;}
+    const pedido={
+      versao:1, criado_em:new Date().toISOString(), etapa:1, acao:acao,
+      os:r.osp||r.os, item:r.item, atividade:r.atv, tipologia:r.tip, tipo_vistoria:/^adjudicad/i.test(tv)?'adjudicada':'interna',
+      municipio:r.mun, mes:r.mes
+    };
+    const nome='simil_pedido_'+new Date().toISOString().replace(/[-:T]/g,'').slice(0,14)+'.json';
+    await criarJsonNaPasta(nome,pedido,pastaId);
+    _setSimilStatus((acao==='preencher'?'Aprovação enviada':'Pedido de preparação enviado')+' ('+pedido.tipo_vistoria+'). Aguardando o agente local...','ok');
+    showToast(acao==='preencher'?'Aprovação enviada ao agente local.':'Pedido de preparação enviado.');
+  }catch(e){
+    console.error('[simil]',e);
+    _setSimilStatus('Erro ao enviar o pedido: '+(e.message||e),'erro');
+    showToast('Erro ao enviar o pedido do SIMIL.');
+  }finally{
+    const btn=document.getElementById('d-simil-btn');
+    if(btn)btn.disabled=false;
+  }
+}
+async function carregarStatusSimil(r,aviso){
+  try{
+    if(!AUTH){if(aviso)showToast('Entre com Google primeiro.');return;}
+    const pastaId=await acharPastaRaizOS(r);
+    if(!pastaId){_setSimilStatus('Pasta da OS não encontrada no Drive.','erro');return;}
+    const lista=await gapi.client.drive.files.list({q:"name='simil_status.json' and '"+pastaId+"' in parents and trashed=false",fields:'files(id,modifiedTime)',pageSize:1,supportsAllDrives:true,includeItemsFromAllDrives:true});
+    const arq=(lista.result.files||[])[0];
+    if(!arq){_setSimilStatus('Sem status ainda (o agente local ainda não respondeu).');return;}
+    const conteudo=await gapi.client.drive.files.get({fileId:arq.id,alt:'media',supportsAllDrives:true});
+    const st=typeof conteudo.result==='string'?JSON.parse(conteudo.result):conteudo.result;
+    _setSimilStatus((st.estado||'?')+(st.mensagem?' — '+st.mensagem:'')+(st.atualizado_em?' ('+st.atualizado_em+')':''),/erro|falha/i.test(st.estado||'')?'erro':'ok');
+  }catch(e){
+    console.error('[simil status]',e);
+    _setSimilStatus('Não foi possível ler o status: '+(e.message||e),'erro');
+  }
+}
 
 // ═══════════════════════════════════════════════════════════
 //  AGENDAMENTO — LOGIC
