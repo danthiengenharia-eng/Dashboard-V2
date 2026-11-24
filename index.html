@@ -10680,7 +10680,9 @@ async function _uploadFotoParaDrive(file, nome, folderId, barId, onProgress){
         sel.addEventListener('change', () => {
           f.legenda = sel.value;
           const mesmos = FOTOS.filter(x => x.legenda === f.legenda);            // repetidos (Quarto, Banheiro...): sugere numeração
-          if (f.legenda && mesmos.length > 1) mesmos.forEach((x, k) => { if (!x.descricao || /^.+ \d+$/.test(x.descricao)) x.descricao = (x.legenda + ' ' + (k + 1)).slice(0, SPEC.fotos.descricao_maxlen); });
+          // o SIMIL monta "Legenda - descrição": a descrição leva só o complemento numérico com dois dígitos (01, 02, 03...)
+          const sugerida = x => { const d = (x.descricao || '').trim(), l = x.legenda.toLowerCase(); return !d || (d.toLowerCase().startsWith(l) && /^\d*$/.test(d.slice(l.length).trim())) || /^\d+$/.test(d); };
+          if (f.legenda && mesmos.length > 1) mesmos.forEach((x, k) => { if (sugerida(x)) x.descricao = String(k + 1).padStart(2, '0'); });
           renderFotos(raiz); atualizarTrava();
         });
         desc.addEventListener('input', () => { f.descricao = desc.value; });
