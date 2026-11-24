@@ -10713,16 +10713,18 @@ async function _uploadFotoParaDrive(file, nome, folderId, barId, onProgress){
   }
 
   // ---------- Drive ----------
+  const IDS = {};                                    // id dos arquivos já criados/achados nesta sessão (evita criar duplicatas por atraso do Drive)
   async function salvarJson(nome, obj) {
-    const lista = await gapi.client.drive.files.list({ q: "name='" + nome + "' and '" + PASTA + "' in parents and trashed=false", fields: 'files(id)', pageSize: 1, supportsAllDrives: true, includeItemsFromAllDrives: true });
+    const lista = IDS[nome] ? { result: { files: [{ id: IDS[nome] }] } } : await await gapi.client.drive.files.list({ q: "name='" + nome + "' and '" + PASTA + "' in parents and trashed=false", fields: 'files(id)', orderBy: 'modifiedTime desc', pageSize: 1, supportsAllDrives: true, includeItemsFromAllDrives: true });
     const ex = (lista.result.files || [])[0];
-    if (!ex) return criarJsonNaPasta(nome, obj, PASTA);
+    if (ex) IDS[nome] = ex.id;
+    if (!ex) { const novo = await criarJsonNaPasta(nome, obj, PASTA); if (novo && novo.id) IDS[nome] = novo.id; return novo; }
     const res = await fetch('https://www.googleapis.com/upload/drive/v3/files/' + ex.id + '?uploadType=media&supportsAllDrives=true', { method: 'PATCH', headers: { Authorization: 'Bearer ' + TOKEN, 'Content-Type': 'application/json; charset=UTF-8' }, body: JSON.stringify(obj, null, 1) });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   }
   async function lerJson(nome) {
-    const lista = await gapi.client.drive.files.list({ q: "name='" + nome + "' and '" + PASTA + "' in parents and trashed=false", fields: 'files(id)', pageSize: 1, supportsAllDrives: true, includeItemsFromAllDrives: true });
+    const lista = await gapi.client.drive.files.list({ q: "name='" + nome + "' and '" + PASTA + "' in parents and trashed=false", fields: 'files(id)', orderBy: 'modifiedTime desc', pageSize: 1, supportsAllDrives: true, includeItemsFromAllDrives: true });
     const ex = (lista.result.files || [])[0];
     if (!ex) return null;
     const r = await gapi.client.drive.files.get({ fileId: ex.id, alt: 'media', supportsAllDrives: true });
@@ -10768,7 +10770,7 @@ async function _uploadFotoParaDrive(file, nome, folderId, barId, onProgress){
     try {
       if (!AUTH) { showToast('Entre com Google primeiro.'); return; }
       if (!/apart/i.test(String(r.tip || ''))) { showToast('O formulário de vistoria do SIMIL, por enquanto, é só para apartamento.'); return; }
-      R = r; D = {}; EQUIP = []; REGIAO = {}; FOTOS = []; DISPON = []; REQNAO = false; STATUS = null; ETAPA1 = false; ENVIADO_EM = 0;
+      for (const k in IDS) delete IDS[k]; R = r; D = {}; EQUIP = []; REGIAO = {}; FOTOS = []; DISPON = []; REQNAO = false; STATUS = null; ETAPA1 = false; ENVIADO_EM = 0;
       SPEC.secoes.flatMap(s => s.campos).forEach(c => { if (c.padrao !== undefined) D[c.chave] = c.padrao === 'hoje' ? hoje() : c.padrao; });
             fechar();
       const ov = h('div', { id: 'sv-overlay' }, h('div', { class: 'sv-box' }, h('div', { class: 'sv-load' }, 'Carregando a OS...')));
