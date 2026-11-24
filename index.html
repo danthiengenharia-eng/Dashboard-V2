@@ -10853,6 +10853,120 @@ async function _uploadFotoParaDrive(file, nome, folderId, barId, onProgress){
 
 </script>
 <!-- SIMIL-VISTORIA:FIM -->
+<!-- AGENTES:INICIO — indicador online/offline dos agentes locais (batimento gravado pelo painel no Drive) -->
+<script>
+(function () {
+  let LISTA = null, LIDO_EM = 0, LENDO = null, ABERTO = false;
+  const CORES = { verde: '#22c55e', amarelo: '#eab308', vermelho: '#ef4444', cinza: '#94a3b8' };
+  const el = (t, at, ...fi) => { const e = document.createElement(t); for (const [k, v] of Object.entries(at || {})) { if (k === 'onclick') e.onclick = v; else e.setAttribute(k, v); } e.append(...fi.filter(f => f !== null && f !== undefined)); return e; };
+  const ha = ms => { const s = Math.max(0, Math.round(ms / 1000)); return s < 90 ? s + ' s' : s < 5400 ? Math.round(s / 60) + ' min' : s < 172800 ? Math.round(s / 3600) + ' h' : Math.round(s / 86400) + ' dias'; };
+  const hora = iso => { const d = new Date(iso); return isNaN(d) ? '?' : d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); };
+
+  // o que mostrar: batimento velho vale mais que o estado gravado nele
+  function resumo(a) {
+    const quando = new Date(a.batimento_em).getTime(), idade = Date.now() - quando;
+    const offline = a.estado === 'desligado' || !quando || idade > (Number(a.validade_s) || 180) * 1000;
+    if (offline) return { offline: true, cor: 'vermelho', rotulo: 'Offline', sub: 'desde ' + hora(a.batimento_em) };
+    return { offline: false, cor: CORES[a.cor] ? a.cor : 'cinza', rotulo: String(a.rotulo || '?'), sub: 'online há ' + ha(idade) };
+  }
+
+  async function ler() {
+    if (!AUTH || !CFG.DID) return null;
+    if (LENDO) return LENDO;
+    LENDO = (async () => {
+      const r = await gapi.client.drive.files.list({ q: "name contains 'agente_status_' and '" + CFG.DID + "' in parents and trashed=false", fields: 'files(id,name,modifiedTime)', orderBy: 'modifiedTime desc', pageSize: 20, supportsAllDrives: true, includeItemsFromAllDrives: true });
+      const vistos = new Set(), saida = [];
+      for (const f of r.result.files || []) {
+        if (vistos.has(f.name) || !/^agente_status_[a-z0-9_]+\.json$/.test(f.name)) continue;
+        vistos.add(f.name);
+        try {
+          const c = await gapi.client.drive.files.get({ fileId: f.id, alt: 'media', supportsAllDrives: true });
+          const d = typeof c.result === 'object' && c.result ? c.result : JSON.parse(c.body);
+          if (/^[a-z0-9_]+$/.test(d.agente)) saida.push(d);
+        } catch (e) { console.warn('[agentes] batimento ilegível (sincronizando?)', f.name, e); const antes = (LISTA || []).find(x => 'agente_status_' + x.agente + '.json' === f.name); if (antes) saida.push(antes); }
+      }
+      LISTA = saida.sort((a, b) => String(a.nome).localeCompare(String(b.nome))); LIDO_EM = Date.now();
+      return LISTA;
+    })();
+    try { return await LENDO; } catch (e) { console.warn('[agentes]', e); return null; } finally { LENDO = null; }
+  }
+
+  async function comandar(a, comando, pergunta) {
+    if (pergunta && !confirm(pergunta)) return;
+    try {
+      await criarJsonNaPasta('agente_comando_' + a.agente + '_' + Date.now() + '.json', { comando: comando, criado_em: new Date().toISOString() }, CFG.DID);
+      showToast('Comando enviado. O computador responde em até 1 minuto.');
+    } catch (e) { console.error('[agentes comando]', e); showToast('Não consegui enviar o comando: ' + (e.message || e)); }
+  }
+
+  function cartao(a) {
+    const s = resumo(a), u = a.ultimo, acoes = el('div', { class: 'ag-acoes' });
+    const botao = (txt, comando, pergunta) => acoes.append(el('button', { type: 'button', class: 'ag-btn', onclick: () => comandar(a, comando, pergunta) }, txt));
+    if (!s.offline) {
+      if (a.estado === 'travado') botao('Forçar reinício', 'forcar_reinicio', 'Forçar o reinício interrompe o que o agente estiver fazendo. Continuar?');
+      else botao('Reiniciar', 'reiniciar', a.estado === 'trabalhando' ? 'O agente está numa OS: ele reinicia quando terminar. Continuar?' : 'Reiniciar o agente?');
+      botao(a.pausado ? 'Retomar' : 'Pausar', a.pausado ? 'retomar' : 'pausar');
+      if (a.alerta) botao('Limpar alerta', 'limpar_alerta');
+    }
+    return el('div', { class: 'ag-cartao' },
+      el('div', { class: 'ag-nome' }, el('span', { class: 'ag-bola', style: 'background:' + CORES[s.cor] }), el('b', {}, String(a.nome)), el('span', {}, ' — ' + s.rotulo)),
+      el('div', { class: 'ag-sub' }, s.sub + (!s.offline && a.detalhe ? ' · ' + a.detalhe : '') + (a.reinicio_pendente ? ' · vai reiniciar ao terminar' : '')),
+      s.offline ? el('div', { class: 'ag-sub' }, 'Confira se o computador está ligado, com o Windows logado e a internet ativa. Pedidos enviados agora ficam na fila.') : null,
+      u ? el('div', { class: 'ag-ult' }, 'Último: ' + String(u.os || '') + ' — ' + String(u.estado || '') + ' (' + hora(u.quando) + ')') : null,
+      (a.log || []).length ? el('details', {}, el('summary', {}, 'Log recente'), el('pre', { class: 'ag-log' }, a.log.join('\n'))) : null,
+      acoes);
+  }
+
+  const chip = el('button', { type: 'button', id: 'ag-chip', title: 'Agentes', style: 'display:none', onclick: () => { ABERTO = !ABERTO; desenhar(); if (ABERTO) atualizar(); } });
+  const painel = el('div', { id: 'ag-painel', style: 'display:none' });
+
+  function desenhar() {
+    if (!AUTH) { chip.style.display = 'none'; painel.style.display = 'none'; ABERTO = false; return; }
+    chip.style.display = 'flex';
+    const rs = (LISTA || []).map(resumo);
+    const cor = ['vermelho', 'amarelo', 'cinza', 'verde'].find(c => rs.some(r => r.cor === c)) || 'cinza';
+    const texto = !LISTA ? 'Agentes…' : !LISTA.length ? 'Agentes: sem sinal' : LISTA.length === 1 ? LISTA[0].nome + ': ' + rs[0].rotulo : 'Agentes: ' + rs.filter(r => !r.offline).length + '/' + LISTA.length + ' online';
+    chip.replaceChildren(el('span', { class: 'ag-bola', style: 'background:' + CORES[cor] }), el('span', {}, texto));
+    painel.style.display = ABERTO ? 'block' : 'none';
+    if (!ABERTO) return;
+    const logAberto = !!painel.querySelector('details[open]');
+    painel.replaceChildren(
+      el('div', { class: 'ag-topo' }, el('b', {}, 'Agentes'), el('button', { type: 'button', class: 'ag-x', onclick: () => { ABERTO = false; desenhar(); } }, '✕')),
+      ...((LISTA || []).length ? LISTA.map(cartao) : [el('div', { class: 'ag-sub' }, 'Nenhum batimento encontrado no Drive. O painel dos agentes precisa estar aberto no computador.')]));
+    if (logAberto) painel.querySelectorAll('details').forEach(d => { d.open = true; });
+  }
+
+  async function atualizar() { await ler(); desenhar(); }
+
+  // ao enviar um pedido com o agente offline, avisa que ele vai ficar na fila
+  const criarOriginal = window.criarJsonNaPasta;
+  window.criarJsonNaPasta = async function (nome, objeto, pasta) {
+    const r = await criarOriginal(nome, objeto, pasta);
+    if (String(nome).startsWith('simil_pedido_')) {
+      ler().then(lista => {
+        const a = (lista || []).find(x => x.agente === 'simil'), s = a && resumo(a);
+        desenhar();
+        if (s && (s.offline || a.pausado)) setTimeout(() => showToast('⚠️ Agente SIMIL ' + (s.offline ? 'OFFLINE' : 'PAUSADO') + ': o pedido ficou na fila.'), 4000);
+      });
+    }
+    return r;
+  };
+
+  const estilo = el('style', {}, '#ag-chip{position:fixed;right:14px;bottom:14px;z-index:210;align-items:center;gap:7px;padding:7px 12px;border-radius:999px;border:1px solid var(--mica-border,#333);background:var(--mica-bg,#0e0e10);color:var(--text-primary,#f2f2f4);font:inherit;font-size:12px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.3)}.ag-bola{width:10px;height:10px;border-radius:50%;display:inline-block;flex:0 0 auto}#ag-painel{position:fixed;right:14px;bottom:58px;z-index:211;width:min(380px,calc(100vw - 24px));max-height:70vh;overflow:auto;padding:12px;border-radius:12px;border:1px solid var(--mica-border,#333);background:var(--mica-bg,#0e0e10);color:var(--text-primary,#f2f2f4);box-shadow:0 10px 40px rgba(0,0,0,.5);font-size:13px}.ag-topo{display:flex;justify-content:space-between;align-items:center}.ag-x{background:none;border:0;color:inherit;font-size:18px;cursor:pointer}.ag-cartao{border-top:1px solid var(--mica-border,#333);margin-top:8px;padding-top:8px}.ag-nome{display:flex;align-items:center;gap:6px}.ag-sub,.ag-ult{font-size:12px;color:var(--text-secondary,#aaa);margin-top:3px;overflow-wrap:anywhere}.ag-log{font-size:10px;white-space:pre-wrap;overflow-wrap:anywhere;max-height:180px;overflow:auto;margin:6px 0 0}.ag-acoes{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.ag-btn{padding:9px 12px;border-radius:8px;border:1px solid var(--mica-border-light,#444);background:var(--mica-surface,#1a1a1c);color:inherit;font-size:13px;cursor:pointer}@media(max-width:768px){#ag-chip{right:10px;bottom:calc(76px + env(safe-area-inset-bottom))}#ag-painel{right:12px;bottom:calc(120px + env(safe-area-inset-bottom));max-height:60vh}}');
+  document.head.append(estilo);
+  document.body.append(chip, painel);
+
+  let eraAuth = false;
+  setInterval(() => {
+    if (document.hidden) return;
+    const mudou = AUTH !== eraAuth; eraAuth = AUTH;
+    if (AUTH && (mudou || !LIDO_EM || Date.now() - LIDO_EM > (ABERTO ? 15000 : 60000))) atualizar();
+    else if (mudou || !AUTH) desenhar();
+  }, 3000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && AUTH) atualizar(); });
+})();
+</script>
+<!-- AGENTES:FIM -->
 </body>
 </html>
 
