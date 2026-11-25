@@ -2142,7 +2142,7 @@ body:not(.light-mode) .badge.st-vistoriada{background:rgba(234,179,8,.18) !impor
       <button class="stbtn" style="background:#7e22ce" onclick="updSt('OS em Revisão')">Em revisão</button>
       <button class="stbtn" style="background:#dc2626" onclick="updSt('OS Cancelada')">Cancelada</button>
     </div></div>
-    <div class="ds" id="d-analise-sec"><h3>Análise documental (observação)</h3><div id="d-analise"></div></div>
+    <div class="ds" id="d-analise-sec"><h3>Análise documental</h3><div id="d-analise"></div></div>
     <div class="ds" id="d-pept-sec"><h3>PEPT e prazo</h3><div id="d-pept"></div></div>
 
     <div class="ds"><h3>Localização</h3><div class="dg">
@@ -6729,7 +6729,8 @@ async function salvar(){
     // criarPastasDrive zera TXT_FILE_CONVOCACAO após subir o .txt — guarda antes pra saber
     // depois que já havia convocação anexada (e não gerar PNG/.txt sintético por cima).
     const temTxtAnexado = !!TXT_FILE_CONVOCACAO;
-    await criarPastasDrive(novoItem,atv,osp,mes);
+    const pastaNovaId=await criarPastasDrive(novoItem,atv,osp,mes);
+    const docsEnviados=[];let docsFalharam=0;
 
     // Se veio via SIOPI e trouxe documentos, sobe todos para 02 - Documentos (num passo só,
     // logo após as pastas serem criadas — sem janela em que a subpasta fica vazia).
@@ -6748,16 +6749,17 @@ async function salvar(){
             const existentes = await listarArquivosExistentes(docsFolderId);
             let enviados = 0;
             for(const doc of docs){
-              if(!doc.bytes) continue;  // pula documentos que não baixaram
+              if(!doc.bytes){docsFalharam++;continue;}  // pula documentos que não baixaram
               try{
                 const nome = gerarNomeUnico(doc.nome, existentes);
                 await uploadDocumentoParaDrive(doc, nome, docsFolderId);
                 existentes.add(nome);
-                enviados++;
-              }catch(err){console.warn('[SIOPI Nova OS] upload falhou:', doc.nome, err);}
+                enviados++;docsEnviados.push(nome);
+              }catch(err){docsFalharam++;console.warn('[SIOPI Nova OS] upload falhou:', doc.nome, err);}
             }
             if(enviados) showToast(`📁 ${enviados}/${docs.length} documento(s) salvos`);
           }else{
+            docsFalharam++;
             console.warn('[SIOPI Nova OS] pasta 02-Documentos não encontrada');
           }
         }
@@ -6819,7 +6821,19 @@ async function salvar(){
             console.warn('[SIOPI Nova OS] subpasta de convocação (role=txt) não encontrada');
           }
         }
-      }catch(err){console.error('[SIOPI Nova OS] erro nos uploads pós-salvar:', err);}
+      }catch(err){docsFalharam++;console.error('[SIOPI Nova OS] erro nos uploads pós-salvar:', err);}
+    }
+
+    // ETAPA 1 AUTOMÁTICA: gravado por ÚLTIMO, avisa o computador que a OS está completa e informa tipologia e tipo de vistoria.
+    // Se algum documento falhou no envio, não grava: a etapa 1 fica no botão.
+    if(pastaNovaId){
+      if(docsFalharam){showToast('⚠️ Documento não enviado: nesta OS a etapa 1 do SIMIL não roda sozinha.');}
+      else{
+        try{
+          await criarJsonNaPasta('simil_auto.json',{versao:1,criado_em:new Date().toISOString(),os:String(os).trim(),item:novoItem,atividade:atv,
+            tipologia:document.getElementById('ntip').value,tipo_vistoria:document.getElementById('ntv').value,municipio:munNm,mes:mes,documentos:docsEnviados},pastaNovaId);
+        }catch(err){console.warn('[SIMIL automático]',err);showToast('⚠️ Nesta OS a etapa 1 do SIMIL não vai rodar sozinha: use o botão.');}
+      }
     }
 
     await loadData();
@@ -11152,7 +11166,7 @@ window.ANALISE = (function () {
     const itens = Array.isArray(d.itens) ? d.itens : [];
     const partes = [
       el('div', { class: 'an-topo' }, el('span', { class: 'an-bola', style: 'background:' + cor[0] }), el('b', {}, cor[1]), el('span', { class: 'pept-nota' }, ' · ' + String(d.analisado_em || ''))),
-      nota('Modo observação: o agente não executou nada. Confira se ele acertou.' + (d.etapa1 ? ' Fora desse modo, a etapa 1 ' + d.etapa1 + '.' : ''))];
+      nota(d.modo === 'observacao' ? 'Analisada no modo observação: nada foi executado.' : 'Etapa 1 do SIMIL: ' + String(d.etapa1 || 'sem informação') + '. A PEPT não é aberta sozinha.')];
     itens.forEach(i => {
       const e = i.evidencia || {};
       partes.push(el('div', { class: 'an-item ' + (i.nivel === 'alerta' ? 'an-alerta' : 'an-grave') },
@@ -11215,7 +11229,7 @@ window.ANALISE = (function () {
       if (!a413 || !AUTH) return;
       ler(r).then(d => {
         if (vez !== VEZ) return;                                   // o usuário já abriu outra OS
-        if (!d) cx.replaceChildren(nota('Sem análise para esta OS. O agente analisa as OS A413 novas, alguns minutos depois que os documentos chegam ao computador.'));
+        if (!d) cx.replaceChildren(nota('Sem análise para esta OS. O agente analisa as OS A413 novas assim que os documentos chegam ao computador.'));
         else if (d.erro) cx.replaceChildren(nota(d.erro));
         else desenhar(cx, d);
       }).catch(e => { console.warn('[analise]', e); if (vez === VEZ) cx.replaceChildren(nota('Não consegui ler a análise agora. Abra a OS de novo.')); });
