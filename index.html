@@ -10901,15 +10901,12 @@ window.PEPT = (function () {
   api.venceCliente = item => { const t = item && tipoDe(item.tipo); return t && t.prazoCliente ? somar(item.aberta, t.prazoCliente) : null; };
   api.vencida = (item, hoje) => { const v = api.venceCliente(item); return v !== null && dia(hoje || hojeIso()) > dia(v); };
 
-  // data de emissão da O.S. (os prazos contam dela, e a demanda pode ser lançada no dia seguinte):
-  // 1) a que ficou salva no histórico; 2) a data de abertura vinda do SIOPI (coluna "abr", que em revisão guarda outra coisa);
-  // 3) na falta das duas, a "Entrada SIOPI", sinalizada para conferência.
-  api.emissao = function (r, hist) {
+  // data de emissão da O.S. = campo "Entrada SIOPI" (preenchido a partir do .txt ou do SIOPI). Só se ele estiver vazio
+  // vale a data de abertura (coluna "abr", que em OS em revisão guarda outra coisa).
+  api.emissao = function (r) {
     const achar = t => { const m = /(\d{4}-\d{2}-\d{2})|(\d{1,2}\/\d{1,2}\/\d{4})/.exec(String(t || '')); return m && dia(m[0]) !== null ? iso(dia(m[0])) : null; };
-    const salva = achar(hist && hist.emissao), abertura = r.rev ? null : achar(r.abr), entrada = achar(r.siopi);
-    if (salva) return { data: salva, origem: 'salva' };
-    if (abertura && (!entrada || abertura <= entrada)) return { data: abertura, origem: 'abertura' };
-    return { data: entrada, origem: entrada ? 'entrada' : 'nenhuma' };
+    const entrada = achar(r.siopi), abertura = r.rev ? null : achar(r.abr);
+    return { data: entrada || abertura, origem: entrada ? 'entrada' : abertura ? 'abertura' : 'nenhuma' };
   };
 
   // lembretes do prazo para REGISTRAR, contados da emissão da O.S.
@@ -10923,8 +10920,8 @@ window.PEPT = (function () {
   };
 
   // aviso se o prazo cadastrado na O.S. não bate com o do caderno (só avisa; não muda a data)
-  api.confereprazo = function (r, hist, emissao) {
-    const esperado = PRAZO_OS[codigo(r.atv)], a = dia(emissao === undefined ? api.emissao(r, hist).data : emissao), e = dia((hist && hist.original) || r.ent);
+  api.confereprazo = function (r, hist) {
+    const esperado = PRAZO_OS[codigo(r.atv)], a = dia(api.emissao(r).data), e = dia((hist && hist.original) || r.ent);
     if (!esperado || a === null || e === null || e - a === esperado) return null;
     return 'Prazo cadastrado nesta O.S.: ' + dias(e - a) + ' da emissão da O.S. O caderno prevê ' + dias(esperado) + ' para ' + codigo(r.atv) + '. Confira.';
   };
@@ -10965,10 +10962,8 @@ window.PEPT = (function () {
     if (ultima && a < dia(ultima.atendida)) throw new Error('a abertura é anterior ao atendimento da PEPT passada');
     const item = { aberta: iso(a), restam: e === null ? null : e - a, entregaAntes: e === null ? '' : iso(e), stAntes: dados.st || '', atendida: null };
     if (dados.tipo) item.tipo = dados.tipo;
-    const novo = { v: 1, original: hist.original || item.entregaAntes, itens: hist.itens.concat(item) };
-    if (dados.emissao && dia(dados.emissao) !== null) novo.emissao = iso(dia(dados.emissao)); else if (hist.emissao) novo.emissao = hist.emissao;
-    if (novo.emissao && a < dia(novo.emissao)) throw new Error('a PEPT não pode ser anterior à emissão da O.S. (' + br(novo.emissao) + ')');
-    return novo;
+    if (dia(dados.emissao) !== null && a < dia(dados.emissao)) throw new Error('a PEPT não pode ser anterior à emissão da O.S. (' + br(dados.emissao) + ')');
+    return { v: 1, original: hist.original || item.entregaAntes, itens: hist.itens.concat(item) };
   };
   api.atender = function (hist, dados) {
     const item = hist.itens.find(i => !i.atendida);
@@ -11073,19 +11068,14 @@ window.PEPT = (function () {
     const nota = (t, c) => el('div', { class: c || 'pept-nota' }, t);
     const seletor = () => el('select', { class: 'pept-data' }, ...tipos.map(t => el('option', { value: t.id }, t.nome + (t.prazoCliente ? ' — cliente: ' + t.prazoCliente + ' dias' : ''))));
     const tipo = seletor();
-    const em = api.emissao(r, hist);
-    const campoEm = el('input', { type: 'date', class: 'pept-data pept-emissao', max: hojeIso(), value: em.data || '' });
-    const avisos = el('div', {});
-    const avisar = () => {
-      const base = campoEm.value || null, aviso = api.confereprazo(r, hist, base);
-      avisos.replaceChildren(...[aviso && nota(aviso, 'pept-alerta'), ...(hist.itens.some(i => !i.atendida) ? [] : api.lembretes(r, undefined, base).map(t => nota(t)))].filter(Boolean));
-    };
-    campoEm.oninput = avisar;
+    const em = api.emissao(r);
     if (!encerrada && !hist.ilegivel) {
-      const origem = { salva: 'data salva nesta OS', abertura: 'data de abertura vinda do SIOPI', entrada: 'não achei a emissão: usei a Entrada SIOPI — confira', nenhuma: 'informe a data' }[em.origem];
-      if (hist.itens.some(i => !i.atendida)) partes.push(avisos);
-      else partes.push(el('label', { class: 'pept-rot' }, 'Emissão da O.S. (' + origem + ')', campoEm), avisos);
-      avisar();
+      const aviso = api.confereprazo(r, hist);
+      if (aviso) partes.push(nota(aviso, 'pept-alerta'));
+      if (!hist.itens.some(i => !i.atendida)) {
+        partes.push(nota(em.data ? 'Emissão da O.S. (' + (em.origem === 'entrada' ? 'Entrada SIOPI' : 'data de abertura') + '): ' + br(em.data) : 'Sem data em "Entrada SIOPI": preencha em ✏️ Editar para calcular os prazos.'));
+        api.lembretes(r).forEach(t => partes.push(nota(t)));
+      }
     }
     if (hist.ilegivel) partes.push(el('div', { class: 'pept-alerta' }, 'O histórico de PEPT desta OS está ilegível na planilha. Nada será gravado por cima.'));
     else if (aberta) {
@@ -11121,7 +11111,7 @@ window.PEPT = (function () {
           const repetida = (g === 'B' || g === 'E') && hist.itens.some(i => i.tipo === tipo.value);
           if (repetida && !confirm('Já houve uma PEPT deste tipo nesta OS. O caderno prevê ' + (g === 'E' ? 'uma única PEPT' : 'uma de cada tipo') + '. Registrar mesmo assim?')) return;
           if (!confirm('Registrar a PEPT e suspender o prazo? (A PEPT no SIOPI continua sendo aberta por você.)')) return;
-          acao(r, (h, atual) => ({ hist: api.abrir(h, { data: data.value, entrega: atual.ent, st: atual.st, tipo: tipo.value, emissao: campoEm.value, hoje: hojeIso() }), st: api.statusAoAbrir(atual.st) }), '⏸ PEPT registrada: prazo suspenso.', ev.target);
+          acao(r, (h, atual) => ({ hist: api.abrir(h, { data: data.value, entrega: atual.ent, st: atual.st, tipo: tipo.value, emissao: api.emissao(atual).data, hoje: hojeIso() }), st: api.statusAoAbrir(atual.st) }), '⏸ PEPT registrada: prazo suspenso.', ev.target);
         } }, 'Registrar abertura da PEPT')));
     }
     const fechadas = hist.itens.filter(i => i.atendida);
