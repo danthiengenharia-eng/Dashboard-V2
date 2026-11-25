@@ -2140,6 +2140,7 @@ body:not(.light-mode) .badge.st-vistoriada{background:rgba(234,179,8,.18) !impor
       <button class="stbtn" style="background:#7e22ce" onclick="updSt('OS em Revisão')">Em revisão</button>
       <button class="stbtn" style="background:#dc2626" onclick="updSt('OS Cancelada')">Cancelada</button>
     </div></div>
+    <div class="ds" id="d-pept-sec"><h3>PEPT e prazo</h3><div id="d-pept"></div></div>
 
     <div class="ds"><h3>Localização</h3><div class="dg">
       <div class="df full">
@@ -3044,6 +3045,7 @@ function parseRow(r,i){
     // Categoria do Imóvel (Novo/Usado) — extraída do SIOPI. Coluna nova (AI por default);
     // se a empresa mapeou outro índice em CFG.COLS.categoria, esse prevalece.
     categoria:P(r[ci('categoria',34)]),
+    peptHist:(window.PEPT&&PEPT.COL>=0)?P(r[PEPT.COL]):'',
     ord:P(r[ci('item',0)])
   };
 }
@@ -3106,7 +3108,10 @@ function isParaRota(r){
 // CONFIG_USER legado removido — substituído pelo setupLoader() + _DCEF_KEY
 
 function prazoStatus(r){
-  if(!r.ent||['OS Concluída','OS Cancelada'].includes(r.st))return null;
+  if(['OS Concluída','OS Cancelada'].includes(r.st))return null;
+  const susp=window.PEPT&&PEPT.aberta(r);
+  if(susp)return{type:'suspenso',diff:susp.restam};
+  if(!r.ent)return null;
   const parts=r.ent.split('/');if(parts.length!==3)return null;
   const dt=new Date(parseInt(parts[2]),parseInt(parts[1])-1,parseInt(parts[0]));
   if(isNaN(dt.getTime()))return null;
@@ -3386,8 +3391,10 @@ async function loadPlanilha1(){
 }
 async function loadData(){
   try{
-    const r=await gapi.client.sheets.spreadsheets.values.get({spreadsheetId:CFG.SID,range:`${CFG.SHT}!A2:AZ`});
-    const rows=r.result.values||[];
+    const r=await gapi.client.sheets.spreadsheets.values.get({spreadsheetId:CFG.SID,range:`${CFG.SHT}!A1:AZ`});
+    const tudo=r.result.values||[];
+    if(window.PEPT)PEPT.lerCabecalho(tudo[0]||[]);
+    const rows=tudo.slice(1);
     ALL=rows.map((r,i)=>({r,i})).filter(x=>x.r.length>0&&x.r[0]).map(x=>parseRow(x.r,x.i));
     loadPlanilha1();
     window.danthiART={
@@ -3608,7 +3615,7 @@ function _cardOS(r,c,i){
   tr.className=(c.cls||'')+' os-card-row';
   const td=document.createElement('td');td.colSpan=14;
   const pz=(typeof prazoStatus==='function')?prazoStatus(r):null;
-  const pzH=pz?(pz.type==='atrasado'?'<span class="badge-atrasado">&#9650; '+pz.diff+'d</span>':'<span class="badge-vence">&#9201; '+pz.diff+'d</span>'):'';
+  const pzH=pz?(pz.type==='suspenso'?PEPT.selo(pz.diff):pz.type==='atrasado'?'<span class="badge-atrasado">&#9650; '+pz.diff+'d</span>':'<span class="badge-vence">&#9201; '+pz.diff+'d</span>'):'';
   const _tc=(typeof titleCase==='function')?titleCase:(x=>x||'');
   const _nm=(typeof nMun==='function')?nMun:(x=>x||'');
   const _brl=(typeof brl==='function')?brl:(x=>'R$ '+x);
@@ -3688,7 +3695,7 @@ function renderTable(){
     tr.addEventListener('click',()=>openD(i));
     const pz=prazoStatus(r);
     let prazoHtml='';
-    if(pz){prazoHtml=pz.type==='atrasado'?`<span class="badge-atrasado">▲ ${pz.diff}d</span>`:`<span class="badge-vence">⏱ ${pz.diff}d</span>`;}
+    if(pz){prazoHtml=pz.type==='suspenso'?PEPT.selo(pz.diff):pz.type==='atrasado'?`<span class="badge-atrasado">▲ ${pz.diff}d</span>`:`<span class="badge-vence">⏱ ${pz.diff}d</span>`;}
     const _alertaMat=r.alertaMat==='divergente'?`<span title="⚠️ Matrícula divergente da Certidão — possível cancelamento da demanda" style="display:inline-block;margin-right:4px;color:#dc2626;font-weight:700">⚠</span>`:'';
     [{h:_alertaMat+(r.item||'—'),s:'font-size:11px;text-align:center'+(r.alertaMat==='divergente'?';background:rgba(220,38,38,0.10)':'')},{t:r.os,s:'font-size:10px;max-width:140px;overflow:hidden;text-overflow:ellipsis'},{t:titleCase(r.end),s:'max-width:190px;overflow:hidden;text-overflow:ellipsis'},{t:titleCase(r.bairro),s:'max-width:95px;overflow:hidden;text-overflow:ellipsis'},{t:titleCase(nMun(r.mun)),s:'max-width:110px;overflow:hidden;text-overflow:ellipsis'},{t:r.atv,s:'font-size:11px;max-width:90px;overflow:hidden;text-overflow:ellipsis'},{t:r.tip,s:''},{t:fmtArea(r.area),s:'font-size:11px'},{t:r.mes,s:'font-size:11px'},{h:badge(r)+prazoHtml},{t:r.vt>0?brl(r.vt):'—',s:'font-size:11px;text-align:right'},{t:r.va>0?brl(r.va):'—',s:'font-size:11px;text-align:right'},{t:rsm2(r),s:'font-size:11px;text-align:right'}].forEach(col=>{
       const td=document.createElement('td');if(col.h)td.innerHTML=col.h;else td.textContent=col.t||'—';if(col.s)td.style.cssText=col.s;if(col.t)td.title=col.t;tr.appendChild(td);
@@ -4071,6 +4078,7 @@ function openD(idx){
   if(r.vis)bdg.push(`<span class="badge badge-vis">Vistoria ✓</span>`);
   if(r.lau)bdg.push(`<span class="badge badge-lau">Laudo ✓</span>`);
   document.getElementById('d-badges').innerHTML=bdg.join('');
+  if(window.PEPT)PEPT.render(r);
   // Fill display values
   setDV('d-end',titleCase(r.end));setDV('d-bairro',titleCase(r.bairro));setDV('d-mun',`${titleCase(nMun(r.mun))} / ${poloNome(r.polo)}`);setDV('d-cep',r.cep);setDV('d-polo',poloNome(r.polo));
   setDV('d-tip',r.tip);setDV('d-area',fmtArea(r.area));setDV('d-vaval',brl(r.va));setDV('d-rsm2',rsm2(r));
@@ -5763,7 +5771,7 @@ function renderCal(){
       const dt=new Date(a,m,d),isH=dt.toDateString()===hoje.toDateString(),evs=evsDia(dt);
       const numH=isH?`<div class="cal-num-hj">${d}</div>`:`<div class="cal-num">${d}</div>`;
       // Show ALL events (no truncation)
-      const evsH=evs.map(r=>{const c=stCfg(r),idx=ALL.indexOf(r);return`<div class="cal-ev ${c.cls}" onclick="openFromCal(${idx})" title="${r.end}">#${r.item} ${r.tip||''}</div>`;}).join('');
+      const evsH=evs.map(r=>{const c=stCfg(r),idx=ALL.indexOf(r);return`<div class="cal-ev ${c.cls}" onclick="openFromCal(${idx})" title="${r.end}">${window.PEPT&&PEPT.aberta(r)?'⏸ ':''}#${r.item} ${r.tip||''}</div>`;}).join('');
       html+=`<div class="cal-cell${isH?' hoje-cell':''}">${numH}${evsH}</div>`;
     }
     const tot=first+ndm,rest=tot%7===0?0:7-tot%7;
@@ -5775,13 +5783,13 @@ function renderCal(){
     tit.textContent=`${dias[0].toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})} — ${dias[6].toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric'})}`;
     let html=`<div class="cal-sem-grid">`;
     dias.forEach((d,i)=>{const isH=d.toDateString()===hoje.toDateString();html+=`<div class="cal-sem-dh" style="${isH?'background:var(--accent);color:#fff;border-radius:6px':''}"><div>${DIAS_S[i]}</div><div style="font-size:14px;font-weight:700">${d.getDate()}</div></div>`;});
-    dias.forEach(d=>{const evs=evsDia(d),isH=d.toDateString()===hoje.toDateString();html+=`<div class="cal-sem-col" style="${isH?'outline:2px solid var(--accent)':''}">`;if(!evs.length)html+=`<div style="font-size:10px;color:var(--text-muted);text-align:center;margin-top:6px">—</div>`;evs.forEach(r=>{const c=stCfg(r),idx=ALL.indexOf(r);html+=`<div class="cal-ev ${c.cls}" onclick="openFromCal(${idx})">#${r.item} ${(r.tip||'').substring(0,8)}</div>`;});html+='</div>';});
+    dias.forEach(d=>{const evs=evsDia(d),isH=d.toDateString()===hoje.toDateString();html+=`<div class="cal-sem-col" style="${isH?'outline:2px solid var(--accent)':''}">`;if(!evs.length)html+=`<div style="font-size:10px;color:var(--text-muted);text-align:center;margin-top:6px">—</div>`;evs.forEach(r=>{const c=stCfg(r),idx=ALL.indexOf(r);html+=`<div class="cal-ev ${c.cls}" onclick="openFromCal(${idx})">${window.PEPT&&PEPT.aberta(r)?'⏸ ':''}#${r.item} ${(r.tip||'').substring(0,8)}</div>`;});html+='</div>';});
     html+='</div>';body.innerHTML=html;
   }else{
     tit.textContent=CALD.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
     const evs=evsDia(CALD);
     if(!evs.length){body.innerHTML=`<div style="text-align:center;padding:3rem;color:var(--text-muted)">Nenhuma OS com entrega neste dia</div>`;return;}
-    body.innerHTML=evs.map(r=>{const c=stCfg(r),idx=ALL.indexOf(r);return`<div class="cal-dia-ev ${c.cls}" onclick="openFromCal(${idx})"><div style="font-size:18px;font-weight:700;min-width:36px">#${r.item}</div><div style="flex:1"><div style="font-weight:700;font-size:12px">${r.os}</div><div style="font-size:11px;margin-top:1px">${r.end}</div><div style="font-size:11px">${r.bairro} — ${nMun(r.mun)}</div><div style="font-size:11px">${r.tip} · ${r.area} · ${brl(r.vt)}</div></div><div style="font-size:11px;text-align:right"><div style="font-weight:700">${c.lbl}</div><div>${r.atv}</div></div></div>`;}).join('');
+    body.innerHTML=evs.map(r=>{const c=stCfg(r),idx=ALL.indexOf(r);return`<div class="cal-dia-ev ${c.cls}" onclick="openFromCal(${idx})"><div style="font-size:18px;font-weight:700;min-width:36px">${window.PEPT&&PEPT.aberta(r)?'⏸ ':''}#${r.item}</div><div style="flex:1"><div style="font-weight:700;font-size:12px">${r.os}</div><div style="font-size:11px;margin-top:1px">${r.end}</div><div style="font-size:11px">${r.bairro} — ${nMun(r.mun)}</div><div style="font-size:11px">${r.tip} · ${r.area} · ${brl(r.vt)}</div></div><div style="font-size:11px;text-align:right"><div style="font-weight:700">${c.lbl}</div><div>${r.atv}</div></div></div>`;}).join('');
   }
 }
 function openFromCal(idx){
@@ -6847,6 +6855,7 @@ function limparFormNovaOS() {
 async function updSt(ns){
   if(!AUTH){showToast('Entre com Google primeiro.');return;}
   if(!COS)return;
+  if(window.PEPT&&!PEPT.permitirStatus(COS,ns))return;
   try{
     let vOSFmt='R$ 0,00', vDeslocFmt='R$ 0,00', vTotalFmt='R$ 0,00';
     if(ns !== 'OS Cancelada'){
@@ -10853,6 +10862,175 @@ async function _uploadFotoParaDrive(file, nome, folderId, barId, onProgress){
 
 </script>
 <!-- SIMIL-VISTORIA:FIM -->
+<!-- PEPT:INICIO — suspensão do prazo da O.S. enquanto a PEPT está aberta (COT AvaliaBens 075, 3.3.2.5.3) -->
+<script>
+window.PEPT = (function () {
+  const TITULO = 'PEPT_HISTORICO';          // a coluna é achada pelo título, não por posição fixa
+  const ULTIMA = 51;                        // AZ: limite do intervalo que o dashboard lê
+  const api = { COL: -1 };
+
+  // ---------- datas (dias corridos, sem fuso nem horário de verão) ----------
+  const dia = t => {
+    let m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(t || '').trim()), a, me, d;
+    if (m) { d = +m[1]; me = +m[2]; a = +m[3]; }
+    else { m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(t || '').trim()); if (!m) return null; a = +m[1]; me = +m[2]; d = +m[3]; }
+    const x = new Date(Date.UTC(a, me - 1, d));
+    return x.getUTCDate() === d && x.getUTCMonth() === me - 1 ? x.getTime() / 86400000 : null;
+  };
+  const iso = n => new Date(n * 86400000).toISOString().slice(0, 10);
+  const br = t => { const n = dia(t); return n === null ? '—' : iso(n).split('-').reverse().join('/'); };
+  const hojeIso = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+  const dias = n => Math.abs(n) + (Math.abs(n) === 1 ? ' dia' : ' dias');
+  const saldo = n => n === null ? 'sem data de entrega' : n < 0 ? 'já estava atrasada ' + dias(n) : 'faltavam ' + dias(n);
+
+  // ---------- histórico ----------
+  api.ler = function (texto) {
+    if (!String(texto || '').trim()) return { v: 1, itens: [] };
+    try { const h = JSON.parse(texto); if (h && h.v === 1 && Array.isArray(h.itens)) return h; } catch (e) { /* abaixo */ }
+    return { v: 1, itens: [], ilegivel: true };
+  };
+  api.aberta = r => api.ler(r && r.peptHist).itens.find(i => !i.atendida) || null;
+  api.statusAoAbrir = st => /^OS Vistoriada/.test(st) ? 'OS Vistoriada com PEPT' : /^(Sem vistoria|OS não Vistoriada)/.test(st) ? 'OS não Vistoriada com PEPT' : st;
+  api.statusAoAtender = (st, antes) => st === 'OS Vistoriada com PEPT' ? 'OS Vistoriada'
+    : st === 'OS não Vistoriada com PEPT' ? (antes === 'Sem vistoria - agendado' ? antes : 'Sem vistoria - não agendado') : st;
+
+  api.abrir = function (hist, dados) {
+    if (hist.ilegivel) throw new Error('o histórico de PEPT desta OS está ilegível na planilha; corrija a célula antes');
+    if (hist.itens.some(i => !i.atendida)) throw new Error('já existe uma PEPT aberta nesta OS');
+    const a = dia(dados.data), e = dia(dados.entrega);
+    if (a === null) throw new Error('informe a data de registro da PEPT');
+    if (a > dia(dados.hoje)) throw new Error('a data de registro não pode ser futura');
+    const ultima = hist.itens[hist.itens.length - 1];
+    if (ultima && a < dia(ultima.atendida)) throw new Error('a abertura é anterior ao atendimento da PEPT passada');
+    const item = { aberta: iso(a), restam: e === null ? null : e - a, entregaAntes: e === null ? '' : iso(e), stAntes: dados.st || '', atendida: null };
+    return { v: 1, original: hist.original || item.entregaAntes, itens: hist.itens.concat(item) };
+  };
+  api.atender = function (hist, dados) {
+    const item = hist.itens.find(i => !i.atendida);
+    if (!item) throw new Error('não há PEPT aberta nesta OS');
+    const f = dia(dados.data);
+    if (f === null) throw new Error('informe a data do atendimento');
+    if (f < dia(item.aberta)) throw new Error('o atendimento não pode ser anterior à abertura (' + br(item.aberta) + ')');
+    if (f > dia(dados.hoje)) throw new Error('a data do atendimento não pode ser futura');
+    const nova = item.restam === null ? '' : iso(f + item.restam);       // a contagem volta no dia seguinte ao atendimento
+    const feito = Object.assign({}, item, { atendida: iso(f), entregaDepois: nova });
+    return { hist: Object.assign({}, hist, { itens: hist.itens.map(i => i === item ? feito : i) }), entrega: nova, item: feito };
+  };
+  api.desfazer = function (hist) {
+    const item = hist.itens.find(i => !i.atendida);
+    if (!item) throw new Error('não há PEPT aberta nesta OS');
+    return { hist: Object.assign({}, hist, { itens: hist.itens.filter(i => i !== item) }), item: item };
+  };
+
+  api.selo = n => '<span class="badge-suspenso" title="Prazo suspenso por PEPT">⏸ ' + (n === null || n === undefined ? 'PEPT' : n < 0 ? 'PEPT · atraso ' + (-n) + 'd' : 'PEPT · restam ' + n + 'd') + '</span>';
+
+  // ---------- planilha ----------
+  api.lerCabecalho = cab => { api.COL = (cab || []).findIndex(c => String(c).trim() === TITULO); };
+  const faixa = f => `${CFG.SHT}!${f}`;
+  const ler = async (f, extra) => (await gapi.client.sheets.spreadsheets.values.get(Object.assign({ spreadsheetId: CFG.SID, range: faixa(f) }, extra || {}))).result.values || [];
+
+  // cria a coluna na primeira vez, SEMPRE depois da última célula ocupada (nunca por cima de dado existente)
+  async function garantirColuna() {
+    const tudo = await ler('A1:AZ', { valueRenderOption: 'FORMULA' });
+    api.lerCabecalho(tudo[0] || []);
+    if (api.COL >= 0) return api.COL;
+    const mapeadas = Object.values(Object.assign({}, _COL_DEFAULTS, CFG.COLS || {})).map(Number).filter(n => !isNaN(n));
+    const col = Math.max(Math.max(...mapeadas) + 1, ...tudo.map(l => l.length));
+    if (col > ULTIMA) throw new Error('não há coluna livre até AZ na planilha');
+    const letra = _idxToColLetter(col);
+    if (!confirm(`Primeiro uso da PEPT: vou criar na planilha a coluna ${letra} com o título ${TITULO} (ela está vazia). Continuar?`)) throw new Error('criação da coluna cancelada');
+    const info = await gapi.client.sheets.spreadsheets.get({ spreadsheetId: CFG.SID, fields: 'sheets(properties(sheetId,title,gridProperties(columnCount)))' });
+    const aba = (info.result.sheets || []).map(x => x.properties).find(x => x.title === CFG.SHT);
+    if (!aba) throw new Error('aba da planilha não encontrada');
+    const faltam = col + 1 - aba.gridProperties.columnCount;
+    if (faltam > 0) await gapi.client.sheets.spreadsheets.batchUpdate({ spreadsheetId: CFG.SID, resource: { requests: [{ appendDimension: { sheetId: aba.sheetId, dimension: 'COLUMNS', length: faltam } }] } });
+    await gapi.client.sheets.spreadsheets.values.update({ spreadsheetId: CFG.SID, range: faixa(letra + '1'), valueInputOption: 'RAW', resource: { values: [[TITULO]] } });
+    api.COL = col;
+    return col;
+  }
+
+  // relê a linha antes de gravar: se OS foi excluída/inserida em outro aparelho, o número da linha mudou
+  async function gravar(r, mudar) {
+    const col = await garantirColuna();
+    const linha = (await ler(`A${r.ri}:AZ${r.ri}`))[0] || [];
+    const atual = parseRow(linha, r.ri - 2);
+    if (atual.os !== r.os) throw new Error('a planilha mudou (a OS não está mais nesta linha). Atualize o dashboard e tente de novo');
+    const res = mudar(api.ler(linha[col]), atual);
+    const dados = [{ range: faixa(_idxToColLetter(col) + r.ri), values: [[JSON.stringify(res.hist)]] }];
+    await gapi.client.sheets.spreadsheets.values.batchUpdate({ spreadsheetId: CFG.SID, resource: { valueInputOption: 'RAW', data: dados } });
+    const outros = [];
+    if (res.entrega) outros.push({ range: faixa(_campoToCol('ent') + r.ri), values: [[br(res.entrega)]] });
+    if (res.st && res.st !== atual.st) outros.push({ range: faixa(_campoToCol('st') + r.ri), values: [[res.st]] });
+    outros.push({ range: faixa(_campoToCol('pept') + r.ri), values: [[res.hist.itens.some(i => !i.atendida) ? 'TRUE' : 'FALSE']] });
+    await gapi.client.sheets.spreadsheets.values.batchUpdate({ spreadsheetId: CFG.SID, resource: { valueInputOption: 'USER_ENTERED', data: outros } });
+  }
+
+  async function acao(r, mudar, aviso, botao) {
+    if (!AUTH) { showToast('Entre com Google primeiro.'); return; }
+    if (botao) botao.disabled = true;
+    try {
+      await gravar(r, mudar);
+      showToast(aviso);
+      await loadData(); closeD();
+    } catch (e) {
+      console.error('[pept]', e);
+      showToast('PEPT: ' + (e.result && e.result.error ? e.result.error.message : e.message || e));
+      if (botao) botao.disabled = false;
+    }
+  }
+
+  // ---------- tela ----------
+  const el = (t, at, ...fi) => { const e = document.createElement(t); for (const [k, v] of Object.entries(at || {})) { if (k.startsWith('on')) e[k] = v; else e.setAttribute(k, v); } e.append(...fi.filter(f => f !== null && f !== undefined && f !== false)); return e; };
+
+  api.render = function (r) {
+    const cx = document.getElementById('d-pept');
+    if (!cx) return;
+    const hist = api.ler(r.peptHist), aberta = hist.itens.find(i => !i.atendida);
+    const encerrada = ['OS Concluída', 'OS Cancelada'].includes(r.st);
+    const data = el('input', { type: 'date', class: 'pept-data', max: hojeIso(), value: hojeIso() });
+    const previa = el('div', { class: 'pept-nota' });
+    const partes = [];
+    if (hist.ilegivel) partes.push(el('div', { class: 'pept-alerta' }, 'O histórico de PEPT desta OS está ilegível na planilha. Nada será gravado por cima.'));
+    else if (aberta) {
+      partes.push(el('div', { class: 'pept-estado' }, '⏸ Prazo suspenso desde ' + br(aberta.aberta) + ' — ' + saldo(aberta.restam) + '.'));
+      const atualizar = () => { try { const x = api.atender(hist, { data: data.value, hoje: hojeIso() }); previa.textContent = x.entrega ? 'Nova entrega: ' + br(x.entrega) : 'Sem data de entrega para recalcular.'; } catch (e) { previa.textContent = e.message; } };
+      data.min = aberta.aberta; data.oninput = atualizar; atualizar();
+      partes.push(el('label', { class: 'pept-rot' }, 'Data do atendimento', data), previa,
+        el('div', { class: 'pept-acoes' },
+          el('button', { type: 'button', class: 'pept-btn prim', onclick: ev => acao(r, (h, atual) => { const x = api.atender(h, { data: data.value, hoje: hojeIso() }); return { hist: x.hist, entrega: x.entrega, st: api.statusAoAtender(atual.st, x.item.stAntes) }; }, '▶ PEPT atendida: prazo retomado.', ev.target) }, 'PEPT atendida'),
+          el('button', { type: 'button', class: 'pept-btn', onclick: ev => { if (confirm('Apagar este registro de PEPT (lançado por engano)? A data de entrega não muda.')) acao(r, (h, atual) => { const x = api.desfazer(h); return { hist: x.hist, st: api.statusAoAtender(atual.st, x.item.stAntes) }; }, 'Registro de PEPT desfeito.', ev.target); } }, 'Lançada por engano')));
+    } else if (encerrada) partes.push(el('div', { class: 'pept-nota' }, 'OS encerrada: não há prazo a suspender.'));
+    else {
+      if (/com PEPT/.test(r.st)) partes.push(el('div', { class: 'pept-alerta' }, 'Esta OS está marcada com PEPT, mas sem a data de abertura: o prazo ainda está correndo. Informe a data registrada no SIOPI.'));
+      const atualizar = () => { try { const x = api.abrir(hist, { data: data.value, entrega: r.ent, st: r.st, hoje: hojeIso() }).itens.slice(-1)[0]; previa.textContent = 'Entrega atual: ' + br(r.ent) + ' — no registro, ' + saldo(x.restam) + '.'; } catch (e) { previa.textContent = e.message; } };
+      data.oninput = atualizar; atualizar();
+      partes.push(el('label', { class: 'pept-rot' }, 'Data do registro no SIOPI', data), previa,
+        el('div', { class: 'pept-acoes' }, el('button', { type: 'button', class: 'pept-btn prim', onclick: ev => {
+          if (!confirm('Registrar a PEPT e suspender o prazo? (A PEPT no SIOPI continua sendo aberta por você.)')) return;
+          acao(r, (h, atual) => ({ hist: api.abrir(h, { data: data.value, entrega: atual.ent, st: atual.st, hoje: hojeIso() }), st: api.statusAoAbrir(atual.st) }), '⏸ PEPT registrada: prazo suspenso.', ev.target);
+        } }, 'Registrar abertura da PEPT')));
+    }
+    const fechadas = hist.itens.filter(i => i.atendida);
+    if (fechadas.length) partes.push(el('div', { class: 'pept-nota' }, 'Entrega original: ' + br(hist.original)),
+      ...fechadas.map(i => el('div', { class: 'pept-nota' }, 'PEPT ' + br(i.aberta) + ' a ' + br(i.atendida) + (i.entregaDepois ? ' → entrega ' + br(i.entregaDepois) : ''))));
+    cx.replaceChildren(...partes);
+  };
+
+  api.permitirStatus = function (r, novo) {
+    const aberta = api.aberta(r);
+    if (aberta && ['OS Concluída', 'OS Cancelada'].includes(novo)) return confirm('Há uma PEPT aberta nesta OS. O COT diz para não concluir nem cancelar antes de ela ser solucionada (3.3.2.5.3.1). Mudar o status mesmo assim?');
+    if (aberta && !/com PEPT/.test(novo)) return confirm('A PEPT continua aberta e o prazo segue suspenso. Para retomar o prazo, use "PEPT atendida". Mudar só o status?');
+    if (!aberta && /com PEPT/.test(novo)) setTimeout(() => showToast('Para suspender o prazo, abra a OS e registre a data em "PEPT e prazo".'), 3800);
+    return true;
+  };
+
+  const estilo = document.createElement('style');
+  estilo.textContent = '.badge-suspenso{background:rgba(59,130,246,.14);border:1px solid rgba(59,130,246,.4);color:#60a5fa;font-size:9px;padding:2px 6px;border-radius:10px;font-weight:700;margin-left:4px;white-space:nowrap}body.light-mode .badge-suspenso{color:#1d4ed8}.pept-estado{font-weight:700;font-size:13px;color:#60a5fa}body.light-mode .pept-estado{color:#1d4ed8}.pept-alerta{font-size:12px;border:1px solid rgba(255,159,10,.45);background:rgba(255,159,10,.12);border-radius:8px;padding:8px;margin-bottom:6px}.pept-nota{font-size:12px;color:var(--text-secondary,#aaa);margin-top:4px}.pept-rot{display:block;font-size:12px;color:var(--text-secondary,#aaa);margin-top:8px}.pept-data{display:block;margin-top:4px;padding:9px;font-size:16px;border-radius:8px;border:1px solid var(--mica-border-light,#444);background:var(--mica-surface,#1a1a1c);color:inherit}.pept-acoes{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.pept-btn{padding:10px 12px;border-radius:8px;border:1px solid var(--mica-border-light,#444);background:var(--mica-surface,#1a1a1c);color:var(--text-primary,#f2f2f4);font:inherit;font-size:13px;cursor:pointer}.pept-btn.prim{background:#1d4ed8;border-color:#1d4ed8;color:#fff}.pept-btn:disabled{opacity:.5}';
+  document.head.append(estilo);
+  return api;
+})();
+</script>
+<!-- PEPT:FIM -->
 <!-- AGENTES:INICIO — indicador online/offline dos agentes locais (batimento gravado pelo painel no Drive) -->
 <script>
 (function () {
