@@ -2142,6 +2142,7 @@ body:not(.light-mode) .badge.st-vistoriada{background:rgba(234,179,8,.18) !impor
       <button class="stbtn" style="background:#7e22ce" onclick="updSt('OS em Revisão')">Em revisão</button>
       <button class="stbtn" style="background:#dc2626" onclick="updSt('OS Cancelada')">Cancelada</button>
     </div></div>
+    <div class="ds" id="d-analise-sec"><h3>Análise documental (observação)</h3><div id="d-analise"></div></div>
     <div class="ds" id="d-pept-sec"><h3>PEPT e prazo</h3><div id="d-pept"></div></div>
 
     <div class="ds"><h3>Localização</h3><div class="dg">
@@ -3411,6 +3412,7 @@ async function loadData(){
       }
     };
     applyFilters(); // já chama refreshVisible
+    if(window.ANALISE)ANALISE.carregarResumo(); // selo da análise documental (não bloqueia a lista)
     // Re-popula dropdowns que dependem de ALL (município na rota)
     if(TAB==='rota'||SPLIT_TAB==='rota')initRota();
   }catch(e){
@@ -3622,7 +3624,7 @@ function _cardOS(r,c,i){
   const _fA=(typeof fmtArea==='function')?fmtArea:(x=>x||'—');
   const _rm=(typeof rsm2==='function')?rsm2:(_=>'—');
   td.innerHTML='<div class="os-card"><div class="os-card-rail"></div><div class="os-card-main">'
-    +'<div class="os-card-head"><div class="os-card-id">#'+(r.item||'&mdash;')+' '+badge(r)+' '+pzH+'</div>'
+    +'<div class="os-card-head"><div class="os-card-id">#'+(r.item||'&mdash;')+' '+badge(r)+' '+pzH+(window.ANALISE?ANALISE.selo(r):'')+'</div>'
     +'<div class="os-card-val">'+(r.vt>0?_brl(r.vt):'&mdash;')+'</div></div>'
     +'<div class="os-card-end">'+_tc(r.end||'')+'</div>'
     +'<div class="os-card-sub">'+[_tc(r.bairro||''),_tc(_nm(r.mun)||''),r.tip||''].filter(Boolean).join(' &middot; ')+'</div>'
@@ -3697,7 +3699,7 @@ function renderTable(){
     let prazoHtml='';
     if(pz){prazoHtml=pz.type==='suspenso'?PEPT.selo(pz.diff,pz.vencida):pz.type==='atrasado'?`<span class="badge-atrasado">▲ ${pz.diff}d</span>`:`<span class="badge-${pz.type}">⏱ ${pz.diff}d</span>`;}
     const _alertaMat=r.alertaMat==='divergente'?`<span title="⚠️ Matrícula divergente da Certidão — possível cancelamento da demanda" style="display:inline-block;margin-right:4px;color:#dc2626;font-weight:700">⚠</span>`:'';
-    [{h:_alertaMat+(r.item||'—'),s:'font-size:11px;text-align:center'+(r.alertaMat==='divergente'?';background:rgba(220,38,38,0.10)':'')},{t:r.os,s:'font-size:10px;max-width:140px;overflow:hidden;text-overflow:ellipsis'},{t:titleCase(r.end),s:'max-width:190px;overflow:hidden;text-overflow:ellipsis'},{t:titleCase(r.bairro),s:'max-width:95px;overflow:hidden;text-overflow:ellipsis'},{t:titleCase(nMun(r.mun)),s:'max-width:110px;overflow:hidden;text-overflow:ellipsis'},{t:r.atv,s:'font-size:11px;max-width:90px;overflow:hidden;text-overflow:ellipsis'},{t:r.tip,s:''},{t:fmtArea(r.area),s:'font-size:11px'},{t:r.mes,s:'font-size:11px'},{h:badge(r)+prazoHtml},{t:r.vt>0?brl(r.vt):'—',s:'font-size:11px;text-align:right'},{t:r.va>0?brl(r.va):'—',s:'font-size:11px;text-align:right'},{t:rsm2(r),s:'font-size:11px;text-align:right'}].forEach(col=>{
+    [{h:_alertaMat+(r.item||'—'),s:'font-size:11px;text-align:center'+(r.alertaMat==='divergente'?';background:rgba(220,38,38,0.10)':'')},{t:r.os,s:'font-size:10px;max-width:140px;overflow:hidden;text-overflow:ellipsis'},{t:titleCase(r.end),s:'max-width:190px;overflow:hidden;text-overflow:ellipsis'},{t:titleCase(r.bairro),s:'max-width:95px;overflow:hidden;text-overflow:ellipsis'},{t:titleCase(nMun(r.mun)),s:'max-width:110px;overflow:hidden;text-overflow:ellipsis'},{t:r.atv,s:'font-size:11px;max-width:90px;overflow:hidden;text-overflow:ellipsis'},{t:r.tip,s:''},{t:fmtArea(r.area),s:'font-size:11px'},{t:r.mes,s:'font-size:11px'},{h:badge(r)+prazoHtml+(window.ANALISE?ANALISE.selo(r):'')},{t:r.vt>0?brl(r.vt):'—',s:'font-size:11px;text-align:right'},{t:r.va>0?brl(r.va):'—',s:'font-size:11px;text-align:right'},{t:rsm2(r),s:'font-size:11px;text-align:right'}].forEach(col=>{
       const td=document.createElement('td');if(col.h)td.innerHTML=col.h;else td.textContent=col.t||'—';if(col.s)td.style.cssText=col.s;if(col.t)td.title=col.t;tr.appendChild(td);
     });
     const tdD=document.createElement('td');tdD.style.textAlign='center';const btn=document.createElement('button');btn.textContent='📁';btn.style.cssText='background:none;border:none;cursor:pointer;font-size:13px';btn.addEventListener('click',e=>{e.stopPropagation();openD(i);});tdD.appendChild(btn);tr.appendChild(tdD);tbody.appendChild(tr);
@@ -4079,6 +4081,7 @@ function openD(idx){
   if(r.lau)bdg.push(`<span class="badge badge-lau">Laudo ✓</span>`);
   document.getElementById('d-badges').innerHTML=bdg.join('');
   if(window.PEPT)PEPT.render(r);
+  if(window.ANALISE)ANALISE.abrir(r);
   // Fill display values
   setDV('d-end',titleCase(r.end));setDV('d-bairro',titleCase(r.bairro));setDV('d-mun',`${titleCase(nMun(r.mun))} / ${poloNome(r.polo)}`);setDV('d-cep',r.cep);setDV('d-polo',poloNome(r.polo));
   setDV('d-tip',r.tip);setDV('d-area',fmtArea(r.area));setDV('d-vaval',brl(r.va));setDV('d-rsm2',rsm2(r));
@@ -11135,6 +11138,97 @@ window.PEPT = (function () {
 })();
 </script>
 <!-- PEPT:FIM -->
+<!-- ANALISE:INICIO — resultado do agente de análise documental (arquivo analise_status.json na pasta da OS) -->
+<script>
+window.ANALISE = (function () {
+  const CORES = { verde: ['#22c55e', 'Sem erro'], amarelo: ['#eab308', 'Atenção'], vermelho: ['#ef4444', 'Bloqueio ou PEPT'] };
+  let VEZ = 0;
+  const el = (t, at, ...fi) => { const e = document.createElement(t); for (const [k, v] of Object.entries(at || {})) { if (k.startsWith('on')) e[k] = v; else e.setAttribute(k, v); } e.append(...fi.filter(f => f !== null && f !== undefined && f !== false)); return e; };
+  const nota = (t, c) => el('div', { class: c || 'pept-nota' }, t);
+
+  // tudo o que vem do arquivo foi extraído de documentos de terceiros: entra na tela somente como texto
+  function desenhar(cx, d) {
+    const cor = CORES[d.cor] || ['#94a3b8', 'Resultado desconhecido'];
+    const itens = Array.isArray(d.itens) ? d.itens : [];
+    const partes = [
+      el('div', { class: 'an-topo' }, el('span', { class: 'an-bola', style: 'background:' + cor[0] }), el('b', {}, cor[1]), el('span', { class: 'pept-nota' }, ' · ' + String(d.analisado_em || ''))),
+      nota('Modo observação: o agente não executou nada. Confira se ele acertou.' + (d.etapa1 ? ' Fora desse modo, a etapa 1 ' + d.etapa1 + '.' : ''))];
+    itens.forEach(i => {
+      const e = i.evidencia || {};
+      partes.push(el('div', { class: 'an-item ' + (i.nivel === 'alerta' ? 'an-alerta' : 'an-grave') },
+        el('b', {}, String(i.codigo || '') + (i.nivel === 'pept' ? ' · PEPT' : '') + ' — ' + String(i.titulo || '')),
+        i.detalhe ? el('div', {}, String(i.detalhe)) : null,
+        e.documento ? el('div', { class: 'an-onde' }, String(e.documento) + (e.pagina ? ', pág. ' + e.pagina : '') + (e.trecho ? ': “' + e.trecho + '”' : '')) : null));
+    });
+    if (!itens.length) partes.push(nota('Nenhum achado.'));
+    if (d.texto_pept) partes.push(el('div', { class: 'pept-rot' }, 'Texto sugerido para a PEPT'), el('pre', { class: 'an-texto' }, String(d.texto_pept)),
+      el('div', { class: 'pept-acoes' }, el('button', { type: 'button', class: 'pept-btn prim', onclick: async () => {
+        try { await navigator.clipboard.writeText(String(d.texto_pept)); showToast('Texto da PEPT copiado. Registre a abertura em "PEPT e prazo".'); } catch (x) { showToast('Não consegui copiar: selecione o texto.'); }
+      } }, 'Copiar texto')));
+    if ((d.nao_verificado || []).length) partes.push(el('details', { class: 'pept-nota' }, el('summary', {}, 'O que o agente não verificou'), ...d.nao_verificado.map(n => nota('• ' + n))));
+    cx.replaceChildren(...partes);
+  }
+
+  async function ler(r) {
+    const pasta = await acharPastaRaizOS(r);
+    if (!pasta) return { erro: 'Pasta da OS não encontrada no Drive.' };
+    const lista = await gapi.client.drive.files.list({ q: "name='analise_status.json' and '" + pasta + "' in parents and trashed=false", fields: 'files(id,modifiedTime)', orderBy: 'modifiedTime desc', pageSize: 1, supportsAllDrives: true, includeItemsFromAllDrives: true });
+    const arq = (lista.result.files || [])[0];
+    if (!arq) return null;
+    const c = await gapi.client.drive.files.get({ fileId: arq.id, alt: 'media', supportsAllDrives: true });
+    return typeof c.result === 'object' && c.result ? c.result : JSON.parse(c.body);
+  }
+
+  // ---------- selo na lista (um arquivo só, na raiz dos laudos) ----------
+  let RESUMO = {}, TEXTO = '', LIDO_EM = 0, LENDO = false;
+  const chave = r => String(r.osp || r.os || '').replace(/\D/g, '');
+  const EMOJI = { verde: '🟢', amarelo: '🟡', vermelho: '🔴' };
+  async function carregarResumo() {
+    if (!AUTH || !CFG.DID || LENDO) return;
+    LENDO = true;
+    try {
+      const lista = await gapi.client.drive.files.list({ q: "name='analise_resumo.json' and '" + CFG.DID + "' in parents and trashed=false", fields: 'files(id,modifiedTime)', orderBy: 'modifiedTime desc', pageSize: 1, supportsAllDrives: true, includeItemsFromAllDrives: true });
+      const arq = (lista.result.files || [])[0];
+      let d = { os: {} };
+      if (arq) { const c = await gapi.client.drive.files.get({ fileId: arq.id, alt: 'media', supportsAllDrives: true }); d = typeof c.result === 'object' && c.result ? c.result : JSON.parse(c.body); }
+      LIDO_EM = Date.now();
+      const texto = JSON.stringify(d.os || {});
+      if (texto !== TEXTO) { TEXTO = texto; RESUMO = d.os || {}; if (ALL.length) applyFilters(); }
+    } catch (e) { console.warn('[analise resumo]', e); LIDO_EM = Date.now(); } finally { LENDO = false; }
+  }
+  setInterval(() => { if (!document.hidden && AUTH && ALL.length && Date.now() - LIDO_EM > 120000) carregarResumo(); }, 3000);
+
+  return {
+    carregarResumo: carregarResumo,
+    // só devolve texto fixo escolhido pela cor: nada do arquivo entra no HTML
+    selo: function (r) {
+      if (!/^A-?413/i.test(String(r.atv || ''))) return '';
+      const x = RESUMO[chave(r)], cor = x && Object.prototype.hasOwnProperty.call(EMOJI, x.cor) ? x.cor : null;
+      return cor ? '<span class="badge-analise an-s-' + cor + '" title="Análise documental: ' + CORES[cor][1] + ' (abra a OS para ver)">📄 ' + EMOJI[cor] + '</span>' : '';
+    },
+    abrir: function (r) {
+      const cx = document.getElementById('d-analise'), sec = document.getElementById('d-analise-sec');
+      if (!cx || !sec) return;
+      const vez = ++VEZ, a413 = /^A-?413/i.test(String(r.atv || ''));
+      sec.style.display = a413 ? '' : 'none';
+      cx.replaceChildren(nota(!a413 ? '' : AUTH ? 'Procurando a análise…' : 'Entre com Google para ver a análise.'));
+      if (!a413 || !AUTH) return;
+      ler(r).then(d => {
+        if (vez !== VEZ) return;                                   // o usuário já abriu outra OS
+        if (!d) cx.replaceChildren(nota('Sem análise para esta OS. O agente analisa as OS A413 novas, alguns minutos depois que os documentos chegam ao computador.'));
+        else if (d.erro) cx.replaceChildren(nota(d.erro));
+        else desenhar(cx, d);
+      }).catch(e => { console.warn('[analise]', e); if (vez === VEZ) cx.replaceChildren(nota('Não consegui ler a análise agora. Abra a OS de novo.')); });
+    }
+  };
+})();
+(function () {
+  const css = document.createElement('style');
+  css.textContent = '.badge-analise{font-size:9px;padding:2px 6px;border-radius:10px;margin-left:4px;white-space:nowrap;border:1px solid rgba(148,163,184,.45);background:rgba(148,163,184,.10)}.an-s-vermelho{border-color:rgba(239,68,68,.6)}.an-s-amarelo{border-color:rgba(234,179,8,.6)}.an-s-verde{border-color:rgba(34,197,94,.6)}tbody td .badge-analise{font-size:11px}.an-topo{display:flex;align-items:center;gap:6px;font-size:13px}.an-bola{width:11px;height:11px;border-radius:50%;display:inline-block}.an-item{font-size:12px;border-radius:8px;padding:8px;margin-top:6px;overflow-wrap:anywhere}.an-grave{border:1px solid rgba(239,68,68,.5);background:rgba(239,68,68,.10)}.an-alerta{border:1px solid rgba(234,179,8,.45);background:rgba(234,179,8,.08)}.an-onde{font-size:11px;color:var(--text-muted,#999);margin-top:3px}.an-texto{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;font-size:12px;border:1px solid var(--mica-border-light,#444);border-radius:8px;padding:8px;margin:4px 0 0}';
+  document.head.append(css);
+})();
+</script>
+<!-- ANALISE:FIM -->
 <!-- AGENTES:INICIO — indicador online/offline dos agentes locais (batimento gravado pelo painel no Drive) -->
 <script>
 (function () {
