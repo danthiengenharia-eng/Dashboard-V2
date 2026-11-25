@@ -3112,7 +3112,7 @@ function isParaRota(r){
 function prazoStatus(r){
   if(['OS Concluída','OS Cancelada'].includes(r.st))return null;
   const susp=window.PEPT&&PEPT.aberta(r);
-  if(susp)return{type:'suspenso',diff:susp.restam};
+  if(susp)return{type:'suspenso',diff:susp.restam,vencida:PEPT.vencida(susp)};
   if(!r.ent)return null;
   const parts=r.ent.split('/');if(parts.length!==3)return null;
   const dt=new Date(parseInt(parts[2]),parseInt(parts[1])-1,parseInt(parts[0]));
@@ -3615,7 +3615,7 @@ function _cardOS(r,c,i){
   tr.className=(c.cls||'')+' os-card-row';
   const td=document.createElement('td');td.colSpan=14;
   const pz=(typeof prazoStatus==='function')?prazoStatus(r):null;
-  const pzH=pz?(pz.type==='suspenso'?PEPT.selo(pz.diff):pz.type==='atrasado'?'<span class="badge-atrasado">&#9650; '+pz.diff+'d</span>':'<span class="badge-'+pz.type+'">&#9201; '+pz.diff+'d</span>'):'';
+  const pzH=pz?(pz.type==='suspenso'?PEPT.selo(pz.diff,pz.vencida):pz.type==='atrasado'?'<span class="badge-atrasado">&#9650; '+pz.diff+'d</span>':'<span class="badge-'+pz.type+'">&#9201; '+pz.diff+'d</span>'):'';
   const _tc=(typeof titleCase==='function')?titleCase:(x=>x||'');
   const _nm=(typeof nMun==='function')?nMun:(x=>x||'');
   const _brl=(typeof brl==='function')?brl:(x=>'R$ '+x);
@@ -3695,7 +3695,7 @@ function renderTable(){
     tr.addEventListener('click',()=>openD(i));
     const pz=prazoStatus(r);
     let prazoHtml='';
-    if(pz){prazoHtml=pz.type==='suspenso'?PEPT.selo(pz.diff):pz.type==='atrasado'?`<span class="badge-atrasado">▲ ${pz.diff}d</span>`:`<span class="badge-${pz.type}">⏱ ${pz.diff}d</span>`;}
+    if(pz){prazoHtml=pz.type==='suspenso'?PEPT.selo(pz.diff,pz.vencida):pz.type==='atrasado'?`<span class="badge-atrasado">▲ ${pz.diff}d</span>`:`<span class="badge-${pz.type}">⏱ ${pz.diff}d</span>`;}
     const _alertaMat=r.alertaMat==='divergente'?`<span title="⚠️ Matrícula divergente da Certidão — possível cancelamento da demanda" style="display:inline-block;margin-right:4px;color:#dc2626;font-weight:700">⚠</span>`:'';
     [{h:_alertaMat+(r.item||'—'),s:'font-size:11px;text-align:center'+(r.alertaMat==='divergente'?';background:rgba(220,38,38,0.10)':'')},{t:r.os,s:'font-size:10px;max-width:140px;overflow:hidden;text-overflow:ellipsis'},{t:titleCase(r.end),s:'max-width:190px;overflow:hidden;text-overflow:ellipsis'},{t:titleCase(r.bairro),s:'max-width:95px;overflow:hidden;text-overflow:ellipsis'},{t:titleCase(nMun(r.mun)),s:'max-width:110px;overflow:hidden;text-overflow:ellipsis'},{t:r.atv,s:'font-size:11px;max-width:90px;overflow:hidden;text-overflow:ellipsis'},{t:r.tip,s:''},{t:fmtArea(r.area),s:'font-size:11px'},{t:r.mes,s:'font-size:11px'},{h:badge(r)+prazoHtml},{t:r.vt>0?brl(r.vt):'—',s:'font-size:11px;text-align:right'},{t:r.va>0?brl(r.va):'—',s:'font-size:11px;text-align:right'},{t:rsm2(r),s:'font-size:11px;text-align:right'}].forEach(col=>{
       const td=document.createElement('td');if(col.h)td.innerHTML=col.h;else td.textContent=col.t||'—';if(col.s)td.style.cssText=col.s;if(col.t)td.title=col.t;tr.appendChild(td);
@@ -10882,6 +10882,68 @@ window.PEPT = (function () {
   const dias = n => Math.abs(n) + (Math.abs(n) === 1 ? ' dia' : ' dias');
   const saldo = n => n === null ? 'sem data de entrega' : n < 0 ? 'já estava atrasada ' + dias(n) : 'faltavam ' + dias(n);
 
+  // ---------- regras por atividade ----------
+  // prazoCliente: dias corridos a partir do registro. "COT AV" = AvaliaBens 075; "CI" = Construção Individual 046.
+  api.TIPOS = {
+    B: [{ id: 'doc', nome: 'Documental (falta de documento)', prazoCliente: 10 },
+        { id: 'analise', nome: 'Da análise ou técnica', prazoCliente: 21 }],      // inclui condição mínima de garantia (decisão Danthi: 21 dias)
+    E: [{ id: 'unica', nome: 'PEPT única (acompanhamento de obra)', prazoCliente: 15 }],
+    A: [{ id: 'av', nome: 'PEPT de avaliação', prazoCliente: null }],
+    G: [{ id: 'geral', nome: 'PEPT (demanda complementar)', prazoCliente: null }]
+  };
+  const codigo = atv => String(atv || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  api.grupo = atv => { const c = codigo(atv); return /^B43[78]/.test(c) ? 'B' : /^E(401|005)/.test(c) ? 'E' : /^A4/.test(c) ? 'A' : 'G'; };
+  const PRAZO_OS = { A413: 6, A417: 10, B437: 15, B438: 15, E401: 6, E005: 6 };
+  const tipoDe = id => Object.values(api.TIPOS).flat().find(t => t.id === id) || null;
+  const somar = (data, n) => { const d = dia(data); return d === null ? null : iso(d + n); };
+
+  // até quando o cliente tem para atender; null quando o caderno não fixa prazo ou o tipo não foi informado
+  api.venceCliente = item => { const t = item && tipoDe(item.tipo); return t && t.prazoCliente ? somar(item.aberta, t.prazoCliente) : null; };
+  api.vencida = (item, hoje) => { const v = api.venceCliente(item); return v !== null && dia(hoje || hojeIso()) > dia(v); };
+
+  // data de emissão da O.S. (os prazos contam dela, e a demanda pode ser lançada no dia seguinte):
+  // 1) a que ficou salva no histórico; 2) a data de abertura vinda do SIOPI (coluna "abr", que em revisão guarda outra coisa);
+  // 3) na falta das duas, a "Entrada SIOPI", sinalizada para conferência.
+  api.emissao = function (r, hist) {
+    const achar = t => { const m = /(\d{4}-\d{2}-\d{2})|(\d{1,2}\/\d{1,2}\/\d{4})/.exec(String(t || '')); return m && dia(m[0]) !== null ? iso(dia(m[0])) : null; };
+    const salva = achar(hist && hist.emissao), abertura = r.rev ? null : achar(r.abr), entrada = achar(r.siopi);
+    if (salva) return { data: salva, origem: 'salva' };
+    if (abertura && (!entrada || abertura <= entrada)) return { data: abertura, origem: 'abertura' };
+    return { data: entrada, origem: entrada ? 'entrada' : 'nenhuma' };
+  };
+
+  // lembretes do prazo para REGISTRAR, contados da emissão da O.S.
+  api.lembretes = function (r, hoje, emissao) {
+    const g = api.grupo(r.atv), base = emissao === undefined ? api.emissao(r).data : emissao, ate = n => somar(base, n), L = [];
+    const limite = (rotulo, n) => { const d = ate(n); L.push(d === null ? rotulo + ': até ' + n + (n === 1 ? ' dia' : ' dias') + ' da emissão da O.S.' : rotulo + ': registrar até ' + br(d) + (dia(hoje || hojeIso()) > dia(d) ? ' (prazo de registro já passou)' : '') + '.'); };
+    if (g === 'B') { limite('PEPT documental', 2); L.push('PEPT da análise: registrar até o dia seguinte à vistoria.'); L.push('PEPT por condição mínima de garantia: registrar em até 2 dias.'); }
+    else if (g === 'E') limite('PEPT (é única)', 2);
+    else if (/^A4/.test(codigo(r.atv))) limite('Comparar cadastro e matrícula (24 h)', 1);
+    return L;
+  };
+
+  // aviso se o prazo cadastrado na O.S. não bate com o do caderno (só avisa; não muda a data)
+  api.confereprazo = function (r, hist, emissao) {
+    const esperado = PRAZO_OS[codigo(r.atv)], a = dia(emissao === undefined ? api.emissao(r, hist).data : emissao), e = dia((hist && hist.original) || r.ent);
+    if (!esperado || a === null || e === null || e - a === esperado) return null;
+    return 'Prazo cadastrado nesta O.S.: ' + dias(e - a) + ' da emissão da O.S. O caderno prevê ' + dias(esperado) + ' para ' + codigo(r.atv) + '. Confira.';
+  };
+
+  // texto da confirmação ao concluir ou cancelar com PEPT aberta (muda conforme a atividade)
+  api.avisoEncerrar = function (r, item, novo, hoje) {
+    const g = api.grupo(r.atv), vence = api.venceCliente(item), venceu = api.vencida(item, hoje);
+    const fim = ' Mudar o status mesmo assim?';
+    if (g === 'A') return 'Há uma PEPT aberta nesta OS. O COT de Avaliação diz para não concluir nem cancelar antes de ela ser solucionada (3.3.2.5.3.1).' + fim;
+    if (novo === 'OS Cancelada') return 'Há uma PEPT aberta nesta OS. Confira se o caso é mesmo de recusa ou cancelamento.' + fim;
+    if (g === 'B') {
+      if (vence === null) return 'Há uma PEPT aberta sem tipo informado. Em análise, concluir como inviável só é permitido depois de vencido o prazo do cliente (CI 4.1.11.5.1).' + fim;
+      return (venceu ? 'O prazo do cliente venceu em ' + br(vence) + '. O caderno permite concluir como INVIÁVEL se a pendência não foi comprovadamente regularizada. Se foi atendida, use antes "PEPT atendida".'
+        : 'O cliente tem até ' + br(vence) + '. O caderno NÃO permite concluir como inviável antes de vencer esse prazo (CI 4.1.11.5.1).') + fim;
+    }
+    if (g === 'E') return 'Há uma PEPT aberta' + (vence ? (venceu ? ', com prazo vencido em ' + br(vence) + '. Comunique a agência e aponte no RAE o que não foi atendido (sem o projeto aprovado, RAE sem aferição).' : '; o cliente tem até ' + br(vence) + '.') : '.') + fim;
+    return 'Há uma PEPT aberta nesta OS. Confira a regra da demanda original.' + fim;
+  };
+
   // ---------- histórico ----------
   api.ler = function (texto) {
     if (!String(texto || '').trim()) return { v: 1, itens: [] };
@@ -10902,7 +10964,11 @@ window.PEPT = (function () {
     const ultima = hist.itens[hist.itens.length - 1];
     if (ultima && a < dia(ultima.atendida)) throw new Error('a abertura é anterior ao atendimento da PEPT passada');
     const item = { aberta: iso(a), restam: e === null ? null : e - a, entregaAntes: e === null ? '' : iso(e), stAntes: dados.st || '', atendida: null };
-    return { v: 1, original: hist.original || item.entregaAntes, itens: hist.itens.concat(item) };
+    if (dados.tipo) item.tipo = dados.tipo;
+    const novo = { v: 1, original: hist.original || item.entregaAntes, itens: hist.itens.concat(item) };
+    if (dados.emissao && dia(dados.emissao) !== null) novo.emissao = iso(dia(dados.emissao)); else if (hist.emissao) novo.emissao = hist.emissao;
+    if (novo.emissao && a < dia(novo.emissao)) throw new Error('a PEPT não pode ser anterior à emissão da O.S. (' + br(novo.emissao) + ')');
+    return novo;
   };
   api.atender = function (hist, dados) {
     const item = hist.itens.find(i => !i.atendida);
@@ -10921,7 +10987,8 @@ window.PEPT = (function () {
     return { hist: Object.assign({}, hist, { itens: hist.itens.filter(i => i !== item) }), item: item };
   };
 
-  api.selo = n => '<span class="badge-suspenso" title="Prazo suspenso por PEPT">⏸ ' + (n === null || n === undefined ? 'PEPT' : n < 0 ? 'PEPT · atraso ' + (-n) + 'd' : 'PEPT · restam ' + n + 'd') + '</span>';
+  api.selo = (n, vencida) => vencida ? '<span class="badge-pept-vencida" title="Prazo suspenso; o prazo do cliente para atender a PEPT venceu">⏸ PEPT vencida</span>'
+    : '<span class="badge-suspenso" title="Prazo suspenso por PEPT">⏸ ' + (n === null || n === undefined ? 'PEPT' : n < 0 ? 'PEPT · atraso ' + (-n) + 'd' : 'PEPT · restam ' + n + 'd') + '</span>';
 
   // ---------- planilha ----------
   const planilha = () => gapi.client.sheets.spreadsheets;
@@ -11002,9 +11069,39 @@ window.PEPT = (function () {
     const data = el('input', { type: 'date', class: 'pept-data', max: hojeIso(), value: hojeIso() });
     const previa = el('div', { class: 'pept-nota' });
     const partes = [];
+    const g = api.grupo(r.atv), tipos = api.TIPOS[g];
+    const nota = (t, c) => el('div', { class: c || 'pept-nota' }, t);
+    const seletor = () => el('select', { class: 'pept-data' }, ...tipos.map(t => el('option', { value: t.id }, t.nome + (t.prazoCliente ? ' — cliente: ' + t.prazoCliente + ' dias' : ''))));
+    const tipo = seletor();
+    const em = api.emissao(r, hist);
+    const campoEm = el('input', { type: 'date', class: 'pept-data pept-emissao', max: hojeIso(), value: em.data || '' });
+    const avisos = el('div', {});
+    const avisar = () => {
+      const base = campoEm.value || null, aviso = api.confereprazo(r, hist, base);
+      avisos.replaceChildren(...[aviso && nota(aviso, 'pept-alerta'), ...(hist.itens.some(i => !i.atendida) ? [] : api.lembretes(r, undefined, base).map(t => nota(t)))].filter(Boolean));
+    };
+    campoEm.oninput = avisar;
+    if (!encerrada && !hist.ilegivel) {
+      const origem = { salva: 'data salva nesta OS', abertura: 'data de abertura vinda do SIOPI', entrada: 'não achei a emissão: usei a Entrada SIOPI — confira', nenhuma: 'informe a data' }[em.origem];
+      if (hist.itens.some(i => !i.atendida)) partes.push(avisos);
+      else partes.push(el('label', { class: 'pept-rot' }, 'Emissão da O.S. (' + origem + ')', campoEm), avisos);
+      avisar();
+    }
     if (hist.ilegivel) partes.push(el('div', { class: 'pept-alerta' }, 'O histórico de PEPT desta OS está ilegível na planilha. Nada será gravado por cima.'));
     else if (aberta) {
       partes.push(el('div', { class: 'pept-estado' }, '⏸ Prazo suspenso desde ' + br(aberta.aberta) + ' — ' + saldo(aberta.restam) + '.'));
+      const dadosTipo = tipoDe(aberta.tipo), vence = api.venceCliente(aberta);
+      if (dadosTipo) partes.push(nota('Tipo: ' + dadosTipo.nome));
+      if (vence) {
+        const falta = dia(vence) - dia(hojeIso());
+        partes.push(api.vencida(aberta)
+          ? nota('⚠️ O prazo do cliente venceu em ' + br(vence) + (g === 'B' ? '. Se a pendência não foi comprovada, a análise pode ser concluída como inviável.' : '. Comunique a agência e aponte no RAE o que não foi atendido.'), 'pept-alerta')
+          : nota('Cliente tem até ' + br(vence) + (falta === 0 ? ' (vence hoje).' : ' (faltam ' + dias(falta) + ').')));
+      } else if (!dadosTipo && (g === 'B' || g === 'E')) {
+        const escolher = seletor();
+        partes.push(el('label', { class: 'pept-rot' }, 'Informe o tipo para ver o prazo do cliente', escolher),
+          el('div', { class: 'pept-acoes' }, el('button', { type: 'button', class: 'pept-btn', onclick: ev => acao(r, h => ({ hist: Object.assign({}, h, { itens: h.itens.map(i => i.atendida ? i : Object.assign({}, i, { tipo: escolher.value })) }) }), 'Tipo da PEPT salvo.', ev.target) }, 'Salvar tipo')));
+      }
       const atualizar = () => { try { const x = api.atender(hist, { data: data.value, hoje: hojeIso() }); previa.textContent = x.entrega ? 'Nova entrega: ' + br(x.entrega) : 'Sem data de entrega para recalcular.'; } catch (e) { previa.textContent = e.message; } };
       data.min = aberta.aberta; data.oninput = atualizar; atualizar();
       partes.push(el('label', { class: 'pept-rot' }, 'Data do atendimento', data), previa,
@@ -11014,30 +11111,35 @@ window.PEPT = (function () {
     } else if (encerrada) partes.push(el('div', { class: 'pept-nota' }, 'OS encerrada: não há prazo a suspender.'));
     else {
       if (/com PEPT/.test(r.st)) partes.push(el('div', { class: 'pept-alerta' }, 'Esta OS está marcada com PEPT, mas sem a data de abertura: o prazo ainda está correndo. Informe a data registrada no SIOPI.'));
-      const atualizar = () => { try { const x = api.abrir(hist, { data: data.value, entrega: r.ent, st: r.st, hoje: hojeIso() }).itens.slice(-1)[0]; previa.textContent = 'Entrega atual: ' + br(r.ent) + ' — no registro, ' + saldo(x.restam) + '.'; } catch (e) { previa.textContent = e.message; } };
-      data.oninput = atualizar; atualizar();
+      const atualizar = () => { try { const x = api.abrir(hist, { data: data.value, entrega: r.ent, st: r.st, hoje: hojeIso() }).itens.slice(-1)[0]; const v = api.venceCliente({ aberta: x.aberta, tipo: tipo.value }); previa.textContent = 'Entrega atual: ' + br(r.ent) + ' — no registro, ' + saldo(x.restam) + '.' + (v ? ' Cliente terá até ' + br(v) + '.' : ''); } catch (e) { previa.textContent = e.message; } };
+      data.oninput = atualizar; tipo.onchange = atualizar;
+      if (g === 'B' && hist.itens.some(i => i.tipo === 'doc')) tipo.value = 'analise';
+      atualizar();
+      if (tipos.length > 1) partes.push(el('label', { class: 'pept-rot' }, 'Tipo de PEPT', tipo));
       partes.push(el('label', { class: 'pept-rot' }, 'Data do registro no SIOPI', data), previa,
         el('div', { class: 'pept-acoes' }, el('button', { type: 'button', class: 'pept-btn prim', onclick: ev => {
+          const repetida = (g === 'B' || g === 'E') && hist.itens.some(i => i.tipo === tipo.value);
+          if (repetida && !confirm('Já houve uma PEPT deste tipo nesta OS. O caderno prevê ' + (g === 'E' ? 'uma única PEPT' : 'uma de cada tipo') + '. Registrar mesmo assim?')) return;
           if (!confirm('Registrar a PEPT e suspender o prazo? (A PEPT no SIOPI continua sendo aberta por você.)')) return;
-          acao(r, (h, atual) => ({ hist: api.abrir(h, { data: data.value, entrega: atual.ent, st: atual.st, hoje: hojeIso() }), st: api.statusAoAbrir(atual.st) }), '⏸ PEPT registrada: prazo suspenso.', ev.target);
+          acao(r, (h, atual) => ({ hist: api.abrir(h, { data: data.value, entrega: atual.ent, st: atual.st, tipo: tipo.value, emissao: campoEm.value, hoje: hojeIso() }), st: api.statusAoAbrir(atual.st) }), '⏸ PEPT registrada: prazo suspenso.', ev.target);
         } }, 'Registrar abertura da PEPT')));
     }
     const fechadas = hist.itens.filter(i => i.atendida);
     if (fechadas.length) partes.push(el('div', { class: 'pept-nota' }, 'Entrega original: ' + br(hist.original)),
-      ...fechadas.map(i => el('div', { class: 'pept-nota' }, 'PEPT ' + br(i.aberta) + ' a ' + br(i.atendida) + (i.entregaDepois ? ' → entrega ' + br(i.entregaDepois) : ''))));
+      ...fechadas.map(i => el('div', { class: 'pept-nota' }, 'PEPT ' + (tipoDe(i.tipo) ? '(' + tipoDe(i.tipo).nome + ') ' : '') + br(i.aberta) + ' a ' + br(i.atendida) + (i.entregaDepois ? ' → entrega ' + br(i.entregaDepois) : ''))));
     cx.replaceChildren(...partes);
   };
 
   api.permitirStatus = function (r, novo) {
     const aberta = api.aberta(r);
-    if (aberta && ['OS Concluída', 'OS Cancelada'].includes(novo)) return confirm('Há uma PEPT aberta nesta OS. O COT diz para não concluir nem cancelar antes de ela ser solucionada (3.3.2.5.3.1). Mudar o status mesmo assim?');
+    if (aberta && ['OS Concluída', 'OS Cancelada'].includes(novo)) return confirm(api.avisoEncerrar(r, aberta, novo));
     if (aberta && !/com PEPT/.test(novo)) return confirm('A PEPT continua aberta e o prazo segue suspenso. Para retomar o prazo, use "PEPT atendida". Mudar só o status?');
     if (!aberta && /com PEPT/.test(novo)) setTimeout(() => showToast('Para suspender o prazo, abra a OS e registre a data em "PEPT e prazo".'), 3800);
     return true;
   };
 
   const estilo = document.createElement('style');
-  estilo.textContent = '.badge-suspenso{background:rgba(59,130,246,.14);border:1px solid rgba(59,130,246,.4);color:#60a5fa;font-size:9px;padding:2px 6px;border-radius:10px;font-weight:700;margin-left:4px;white-space:nowrap}body.light-mode .badge-suspenso{color:#1d4ed8}.pept-estado{font-weight:700;font-size:13px;color:#60a5fa}body.light-mode .pept-estado{color:#1d4ed8}.pept-alerta{font-size:12px;border:1px solid rgba(255,159,10,.45);background:rgba(255,159,10,.12);border-radius:8px;padding:8px;margin-bottom:6px}.pept-nota{font-size:12px;color:var(--text-secondary,#aaa);margin-top:4px}.pept-rot{display:block;font-size:12px;color:var(--text-secondary,#aaa);margin-top:8px}.pept-data{display:block;margin-top:4px;padding:9px;font-size:16px;border-radius:8px;border:1px solid var(--mica-border-light,#444);background:var(--mica-surface,#1a1a1c);color:inherit}.pept-acoes{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.pept-btn{padding:10px 12px;border-radius:8px;border:1px solid var(--mica-border-light,#444);background:var(--mica-surface,#1a1a1c);color:var(--text-primary,#f2f2f4);font:inherit;font-size:13px;cursor:pointer}.pept-btn.prim{background:#1d4ed8;border-color:#1d4ed8;color:#fff}.pept-btn:disabled{opacity:.5}';
+  estilo.textContent = '.badge-pept-vencida{background:rgba(249,115,22,.18);border:1px solid rgba(249,115,22,.6);color:#fb923c;font-size:9px;padding:2px 6px;border-radius:10px;font-weight:700;margin-left:4px;white-space:nowrap}body.light-mode .badge-pept-vencida{color:#c2410c}select.pept-data{width:100%;max-width:100%}.badge-suspenso{background:rgba(59,130,246,.14);border:1px solid rgba(59,130,246,.4);color:#60a5fa;font-size:9px;padding:2px 6px;border-radius:10px;font-weight:700;margin-left:4px;white-space:nowrap}body.light-mode .badge-suspenso{color:#1d4ed8}.pept-estado{font-weight:700;font-size:13px;color:#60a5fa}body.light-mode .pept-estado{color:#1d4ed8}.pept-alerta{font-size:12px;border:1px solid rgba(255,159,10,.45);background:rgba(255,159,10,.12);border-radius:8px;padding:8px;margin-bottom:6px}.pept-nota{font-size:12px;color:var(--text-secondary,#aaa);margin-top:4px}.pept-rot{display:block;font-size:12px;color:var(--text-secondary,#aaa);margin-top:8px}.pept-data{display:block;margin-top:4px;padding:9px;font-size:16px;border-radius:8px;border:1px solid var(--mica-border-light,#444);background:var(--mica-surface,#1a1a1c);color:inherit}.pept-acoes{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.pept-btn{padding:10px 12px;border-radius:8px;border:1px solid var(--mica-border-light,#444);background:var(--mica-surface,#1a1a1c);color:var(--text-primary,#f2f2f4);font:inherit;font-size:13px;cursor:pointer}.pept-btn.prim{background:#1d4ed8;border-color:#1d4ed8;color:#fff}.pept-btn:disabled{opacity:.5}';
   document.head.append(estilo);
   return api;
 })();
