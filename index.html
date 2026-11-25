@@ -3045,7 +3045,7 @@ function parseRow(r,i){
     // Categoria do Imóvel (Novo/Usado) — extraída do SIOPI. Coluna nova (AI por default);
     // se a empresa mapeou outro índice em CFG.COLS.categoria, esse prevalece.
     categoria:P(r[ci('categoria',34)]),
-    peptHist:(window.PEPT&&PEPT.COL>=0)?P(r[PEPT.COL]):'',
+    peptHist:window.PEPT?(PEPT.mapa[P(r[ci('os',1)])]||''):'',
     ord:P(r[ci('item',0)])
   };
 }
@@ -3391,10 +3391,9 @@ async function loadPlanilha1(){
 }
 async function loadData(){
   try{
-    const r=await gapi.client.sheets.spreadsheets.values.get({spreadsheetId:CFG.SID,range:`${CFG.SHT}!A1:AZ`});
-    const tudo=r.result.values||[];
-    if(window.PEPT)PEPT.lerCabecalho(tudo[0]||[]);
-    const rows=tudo.slice(1);
+    const r=await gapi.client.sheets.spreadsheets.values.get({spreadsheetId:CFG.SID,range:`${CFG.SHT}!A2:AZ`});
+    const rows=r.result.values||[];
+    if(window.PEPT)await PEPT.carregar();
     ALL=rows.map((r,i)=>({r,i})).filter(x=>x.r.length>0&&x.r[0]).map(x=>parseRow(x.r,x.i));
     loadPlanilha1();
     window.danthiART={
@@ -10865,9 +10864,8 @@ async function _uploadFotoParaDrive(file, nome, folderId, barId, onProgress){
 <!-- PEPT:INICIO — suspensão do prazo da O.S. enquanto a PEPT está aberta (COT AvaliaBens 075, 3.3.2.5.3) -->
 <script>
 window.PEPT = (function () {
-  const TITULO = 'PEPT_HISTORICO';          // a coluna é achada pelo título, não por posição fixa
-  const ULTIMA = 51;                        // AZ: limite do intervalo que o dashboard lê
-  const api = { COL: -1 };
+  const ABA = 'PEPT_HISTORICO';             // aba própria (OS | histórico): não disputa coluna com a aba das OS
+  const api = { mapa: {} };
 
   // ---------- datas (dias corridos, sem fuso nem horário de verão) ----------
   const dia = t => {
@@ -10925,44 +10923,57 @@ window.PEPT = (function () {
   api.selo = n => '<span class="badge-suspenso" title="Prazo suspenso por PEPT">⏸ ' + (n === null || n === undefined ? 'PEPT' : n < 0 ? 'PEPT · atraso ' + (-n) + 'd' : 'PEPT · restam ' + n + 'd') + '</span>';
 
   // ---------- planilha ----------
-  api.lerCabecalho = cab => { api.COL = (cab || []).findIndex(c => String(c).trim() === TITULO); };
-  const faixa = f => `${CFG.SHT}!${f}`;
-  const ler = async (f, extra) => (await gapi.client.sheets.spreadsheets.values.get(Object.assign({ spreadsheetId: CFG.SID, range: faixa(f) }, extra || {}))).result.values || [];
+  const planilha = () => gapi.client.sheets.spreadsheets;
+  const ler = async (range) => (await planilha().values.get({ spreadsheetId: CFG.SID, range: range })).result.values || [];
+  const abas = async () => ((await planilha().get({ spreadsheetId: CFG.SID, fields: 'sheets(properties(sheetId,title))' })).result.sheets || []).map(x => x.properties.title);
+  // linhas da aba do histórico: [número da linha, OS, histórico]; a primeira linha é o título
+  const linhasHist = async () => (await ler(ABA + '!A1:B')).map((l, i) => ({ n: i + 1, os: String(l[0] || '').trim(), texto: String(l[1] || '') })).slice(1);
+  const montarMapa = ls => ls.reduce((m, l) => { if (l.os && !(l.os in m)) m[l.os] = l.texto; return m; }, {});
 
-  // cria a coluna na primeira vez, SEMPRE depois da última célula ocupada (nunca por cima de dado existente)
-  async function garantirColuna() {
-    const tudo = await ler('A1:AZ', { valueRenderOption: 'FORMULA' });
-    api.lerCabecalho(tudo[0] || []);
-    if (api.COL >= 0) return api.COL;
-    const mapeadas = Object.values(Object.assign({}, _COL_DEFAULTS, CFG.COLS || {})).map(Number).filter(n => !isNaN(n));
-    const col = Math.max(Math.max(...mapeadas) + 1, ...tudo.map(l => l.length));
-    if (col > ULTIMA) throw new Error('não há coluna livre até AZ na planilha');
-    const letra = _idxToColLetter(col);
-    if (!confirm(`Primeiro uso da PEPT: vou criar na planilha a coluna ${letra} com o título ${TITULO} (ela está vazia). Continuar?`)) throw new Error('criação da coluna cancelada');
-    const info = await gapi.client.sheets.spreadsheets.get({ spreadsheetId: CFG.SID, fields: 'sheets(properties(sheetId,title,gridProperties(columnCount)))' });
-    const aba = (info.result.sheets || []).map(x => x.properties).find(x => x.title === CFG.SHT);
-    if (!aba) throw new Error('aba da planilha não encontrada');
-    const faltam = col + 1 - aba.gridProperties.columnCount;
-    if (faltam > 0) await gapi.client.sheets.spreadsheets.batchUpdate({ spreadsheetId: CFG.SID, resource: { requests: [{ appendDimension: { sheetId: aba.sheetId, dimension: 'COLUMNS', length: faltam } }] } });
-    await gapi.client.sheets.spreadsheets.values.update({ spreadsheetId: CFG.SID, range: faixa(letra + '1'), valueInputOption: 'RAW', resource: { values: [[TITULO]] } });
-    api.COL = col;
-    return col;
+  api.carregar = async function () {
+    try { api.mapa = montarMapa(await linhasHist()); }
+    catch (e) {
+      const msg = String((e.result && e.result.error && e.result.error.message) || e.message || e);
+      if (/unable to parse range/i.test(msg)) api.mapa = {};             // a aba ainda não existe: nenhuma PEPT registrada
+      else { console.warn('[pept] não li o histórico', e); showToast('Não consegui ler o histórico de PEPT; atualize o dashboard.'); }
+    }
+  };
+
+  // cria a aba só no primeiro registro e com autorização; uma aba de mesmo nome com outro conteúdo nunca é usada
+  async function garantirAba() {
+    if ((await abas()).includes(ABA)) {
+      const cab = (await ler(ABA + '!A1:B1'))[0] || [];
+      if (cab.length && !(cab[0] === 'OS' && cab[1] === 'HISTORICO')) throw new Error('já existe uma aba ' + ABA + ' com outro conteúdo');
+      if (!cab.length) {
+        if ((await ler(ABA + '!A1:B')).length) throw new Error('já existe uma aba ' + ABA + ' com outro conteúdo');
+        await planilha().values.update({ spreadsheetId: CFG.SID, range: ABA + '!A1:B1', valueInputOption: 'RAW', resource: { values: [['OS', 'HISTORICO']] } });
+      }
+      return;
+    }
+    if (!confirm(`Primeiro uso da PEPT: vou criar na planilha uma aba nova chamada ${ABA}, para guardar o histórico. As abas atuais não ganham colunas. Continuar?`)) throw new Error('criação da aba cancelada');
+    await planilha().batchUpdate({ spreadsheetId: CFG.SID, resource: { requests: [{ addSheet: { properties: { title: ABA } } }] } });
+    await planilha().values.update({ spreadsheetId: CFG.SID, range: ABA + '!A1:B1', valueInputOption: 'RAW', resource: { values: [['OS', 'HISTORICO']] } });
   }
 
   // relê a linha antes de gravar: se OS foi excluída/inserida em outro aparelho, o número da linha mudou
   async function gravar(r, mudar) {
-    const col = await garantirColuna();
-    const linha = (await ler(`A${r.ri}:AZ${r.ri}`))[0] || [];
+    await garantirAba();
+    const linhas = await linhasHist();
+    api.mapa = montarMapa(linhas);
+    const linha = (await ler(`${CFG.SHT}!A${r.ri}:AZ${r.ri}`))[0] || [];
     const atual = parseRow(linha, r.ri - 2);
     if (atual.os !== r.os) throw new Error('a planilha mudou (a OS não está mais nesta linha). Atualize o dashboard e tente de novo');
-    const res = mudar(api.ler(linha[col]), atual);
-    const dados = [{ range: faixa(_idxToColLetter(col) + r.ri), values: [[JSON.stringify(res.hist)]] }];
-    await gapi.client.sheets.spreadsheets.values.batchUpdate({ spreadsheetId: CFG.SID, resource: { valueInputOption: 'RAW', data: dados } });
+    const res = mudar(api.ler(api.mapa[r.os]), atual);
+    const texto = JSON.stringify(res.hist), existente = linhas.find(l => l.os === r.os);
+    if (existente) await planilha().values.update({ spreadsheetId: CFG.SID, range: `${ABA}!B${existente.n}`, valueInputOption: 'RAW', resource: { values: [[texto]] } });
+    else await planilha().values.append({ spreadsheetId: CFG.SID, range: ABA + '!A:B', valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS', resource: { values: [[r.os, texto]] } });
+    api.mapa[r.os] = texto;
+    const faixa = campo => `${CFG.SHT}!${_campoToCol(campo)}${r.ri}`;
     const outros = [];
-    if (res.entrega) outros.push({ range: faixa(_campoToCol('ent') + r.ri), values: [[br(res.entrega)]] });
-    if (res.st && res.st !== atual.st) outros.push({ range: faixa(_campoToCol('st') + r.ri), values: [[res.st]] });
-    outros.push({ range: faixa(_campoToCol('pept') + r.ri), values: [[res.hist.itens.some(i => !i.atendida) ? 'TRUE' : 'FALSE']] });
-    await gapi.client.sheets.spreadsheets.values.batchUpdate({ spreadsheetId: CFG.SID, resource: { valueInputOption: 'USER_ENTERED', data: outros } });
+    if (res.entrega) outros.push({ range: faixa('ent'), values: [[br(res.entrega)]] });
+    if (res.st && res.st !== atual.st) outros.push({ range: faixa('st'), values: [[res.st]] });
+    outros.push({ range: faixa('pept'), values: [[res.hist.itens.some(i => !i.atendida) ? 'TRUE' : 'FALSE']] });
+    await planilha().values.batchUpdate({ spreadsheetId: CFG.SID, resource: { valueInputOption: 'USER_ENTERED', data: outros } });
   }
 
   async function acao(r, mudar, aviso, botao) {
