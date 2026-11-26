@@ -11249,7 +11249,11 @@ window.ANALISE = (function () {
   const ESPERA_AGENTE = 90000, ESPERA_TOTAL = 420000, PASSO = 3000;
   const pausa = ms => new Promise(r => setTimeout(r, ms));
   const novoId = () => Date.now().toString(36) + Array.from(crypto.getRandomValues(new Uint8Array(6)), b => (b % 36).toString(36)).join('');
-  const lixeira = id => gapi.client.drive.files.update({ fileId: id, resource: { trashed: true }, supportsAllDrives: true }).catch(e => console.warn('[siopi agente] não apaguei o arquivo temporário', e));
+  // os pedidos do gapi não têm .catch (só .then): usar await. Falhar ao apagar nunca pode perder o resultado da busca.
+  const lixeira = async id => {
+    try { await gapi.client.drive.files.update({ fileId: id, resource: { trashed: true }, supportsAllDrives: true }); }
+    catch (e) { console.warn('[siopi agente] não apaguei o arquivo temporário', e); }
+  };
 
   async function respostas(nome) {
     const r = await gapi.client.drive.files.list({ q: "name='" + nome + "' and '" + CFG.DID + "' in parents and trashed=false", fields: 'files(id,modifiedTime)', orderBy: 'modifiedTime desc', pageSize: 5, supportsAllDrives: true, includeItemsFromAllDrives: true });
