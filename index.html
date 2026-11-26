@@ -2005,7 +2005,7 @@ body:not(.light-mode) .badge.st-vistoriada{background:rgba(234,179,8,.18) !impor
       </div>
       <div class="fg" style="margin-bottom:.6rem">
         <div class="ff full">
-          <label>Buscar dados via SIOPI (extensão)</label>
+          <label>Buscar dados via SIOPI</label>
           <div style="display:flex;gap:.5rem;align-items:stretch">
             <input id="nova-siopi-os" placeholder="7891.4095.000167944/2025.01.01" style="flex:1"
               onkeydown="if(event.key==='Enter'){event.preventDefault();buscarViaSIOPINovaOS();}">
@@ -11243,6 +11243,56 @@ window.ANALISE = (function () {
 })();
 </script>
 <!-- ANALISE:FIM -->
+<!-- SIOPI-AGENTE:INICIO — o "Obter dados" do SIOPI é atendido pelo agente do computador (sem extensão) -->
+<script>
+(function () {
+  const ESPERA_AGENTE = 90000, ESPERA_TOTAL = 420000, PASSO = 3000;
+  const pausa = ms => new Promise(r => setTimeout(r, ms));
+  const novoId = () => Date.now().toString(36) + Array.from(crypto.getRandomValues(new Uint8Array(6)), b => (b % 36).toString(36)).join('');
+  const lixeira = id => gapi.client.drive.files.update({ fileId: id, resource: { trashed: true }, supportsAllDrives: true }).catch(e => console.warn('[siopi agente] não apaguei o arquivo temporário', e));
+
+  async function respostas(nome) {
+    const r = await gapi.client.drive.files.list({ q: "name='" + nome + "' and '" + CFG.DID + "' in parents and trashed=false", fields: 'files(id,modifiedTime)', orderBy: 'modifiedTime desc', pageSize: 5, supportsAllDrives: true, includeItemsFromAllDrives: true });
+    return r.result.files || [];
+  }
+  async function baixar(id) {                      // fetch + json(): acentos corretos mesmo em arquivo grande
+    const r = await fetch('https://www.googleapis.com/drive/v3/files/' + id + '?alt=media&supportsAllDrives=true', { headers: { Authorization: 'Bearer ' + TOKEN }, cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  }
+
+  async function extract(numeroOS, atividade, dataAbertura, opts) {
+    if (!numeroOS) throw new Error('Número de OS obrigatório');
+    if (!AUTH || !CFG.DID) throw new Error('Entre com Google antes de buscar no SIOPI.');
+    const id = novoId(), nome = 'siopi_resposta_' + id + '.json';
+    const pedido = await criarJsonNaPasta('siopi_pedido_' + id + '.json', { versao: 1, id: id, criado_em: new Date().toISOString(), os: String(numeroOS).trim(),
+      atividade: atividade || '', data_abertura: dataAbertura || '', sem_imagem: !!(opts && opts.skipScreenshot) }, CFG.DID);
+    showToast('Pedido enviado ao computador. Aguarde nesta tela.');
+    const inicio = Date.now();
+    let respondeu = false;
+    while (Date.now() - inicio < ESPERA_TOTAL) {
+      await pausa(PASSO);
+      let arqs = [], dados = null;
+      try { arqs = await respostas(nome); if (arqs.length) dados = await baixar(arqs[0].id); }
+      catch (e) { console.warn('[siopi agente] tentando de novo', e); continue; }     // rede do celular ou arquivo ainda subindo
+      if (arqs.length && !respondeu) { respondeu = true; showToast('O computador está buscando no SIOPI...'); }
+      if (dados && dados.id === id && dados.estado === 'pronto' && dados.resultado) {
+        arqs.forEach(a => lixeira(a.id));
+        return dados.resultado;
+      }
+      if (!respondeu && Date.now() - inicio > ESPERA_AGENTE) {
+        if (pedido && pedido.id) await lixeira(pedido.id);                           // não executa depois, sem ninguém esperando
+        throw new Error('O agente do SIOPI não respondeu em 90 s. Em "Agentes" (canto da tela), confira se o SIOPI está online e não pausado, e se o computador está ligado com internet.');
+      }
+    }
+    throw new Error('A busca no SIOPI passou de 7 minutos sem terminar. Veja o cartão SIOPI em "Agentes" e tente de novo.');
+  }
+
+  // fixo: se a extensão antiga ainda estiver instalada no computador, ela não toma o lugar do agente
+  Object.defineProperty(window, 'danthiSIOPI', { value: Object.freeze({ extract: extract, isAvailable: async () => true }), writable: false, configurable: false });
+})();
+</script>
+<!-- SIOPI-AGENTE:FIM -->
 <!-- AGENTES:INICIO — indicador online/offline dos agentes locais (batimento gravado pelo painel no Drive) -->
 <script>
 (function () {
