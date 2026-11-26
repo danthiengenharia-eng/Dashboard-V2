@@ -4131,9 +4131,7 @@ function openD(idx){
     // Aviso de tipologia divergente persiste também
     if(_draft.tipoConstrucao){
       const TIP_OPTS=['Apartamento','Casa','Casa comercial','Obra Residencial','Terreno','Sala comercial','Loja','Gleba'];
-      const raw=nrm(_draft.tipoConstrucao);
-      const sorted=[...TIP_OPTS].sort((a,b)=>b.length-a.length);
-      const matched=sorted.find(o=>raw.includes(nrm(o)));
+      const matched=tipologiaSIOPI({tipo_construcao:_draft.tipoConstrucao,endereco:r.end},TIP_OPTS).valor;
       if(matched&&matched!==r.tip&&_siopiAlerta){
         _siopiAlerta.innerHTML=`⚠️ <b>Tipologia divergente</b><br>SIOPI: <b>${matched}</b> · Dashboard: <b>${r.tip||'—'}</b><br><span style="font-size:10px;opacity:.85">Corrija manualmente em "Editar OS" se necessário.</span>`;
         _siopiAlerta.style.display='block';
@@ -4537,9 +4535,7 @@ async function enriquecerComSIOPI(){
     // Compara tipo de construção do SIOPI com tipologia da OS — só sinaliza, não edita
     if(tipoSiopi){
       const TIP_OPTS=['Apartamento','Casa','Casa comercial','Obra Residencial','Terreno','Sala comercial','Loja','Gleba'];
-      const raw=nrm(tipoSiopi);
-      const sorted=[...TIP_OPTS].sort((a,b)=>b.length-a.length);
-      const matched=sorted.find(o=>raw.includes(nrm(o)));
+      const matched=tipologiaSIOPI(result,TIP_OPTS).valor;
       const alertaEl=document.getElementById('d-siopi-alerta-tip');
       if(matched&&matched!==COS.tip){
         if(alertaEl){
@@ -6463,6 +6459,30 @@ function calcTotal(){
 // para o salvar() gravar nas colunas certas depois. Vira {} a cada nova busca.
 let NOVA_SIOPI_EXTRAS = {};
 
+// Tipologia a partir do SIOPI. O complemento da unidade vale mais que o "Tipo de construção": há OS em que o SIOPI marca
+// construção "Casa" e o complemento é "APTO 302" (caso real, 26/11/2026).
+function tipologiaSIOPI(r, opcoes){
+  const norm = s => String(s||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
+  const opcao = nome => opcoes.find(o => norm(o) === norm(nome));
+  const doSiopi = [r.tipo_construcao, r.tipologia, r.tipo_imovel].map(norm).filter(Boolean);
+  let pelaBase = '';
+  for(const alvo of doSiopi){
+    const maiores = [...opcoes].filter(o => norm(o)).sort((a,b) => norm(b).length - norm(a).length);
+    pelaBase = opcao(alvo) || maiores.find(o => alvo.includes(norm(o))) || maiores.reverse().find(o => norm(o).includes(alvo)) || '';
+    if(pelaBase) break;
+  }
+  const regras = [[/\b(?:apartamento|apto|apt|ap)\b\.? ?(?:n[o.]* ?)?\d/, 'Apartamento'], [/\bloja\b\.? ?(?:n[o.]* ?)?\d/, 'Loja'], [/\bsala\b\.? ?(?:n[o.]* ?)?\d/, 'Sala comercial']];
+  for(const fonte of [r.complemento, r.endereco]){
+    for(const [re, nome] of regras){
+      if(re.test(norm(fonte)) && opcao(nome)){
+        const diverge = !!pelaBase && norm(pelaBase) !== norm(nome);
+        return { valor: opcao(nome), aviso: diverge ? 'o complemento é "' + String(r.complemento || r.endereco).slice(0,40) + '", mas o SIOPI marca construção "' + (r.tipo_construcao || r.tipo_imovel) + '"' : '' };
+      }
+    }
+  }
+  return { valor: pelaBase, aviso: '' };
+}
+
 async function buscarViaSIOPINovaOS(){
   const inp = document.getElementById('nova-siopi-os');
   const btn = document.getElementById('nova-siopi-btn');
@@ -6557,12 +6577,13 @@ async function buscarViaSIOPINovaOS(){
       else { console.warn('[SIOPI Nova OS] atividade não cadastrada:', r.atividade_extraida); }
     }
 
-    // Tipologia: preenche se casar com uma das opções
-    if(r.tipo_construcao || r.tipo_imovel){
+    // Tipologia: confere e corrige (inclusive a que veio do .txt)
+    let tipoDoSiopi = { valor: '', aviso: '' };
+    {
       const selTip = document.getElementById('ntip');
-      const alvo = (r.tipo_construcao || r.tipo_imovel).toLowerCase();
-      const match = [...selTip.options].find(o => o.text.toLowerCase().includes(alvo) || alvo.includes(o.text.toLowerCase()));
-      if(match) selTip.value = match.value;
+      tipoDoSiopi = tipologiaSIOPI(r, [...selTip.options].map(o => o.text));
+      const op = [...selTip.options].find(o => o.text === tipoDoSiopi.valor);
+      if(op) selTip.value = op.value;
     }
 
     // Data SIOPI = Data de Abertura da demanda
@@ -6595,6 +6616,7 @@ async function buscarViaSIOPINovaOS(){
 
     const partes = [];
     if(r.endereco) partes.push('📍 ' + r.endereco);
+    if(tipoDoSiopi.valor) partes.push('🏠 ' + tipoDoSiopi.valor + (tipoDoSiopi.aviso ? ' (confira: ' + tipoDoSiopi.aviso + ')' : ''));
     if(r.categoria) partes.push('🏷️ ' + r.categoria);
     if(r.atividade_extraida) partes.push('⚙️ ' + r.atividade_extraida);
     if(r.documentos && r.documentos.length) partes.push(`📎 ${r.documentos.filter(d=>d.bytes).length}/${r.documentos.length} doc(s)`);
