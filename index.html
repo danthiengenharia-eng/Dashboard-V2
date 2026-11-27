@@ -11179,6 +11179,7 @@ window.PEPT = (function () {
 window.ANALISE = (function () {
   const CORES = { verde: ['#22c55e', 'Sem erro'], amarelo: ['#eab308', 'Atenção'], vermelho: ['#ef4444', 'Bloqueio ou PEPT'] };
   let VEZ = 0;
+  const ATV_ANALISADAS = /^(A-?41[37]|B-?43[78]|E-?(401|005)|G-?(402|415|416|006))/i;   // as mesmas de analise/atividades.py
   const el = (t, at, ...fi) => { const e = document.createElement(t); for (const [k, v] of Object.entries(at || {})) { if (k.startsWith('on')) e[k] = v; else e.setAttribute(k, v); } e.append(...fi.filter(f => f !== null && f !== undefined && f !== false)); return e; };
   const nota = (t, c) => el('div', { class: c || 'pept-nota' }, t);
 
@@ -11188,7 +11189,8 @@ window.ANALISE = (function () {
     const itens = Array.isArray(d.itens) ? d.itens : [];
     const partes = [
       el('div', { class: 'an-topo' }, el('span', { class: 'an-bola', style: 'background:' + cor[0] }), el('b', {}, cor[1]), el('span', { class: 'pept-nota' }, ' · ' + String(d.analisado_em || ''))),
-      nota(d.modo === 'observacao' ? 'Analisada no modo observação: nada foi executado.' : 'Etapa 1 do SIMIL: ' + String(d.etapa1 || 'sem informação') + '. A PEPT não é aberta sozinha.')];
+      nota(d.modo === 'observacao' ? 'Analisada no modo observação: nada foi executado.' : 'Etapa 1 do SIMIL: ' + String(d.etapa1 || 'sem informação') + '. A PEPT não é aberta sozinha.'),
+      d.prazos ? nota(String(d.prazos)) : null];
     itens.forEach(i => {
       const e = i.evidencia || {};
       partes.push(el('div', { class: 'an-item ' + (i.nivel === 'alerta' ? 'an-alerta' : 'an-grave') },
@@ -11201,6 +11203,7 @@ window.ANALISE = (function () {
       el('div', { class: 'pept-acoes' }, el('button', { type: 'button', class: 'pept-btn prim', onclick: async () => {
         try { await navigator.clipboard.writeText(String(d.texto_pept)); showToast('Texto da PEPT copiado. Registre a abertura em "PEPT e prazo".'); } catch (x) { showToast('Não consegui copiar: selecione o texto.'); }
       } }, 'Copiar texto')));
+    if (d.texto_conferir) partes.push(el('details', { class: 'pept-nota' }, el('summary', {}, 'Documentos fora da pasta: só pedir se a falta se confirmar no SIOPI'), el('pre', { class: 'an-texto' }, String(d.texto_conferir))));
     if ((d.nao_verificado || []).length) partes.push(el('details', { class: 'pept-nota' }, el('summary', {}, 'O que o agente não verificou'), ...d.nao_verificado.map(n => nota('• ' + n))));
     cx.replaceChildren(...partes);
   }
@@ -11238,20 +11241,20 @@ window.ANALISE = (function () {
     carregarResumo: carregarResumo,
     // só devolve texto fixo escolhido pela cor: nada do arquivo entra no HTML
     selo: function (r) {
-      if (!/^A-?413/i.test(String(r.atv || ''))) return '';
+      if (!ATV_ANALISADAS.test(String(r.atv || ''))) return '';
       const x = RESUMO[chave(r)], cor = x && Object.prototype.hasOwnProperty.call(EMOJI, x.cor) ? x.cor : null;
       return cor ? '<span class="badge-analise an-s-' + cor + '" title="Análise documental: ' + CORES[cor][1] + ' (abra a OS para ver)">📄 ' + EMOJI[cor] + '</span>' : '';
     },
     abrir: function (r) {
       const cx = document.getElementById('d-analise'), sec = document.getElementById('d-analise-sec');
       if (!cx || !sec) return;
-      const vez = ++VEZ, a413 = /^A-?413/i.test(String(r.atv || ''));
+      const vez = ++VEZ, a413 = ATV_ANALISADAS.test(String(r.atv || ''));
       sec.style.display = a413 ? '' : 'none';
       cx.replaceChildren(nota(!a413 ? '' : AUTH ? 'Procurando a análise…' : 'Entre com Google para ver a análise.'));
       if (!a413 || !AUTH) return;
       ler(r).then(d => {
         if (vez !== VEZ) return;                                   // o usuário já abriu outra OS
-        if (!d) cx.replaceChildren(nota('Sem análise para esta OS. O agente analisa as OS A413 novas assim que os documentos chegam ao computador.'));
+        if (!d) cx.replaceChildren(nota('Sem análise para esta OS. O agente analisa as OS novas assim que os documentos chegam ao computador.'));
         else if (d.erro) cx.replaceChildren(nota(d.erro));
         else desenhar(cx, d);
       }).catch(e => { console.warn('[analise]', e); if (vez === VEZ) cx.replaceChildren(nota('Não consegui ler a análise agora. Abra a OS de novo.')); });
