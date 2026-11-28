@@ -178,3 +178,27 @@ def test_resolver_pasta_real_do_usuario():
              "INBOX.Archive.Cancelamento OS", "INBOX.Archive.Revisão OS", "INBOX.Trash", "INBOX.Trash.Revisão"]
     assert resolver_pasta(nomes, ".", "Revisão OS") == "INBOX.Archive.Revisão OS"
     assert resolver_pasta(nomes, ".", "Cancelamento OS") == "INBOX.Archive.Cancelamento OS"
+
+
+def test_lote_grande_manda_um_resumo_e_so_alertas_individuais(tmp_path):
+    msgs = []
+    for i in range(7):
+        os_n = f"1111.2222.00000000{i}/2026.01.01"
+        t = TXT.replace(OS, os_n)
+        msgs.append((str(i), Mensagem("AG1@CAIXA.GOV.BR", f"Convocação de Ordem da Serviço {os_n}", t, [("c.txt", t.encode())], id=f"<{i}>")))
+    ctx, caixa, plan, notif = montar(tmp_path, msgs)
+    rodar_uma_vez(ctx)
+    assert len(plan.listar()) == 7 and [l["item"] for l in plan.listar()] == [str(i) for i in range(1, 8)]
+    assert len(notif.enviados) == 1 and "7 e-mails processados" in notif.enviados[0]["titulo"]
+
+
+def test_ensaio_mostra_o_que_ja_existe_e_o_que_sera_criado(tmp_path):
+    from agente_email.ensaio import descrever
+    plan = PlanilhaMemoria([{"os": OSP, "item": "9", "st": "Sem vistoria - não agendado"}])
+    nova = TXT.replace(OS, "5555.6666.000000002/2026.01.01")
+    msgs = [("1", convocacao()),
+            ("2", Mensagem("AG1@CAIXA.GOV.BR", "Convocação de Ordem da Serviço 5555.6666.000000002/2026.01.01", nova, [("c.txt", nova.encode())], id="<n>")),
+            ("3", Mensagem("AG1@CAIXA.GOV.BR", "Conclusão da Ordem de Serviço 7777.8888.000000003/2026.01.01", "", id="<c>"))]
+    saida = "\n".join(descrever(msgs, plan, CFG, HOJE))
+    assert "JÁ ESTÁ NA PLANILHA (item 9)" in saida and "CRIAR item 10" in saida and "OS NÃO ESTÁ NA PLANILHA" in saida
+    assert "1 OS a criar · 1 já existem (ignoradas) · 0 a aplicar · 1 sem OS na planilha" in saida

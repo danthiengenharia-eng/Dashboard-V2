@@ -16,7 +16,7 @@ from .config import Configuracao
 from .criar_os import NovaOS
 from .drive import DriveLocal
 from .estado import Estado
-from .notificar import Notificador, evento_ics
+from .notificar import Notificador, NotificadorColetor, evento_ics
 from .planilha import Planilha
 from .siopi import SiopiArquivos, campos_planilha, documentos
 
@@ -264,16 +264,28 @@ def completar_siopi(ctx: Contexto) -> None:
             log.exception("falha ao completar com o SIOPI: %s", os_numero)
 
 
+LOTE = 5   # acima disso, os avisos comuns viram um resumo só
+
+
 def rodar_uma_vez(ctx: Contexto) -> int:
     n = 0
     ctx.siopi_fora = False
-    for uid, msg in ctx.caixa.listar():
-        try:
-            processar(ctx, uid, msg)
-            n += 1
-        except Exception:
-            log.exception("erro inesperado no e-mail %s", uid)
-    if ctx.siopi is not None:
-        completar_siopi(ctx)
-    sincronizar_agenda(ctx)
+    mensagens = ctx.caixa.listar()
+    real, coletor = ctx.notif, None
+    if len(mensagens) > LOTE:
+        coletor = ctx.notif = NotificadorColetor(real)
+    try:
+        for uid, msg in mensagens:
+            try:
+                processar(ctx, uid, msg)
+                n += 1
+            except Exception:
+                log.exception("erro inesperado no e-mail %s", uid)
+        if ctx.siopi is not None:
+            completar_siopi(ctx)
+        sincronizar_agenda(ctx)
+    finally:
+        ctx.notif = real
+        if coletor:
+            coletor.fechar(n)
     return n

@@ -52,3 +52,15 @@ mudar e **remove** quando a OS é concluída ou cancelada. Em revisão, cria tam
    ```
 3. Rode normalmente. O agente cria o calendário "Entregas OS" na primeira vez. Se falhar, ele tenta de novo nas rodadas seguintes
    e avisa no iPhone. Sem `ICLOUD_USUARIO`, ele volta a mandar o arquivo .ics no aviso.
+
+## Virada para a planilha real (primeira vez, com várias demandas)
+1. **Backup:** na planilha real, *Arquivo → Fazer uma cópia* (ou *Histórico de versões → Nomear a versão atual*).
+2. **Compartilhe a planilha REAL** com `agente-email@agente-danthi.iam.gserviceaccount.com` (Editor). Até aqui só a cópia estava.
+3. No `.env`: `CONFIG_DASHBOARD=G:\Meu Drive\dashboard-cef-config.json`, `PASTA_LAUDOS=` a `Laudos` do Drive, apague a linha
+   `SIOPI_PASTA`, e `DESDE=` o dia do e-mail mais antigo que AINDA NÃO está na planilha.
+4. **Apague `saida\estado.json`** (é a memória do teste).
+5. `python -m agente_email --simular`: lista cada e-mail com o que será feito e confere a planilha real (somente leitura):
+   "CRIAR item N", "JÁ ESTÁ NA PLANILHA (ignorada)", "OS NÃO ESTÁ NA PLANILHA". Confira o RESUMO no fim.
+6. Só então `python -m agente_email --uma-vez`. Os e-mails são tratados do mais antigo ao mais novo; cada OS espera o SIOPI e entra
+   completa. Com mais de 5 e-mails, o iPhone recebe **um resumo** (alertas continuam individuais).
+7. Conferiu? `python -m agente_email --loop` (e o início automático com o Windows).

@@ -66,3 +66,20 @@ class NtfyNotificador(Notificador):
         else:
             corpo = json.dumps({"topic": self.topico, "title": titulo, "message": texto, "priority": prio}, ensure_ascii=False)
             self.http("POST", self.servidor, {**self._auth(), "Content-Type": "application/json"}, corpo.encode("utf-8"))
+
+
+class NotificadorColetor(Notificador):
+    """Em lotes grandes: guarda os avisos comuns e manda UM resumo; só alertas (prioridade alta) saem na hora."""
+    def __init__(self, destino: Notificador):
+        self.destino, self.itens = destino, []
+
+    def enviar(self, titulo, texto, prioridade="default", anexo=None):
+        if prioridade in ("high", "urgent"):
+            self.destino.enviar(titulo, texto, prioridade, anexo)
+        else:
+            self.itens.append(titulo)
+
+    def fechar(self, total: int):
+        if self.itens:
+            corpo = "\n".join("• " + t for t in self.itens[:15]) + (f"\n… e mais {len(self.itens) - 15}" if len(self.itens) > 15 else "")
+            self.destino.enviar(f"{total} e-mails processados", corpo, "default")

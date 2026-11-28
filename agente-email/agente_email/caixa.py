@@ -110,7 +110,7 @@ def resolver_pasta(existentes: List[str], delim: str, desejada: str) -> str:
 
 
 class CaixaImap(Caixa):
-    LIMITE = 50
+    LIMITE = 200
 
     def __init__(self, servidor: str, usuario: str, senha: str, porta: int = 993, origem: str = "INBOX", desde: Optional[date] = None):
         self.c = imaplib.IMAP4_SSL(servidor, porta)
@@ -130,7 +130,7 @@ class CaixaImap(Caixa):
         if self.desde:
             criterios += ["SINCE", self.desde.strftime("%d-%b-%Y")]
         tipo, dados = self.c.uid("SEARCH", None, *criterios)
-        uids = (dados[0] or b"").split()[-self.LIMITE:]
+        uids = (dados[0] or b"").split()[:self.LIMITE]      # do mais antigo ao mais novo: a numeração segue a ordem de chegada
         saida = []
         for u in uids:
             tipo, partes = self.c.uid("FETCH", u, "(BODY.PEEK[])")
@@ -219,7 +219,7 @@ def resolver_pasta(existentes: List[str], delim: str, desejada: str) -> str:
 
 
 class CaixaImap(Caixa):
-    LIMITE = 50
+    LIMITE = 200
 
     def __init__(self, servidor: str, usuario: str, senha: str, porta: int = 993, origem: str = "INBOX", desde: Optional[date] = None):
         self.c = imaplib.IMAP4_SSL(servidor, porta)
@@ -239,7 +239,7 @@ class CaixaImap(Caixa):
         if self.desde:
             criterios += ["SINCE", self.desde.strftime("%d-%b-%Y")]
         tipo, dados = self.c.uid("SEARCH", None, *criterios)
-        uids = (dados[0] or b"").split()[-self.LIMITE:]
+        uids = (dados[0] or b"").split()[:self.LIMITE]      # do mais antigo ao mais novo: a numeração segue a ordem de chegada
         saida = []
         for u in uids:
             tipo, partes = self.c.uid("FETCH", u, "(BODY.PEEK[])")

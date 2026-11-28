@@ -50,20 +50,21 @@ def data_inicio() -> date:
 
 
 def simular():
+    from .ensaio import descrever
     caixa = CaixaImap(exigir("IMAP_SERVIDOR"), exigir("IMAP_USUARIO"), exigir("IMAP_SENHA"), desde=data_inicio())
     try:
         msgs = caixa.listar()
-        print(f"{len(msgs)} e-mail(s) da CEF desde {data_inicio():%d/%m/%Y}. NADA será alterado neste modo.\n")
-        for uid, m in msgs:
-            c = classificar(m)
-            linha = f"{m.data:%d/%m %H:%M}  " if m.data else "              "
-            linha += f"{c.tipo:13} OS {c.os_numero or '—'}"
-            if c.tipo == "convocacao":
-                txt = next((decodificar(d) for n, d in m.anexos if n.lower().endswith(".txt")), m.corpo)
-                falta = [k for k in ("endereco", "bairro", "municipio", "cep", "atividade", "data_os") if not interpretar(txt).get(k)]
-                linha += "  | dados completos" if not falta else "  | FALTAM: " + ", ".join(falta)
-            if c.avisos:
-                linha += "  | ⚠ " + "; ".join(c.avisos)
+        print(f"{len(msgs)} e-mail(s) da CEF desde {data_inicio():%d/%m/%Y}. NADA será alterado neste modo.")
+        cfg = plan = None
+        try:
+            cfg = Configuracao.carregar(exigir("CONFIG_DASHBOARD"))
+            plan = PlanilhaGoogle(cfg.planilha_id, cfg.aba, exigir("GOOGLE_SA_JSON"), cfg.colunas)
+            plan.listar()
+            print(f"Planilha conferida (somente leitura): {cfg.aba}\n")
+        except (Exception, SystemExit) as e:
+            plan = None
+            print(f"(Não consegui ler a planilha: {type(e).__name__}. Mostrando só a classificação.)\n")
+        for linha in descrever(msgs, plan, cfg, date.today()):
             print(linha)
     finally:
         caixa.fechar()
