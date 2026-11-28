@@ -64,6 +64,8 @@ Indefinido (não decide, avisa). Quando Sim, o município é gravado como "<Muni
   avisa (SIOPI_OBRIGATORIO=1 desliga isso). 65 testes.
 - Tipologia: vem do campo 'Tipologia' do .txt; senão, do nome de uma opção no Assunto/Descrição/Observação; em acompanhamento
   de obra (E-401) assume 'Obra Residencial' (com aviso) e o SIOPI não a sobrescreve. Falta um exemplo real de E-401 para afinar.
+- Agenda: iCloud via CalDAV (`agenda.py`), calendário 'Entregas OS', senha de aplicativo do Apple ID; cria/atualiza/remove
+  compromissos (entrega, prazo de revisão); fila com retentativas. Não testado contra o iCloud real. 81 testes.
 - Decisão do usuário: o fluxo de entrada é sempre buscar no SIOPI; o botão 'Salvar OS' do dashboard fica para a
   reformulação visual (pode ser removido ou fundido ao 'Obter dados').
 - Próximo: testar numa CÓPIA da planilha com a chave da conta de serviço e o IMAP reais (ver INSTALAR.md);

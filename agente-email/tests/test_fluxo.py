@@ -133,7 +133,7 @@ def test_ntfy_e_agenda():
     assert chamadas[0][0] == "POST" and b"texto \xc3\xa7" in chamadas[0][3]
     assert chamadas[1][0] == "PUT" and chamadas[1][2]["Title"] == "Nova OS c"
     ics = evento_ics(OS, "Entrega", date(2026, 12, 2)).decode()
-    assert "DTSTART;VALUE=DATE:20261202" in ics and "TRIGGER:-P1D" in ics
+    assert "DTSTART;VALUE=DATE:20261202" in ics and "TRIGGER:-PT15H" in ics and "TRIGGER:PT8H" in ics
 
 
 def test_candidatos_e_nomes_de_pasta():

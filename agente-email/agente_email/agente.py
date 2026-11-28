@@ -8,6 +8,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import date, datetime
 from typing import Callable, Dict, Optional
 
+from .agenda import Agenda, ops_nova_os
 from .acoes import Resultado, aplicar, preparar_os
 from .caixa import Caixa
 from .classificador import classificar
@@ -44,6 +45,7 @@ class Contexto:
     espera_total_s: int = 900                    # e terminar a busca em até 15 min
     tentativas_max: int = 3
     permitir_sem_siopi: bool = True               # depois das tentativas, cria a OS sem SIOPI (e avisa) em vez de perder a demanda
+    agenda: Optional[Agenda] = None               # compromissos no iCloud; None = só aviso com arquivo .ics
     siopi_fora: bool = False                      # agente do SIOPI offline nesta rodada: não espera de novo
 
 
@@ -63,13 +65,40 @@ def _notificar_sucesso(ctx: Contexto, tipo: str, os_numero: str, r: Resultado):
             texto += "\nDeslocamento especial"
         if r.resumo:
             texto += "\nSIOPI: " + r.resumo
-        if c["ent"]:
+        if c["ent"] and ctx.agenda is None:
             dia = datetime.strptime(c["ent"], "%d/%m/%Y").date()
             anexo = (f"OS{c['item']}.ics", evento_ics(os_numero, f"Entrega OS {c['item']} · {c['atv']}", dia, texto))
+    if r.agenda and ctx.agenda is not None:
+        texto += "\n📅 agenda atualizada" if any(o["acao"] == "salvar" for o in r.agenda) else "\n📅 removida da agenda"
     if r.avisos:
         texto += "\n⚠ " + "\n⚠ ".join(r.avisos)
     ctx.notif.enviar(titulo, texto, "high" if r.avisos else "default", anexo)
 
+
+
+def _enfileirar_agenda(ctx: Contexto, ops) -> None:
+    if ctx.agenda is None:
+        return
+    for op in ops or []:                       # a última operação de cada compromisso vale
+        ctx.estado.set("agenda:" + op["chave"], etapa="pendente", tentativas=0, op=op)
+
+
+def sincronizar_agenda(ctx: Contexto) -> None:
+    """Executa as operações pendentes; se o iCloud falhar, tenta de novo na próxima rodada (e avisa uma vez)."""
+    if ctx.agenda is None:
+        return
+    for chave, est in ctx.estado.itens("agenda:"):
+        if est.get("etapa") != "pendente":
+            continue
+        try:
+            ctx.agenda.executar(est["op"])
+            ctx.estado.set(chave, etapa="ok")
+        except Exception as e:
+            tent = est.get("tentativas", 0) + 1
+            ctx.estado.set(chave, tentativas=tent)
+            log.warning("agenda: falha em %s (%s)", chave, e)
+            if tent == 3:
+                ctx.notif.enviar("Agenda do iCloud com problema", f"Não consegui atualizar {chave}: {type(e).__name__}. Tentarei de novo.", "high")
 
 
 def _salvar_documentos(ctx: Contexto, pasta, res: dict) -> str:
@@ -124,7 +153,8 @@ def _convocacao_completa(ctx: Contexto, msg, c, mid: str, est: dict) -> Optional
     ctx.plan.adicionar(nova.campos)                                          # a linha só entra quando tudo está pronto
     if sem_siopi:
         ctx.estado.set("siopi:" + c.os_numero, etapa="pendente", tentativas=0)
-    return Resultado(True, "criada", nova.campos, nova.avisos, nova_os=nova, pode_mover_email=True, resumo=resumo)
+    return Resultado(True, "criada", nova.campos, nova.avisos, nova_os=nova, pode_mover_email=True, resumo=resumo,
+                     agenda=ops_nova_os(c.os_numero, nova.campos))
 
 
 def processar(ctx: Contexto, uid: str, msg) -> None:
@@ -140,7 +170,7 @@ def processar(ctx: Contexto, uid: str, msg) -> None:
     if est.get("etapa") == "aplicado":      # retomada: a planilha já foi atualizada
         nova = NovaOS(**est["nova"]) if est.get("nova") else None
         r = Resultado(True, est["acao"], avisos=est.get("avisos", []), arquivos=est.get("arquivos", []),
-                      nova_os=nova, pode_mover_email=True)
+                      nova_os=nova, pode_mover_email=True, agenda=est.get("agenda", []))
     else:
         if c.tipo == "convocacao" and ctx.siopi is not None:
             r = _convocacao_completa(ctx, msg, c, mid, est)
@@ -152,7 +182,7 @@ def processar(ctx: Contexto, uid: str, msg) -> None:
             _avisar(ctx, mid, "nao_aplicado", f"Não processei: {c.tipo} {c.os_numero or ''}", "; ".join(r.avisos))
             return
         ctx.estado.set(mid, etapa="aplicado", acao=r.acao, avisos=r.avisos, arquivos=r.arquivos,
-                       nova=asdict(r.nova_os) if r.nova_os else None)
+                       nova=asdict(r.nova_os) if r.nova_os else None, agenda=r.agenda)
 
     try:
         if r.nova_os:
@@ -168,6 +198,8 @@ def processar(ctx: Contexto, uid: str, msg) -> None:
         return
 
     ctx.estado.set(mid, etapa="completo")
+    _enfileirar_agenda(ctx, r.agenda)
+    sincronizar_agenda(ctx)
     _notificar_sucesso(ctx, c.tipo, c.os_numero, r)
 
 
@@ -243,4 +275,5 @@ def rodar_uma_vez(ctx: Contexto) -> int:
             log.exception("erro inesperado no e-mail %s", uid)
     if ctx.siopi is not None:
         completar_siopi(ctx)
+    sincronizar_agenda(ctx)
     return n

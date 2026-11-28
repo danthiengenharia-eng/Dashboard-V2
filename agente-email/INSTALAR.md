@@ -38,3 +38,17 @@ Para desligar esse passo: `SIOPI=0` no `.env`.
 agente do SIOPI vigia. Se o `PASTA_LAUDOS` do teste for uma pasta local, preencha também
 `SIOPI_PASTA=G:\Meu Drive\Danthi\Caixa Economica Federal\Laudos`. Para refazer os pedidos que ficaram sem resposta:
 `python -m agente_email --refazer-siopi` e depois `--uma-vez`.
+
+## Agenda automática no iPhone (iCloud)
+O agente cria o compromisso de entrega de cada OS direto na sua agenda do iCloud (aparece no iPhone, Mac e iPad), atualiza se
+mudar e **remove** quando a OS é concluída ou cancelada. Em revisão, cria também o compromisso do prazo.
+1. No navegador, entre em https://appleid.apple.com → *Entrar e segurança* → *Senhas de apps* → crie uma senha (nome: "agente").
+   Copie a senha (formato `xxxx-xxxx-xxxx-xxxx`). **Não use a senha do Apple ID.**
+2. No `.env`:
+   ```
+   ICLOUD_USUARIO=seu e-mail do Apple ID
+   ICLOUD_SENHA=a senha de app
+   ICLOUD_CALENDARIO=Entregas OS
+   ```
+3. Rode normalmente. O agente cria o calendário "Entregas OS" na primeira vez. Se falhar, ele tenta de novo nas rodadas seguintes
+   e avisa no iPhone. Sem `ICLOUD_USUARIO`, ele volta a mandar o arquivo .ics no aviso.

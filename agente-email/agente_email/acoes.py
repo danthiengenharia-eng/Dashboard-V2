@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from datetime import date, timedelta
 from typing import Dict, List, Optional
 
+from .agenda import ops_encerrar, ops_nova_os, ops_revisao
 from .config import Configuracao
 from .convocacao import decodificar, interpretar
 from .criar_os import NovaOS, montar
@@ -42,6 +43,7 @@ class Resultado:
     avisos: List[str] = field(default_factory=list)       # exigem atenção do usuário
     arquivos: List[str] = field(default_factory=list)      # arquivos a gravar na pasta da OS (feito na camada do Drive)
     pode_mover_email: bool = False
+    agenda: List[dict] = field(default_factory=list)       # operações na agenda do iPhone (criar/remover compromissos)
     resumo: str = ""                                      # texto extra do aviso (ex.: dados do SIOPI)
     nova_os: Optional[NovaOS] = None                       # OS a criar (pastas e anexos são feitos na camada do Drive)
 
@@ -76,14 +78,14 @@ def aplicar(c: Classificacao, msg: Mensagem, plan: Planilha, regras: dict, hoje:
             if email is not None and plan_v is not None and abs(email - plan_v) > 0.005:
                 avisos.append(f"valor de {rotulo} diverge: e-mail R$ {email:.2f} x planilha R$ {plan_v:.2f}")
         plan.atualizar(ri, campos)
-        return Resultado(True, "concluida", campos, avisos, pode_mover_email=True)
+        return Resultado(True, "concluida", campos, avisos, pode_mover_email=True, agenda=ops_encerrar(c.os_numero))
 
     if c.tipo == "cancelamento":
         if _verdadeiro(linha.get("vis")) or _verdadeiro(linha.get("lau")) or _verdadeiro(linha.get("fich")):
             avisos.append("OS cancelada JÁ TINHA serviço executado (vistoria, ficha ou laudo): conferir faturamento")
         campos = {"st": "OS Cancelada", "vos": ZERO, "vd": ZERO, "vt": ZERO, "rsm": "", "rev": "FALSE"}
         plan.atualizar(ri, campos)
-        return Resultado(True, "cancelada", campos, avisos, pode_mover_email=True)
+        return Resultado(True, "cancelada", campos, avisos, pode_mover_email=True, agenda=ops_encerrar(c.os_numero))
 
     if c.tipo == "revisao":
         cfg = regras.get("revisao", {})
@@ -92,7 +94,7 @@ def aplicar(c: Classificacao, msg: Mensagem, plan: Planilha, regras: dict, hoje:
         if linha.get("st") in ("OS Concluída", "OS Cancelada"):
             avisos.append(f"OS estava '{linha.get('st')}' e voltou para revisão")
         plan.atualizar(ri, campos)
-        return Resultado(True, "revisao", campos, avisos, pode_mover_email=True)
+        return Resultado(True, "revisao", campos, avisos, pode_mover_email=True, agenda=ops_revisao(c.os_numero, linha, prazo))
 
     if c.tipo == "pept":
         # Não muda status nem prazo: o dashboard controla a suspensão de prazo. Só sinaliza.
@@ -123,4 +125,5 @@ def _criar_os(c: Classificacao, msg: Mensagem, plan: Planilha, hoje: date, cfg: 
     if nova is None:
         return Resultado(False, "convocacao", avisos=avisos)
     plan.adicionar(nova.campos)
-    return Resultado(True, "criada", nova.campos, nova.avisos, nova_os=nova, pode_mover_email=True)
+    return Resultado(True, "criada", nova.campos, nova.avisos, nova_os=nova, pode_mover_email=True,
+                     agenda=ops_nova_os(c.os_numero, nova.campos))

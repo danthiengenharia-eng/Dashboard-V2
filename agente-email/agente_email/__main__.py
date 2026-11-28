@@ -10,6 +10,7 @@ from pathlib import Path
 from .agente import PASTAS_PADRAO, Contexto, rodar_uma_vez
 from datetime import date
 
+from .agenda import AgendaIcloud
 from .caixa import CaixaImap
 from .classificador import classificar
 from .convocacao import decodificar, interpretar
@@ -76,10 +77,12 @@ def montar() -> Contexto:
     notif = (NtfyNotificador(os.environ.get("NTFY_SERVIDOR", "https://ntfy.sh"), os.environ["NTFY_TOPICO"], os.environ.get("NTFY_TOKEN", ""))
              if os.environ.get("NTFY_TOPICO") else NotificadorNulo())
     pastas = {**PASTAS_PADRAO, **{k: v for k, v in (ajustes.get("pastas_imap") or {}).items() if k in PASTAS_PADRAO}}
+    agenda = (AgendaIcloud(os.environ["ICLOUD_USUARIO"], exigir("ICLOUD_SENHA"), os.environ.get("ICLOUD_CALENDARIO", "Entregas OS"))
+              if os.environ.get("ICLOUD_USUARIO") else None)
     return Contexto(caixa, plan, DriveLocal(exigir("PASTA_LAUDOS")), notif, cfg, Estado(os.environ.get("ESTADO", "saida/estado.json")),
                     ajustes.get("regras", {}), pastas,
                     siopi=None if os.environ.get("SIOPI", "1") == "0" else SiopiArquivos(os.environ.get("SIOPI_PASTA") or exigir("PASTA_LAUDOS")),
-                    permitir_sem_siopi=os.environ.get("SIOPI_OBRIGATORIO", "0") != "1")
+                    permitir_sem_siopi=os.environ.get("SIOPI_OBRIGATORIO", "0") != "1", agenda=agenda)
 
 
 def main():
