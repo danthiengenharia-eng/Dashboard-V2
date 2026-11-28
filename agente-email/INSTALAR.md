@@ -25,3 +25,8 @@ Pré-requisitos: Python 3.11+, Drive para desktop (com a pasta `Laudos` visível
 
 Registros em `saida/agente.log`; memória do que já foi feito em `saida/estado.json` (não apagar).
 Se o agente não conseguir fazer algo, ele não altera nada e avisa no celular.
+
+## Dados do SIOPI (automático)
+Depois de criar cada OS, o agente pede os dados ao **agente do SIOPI** (o mesmo do botão "Obter dados"), que precisa
+estar ligado no computador com o Drive para desktop. Se estiver offline, o agente tenta 3 vezes e avisa no iPhone.
+Para desligar esse passo: `SIOPI=0` no `.env`.

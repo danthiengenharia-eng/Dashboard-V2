@@ -34,3 +34,6 @@ class Estado:
         avisados.append(chave)
         self._salvar()
         return True
+
+    def itens(self, prefixo: str):
+        return [(k, dict(v)) for k, v in self.d.items() if k.startswith(prefixo)]

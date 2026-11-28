@@ -18,6 +18,7 @@ from .drive import DriveLocal
 from .estado import Estado
 from .notificar import NotificadorNulo, NtfyNotificador
 from .planilha import PlanilhaGoogle
+from .siopi import SiopiArquivos
 
 
 def carregar_env(caminho: str = ".env"):
@@ -76,7 +77,8 @@ def montar() -> Contexto:
              if os.environ.get("NTFY_TOPICO") else NotificadorNulo())
     pastas = {**PASTAS_PADRAO, **{k: v for k, v in (ajustes.get("pastas_imap") or {}).items() if k in PASTAS_PADRAO}}
     return Contexto(caixa, plan, DriveLocal(exigir("PASTA_LAUDOS")), notif, cfg, Estado(os.environ.get("ESTADO", "saida/estado.json")),
-                    ajustes.get("regras", {}), pastas)
+                    ajustes.get("regras", {}), pastas,
+                    siopi=None if os.environ.get("SIOPI", "1") == "0" else SiopiArquivos(exigir("PASTA_LAUDOS")))
 
 
 def main():

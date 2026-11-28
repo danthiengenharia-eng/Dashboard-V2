@@ -82,3 +82,19 @@ class DriveLocal:
         return self.gravar_json(os_numero, "pept_resposta.json", {
             "os": os_numero, "situacao": "resolvida_pela_caixa", "assunto": assunto,
             "recebido_em": datetime.now().isoformat(timespec="seconds"), "conferido": False}) is not None
+
+    def subpasta(self, pasta_os: Path, cfg: Configuracao, papel: str) -> Path:
+        for sp in (cfg.subpastas or SUBPASTAS_PADRAO):
+            if sp.get("role") == papel:
+                d = pasta_os / sp["nm"]
+                d.mkdir(parents=True, exist_ok=True)
+                return d
+        return pasta_os
+
+    @staticmethod
+    def gravar_unico(pasta: Path, nome: str, dados: bytes) -> Path:
+        """Grava sem sobrescrever: se o nome existe, vira 'nome (1).ext'."""
+        pasta.mkdir(parents=True, exist_ok=True)
+        destino = _livre(pasta, _nome_seguro(nome))
+        destino.write_bytes(dados)
+        return destino
