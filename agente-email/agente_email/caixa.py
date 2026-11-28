@@ -328,3 +328,14 @@ def testar_conexao(usuario: str, senha: str, servidor: str = "", porta: int = 99
         c.logout()
         break
     return saida
+
+
+def ordenar_cronologicamente(mensagens):
+    """Do e-mail emitido primeiro ao último (cabeçalho Date). Sem data, mantém a ordem de chegada."""
+    def chave(par):
+        d = par[1].data
+        try:
+            return d.timestamp() if d else 0.0
+        except (OverflowError, OSError, ValueError):
+            return 0.0
+    return sorted(mensagens, key=chave)

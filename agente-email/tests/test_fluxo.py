@@ -216,3 +216,29 @@ def test_ensaio_mostra_o_assunto_do_email_nao_reconhecido():
     from agente_email.ensaio import descrever
     m = Mensagem("alguem@caixa.gov.br", "Recusa da   Ordem de Serviço X", "", id="<z>")
     assert 'assunto "Recusa da Ordem de Serviço X" de alguem@caixa.gov.br' in "\n".join(descrever([("1", m)], PlanilhaMemoria([]), CFG, HOJE))
+
+
+def test_reiteracao_de_laudo_avisa_com_prioridade_alta_sem_alterar(tmp_path):
+    m = Mensagem("cesavfl08@caixa.gov.br", f"4ª Reiteração - Pendência laudo OS {OS}", "", id="<re>")
+    ctx, caixa, plan, notif = montar(tmp_path, [("1", m)], [{"os": OSP, "item": "7", "st": "OS Vistoriada"}])
+    antes = plan.listar()
+    rodar_uma_vez(ctx); rodar_uma_vez(ctx)
+    assert plan.listar() == antes and caixa.movidas == {}
+    assert len(notif.enviados) == 1 and notif.enviados[0]["prioridade"] == "high"
+    assert "4ª reiteração da CEF" in notif.enviados[0]["texto"] and "item 7, status OS Vistoriada" in notif.enviados[0]["texto"]
+
+
+def test_itens_seguem_a_data_de_emissao_e_nao_a_ordem_de_chegada(tmp_path):
+    from datetime import datetime, timezone
+    msgs = []
+    for i, hora in ((1, 17), (2, 6), (3, 12)):          # chegaram em ordem 1,2,3 mas foram emitidos 2,3,1
+        os_n = f"1111.2222.00000000{i}/2026.01.01"
+        t = TXT.replace(OS, os_n)
+        m = Mensagem("AG1@CAIXA.GOV.BR", f"Convocação de Ordem da Serviço {os_n}", t, [("c.txt", t.encode())], id=f"<{i}>",
+                     data=datetime(2026, 11, 27, hora, 0, tzinfo=timezone.utc))
+        msgs.append((str(i), m))
+    ctx, caixa, plan, notif = montar(tmp_path, msgs)
+    rodar_uma_vez(ctx)
+    linhas = plan.listar()
+    assert [l["item"] for l in linhas] == ["1", "2", "3"]
+    assert [l["os"] for l in linhas] == [f"1111.2222.00000000{i}2026.01.01" for i in (2, 3, 1)]   # emitidos: 06h, 12h, 17h

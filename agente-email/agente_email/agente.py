@@ -10,7 +10,7 @@ from typing import Callable, Dict, Optional
 
 from .agenda import Agenda, ops_nova_os
 from .acoes import Resultado, aplicar, preparar_os
-from .caixa import Caixa
+from .caixa import Caixa, ordenar_cronologicamente
 from .classificador import classificar
 from .config import Configuracao
 from .criar_os import NovaOS
@@ -24,7 +24,7 @@ log = logging.getLogger("agente")
 
 PASTAS_PADRAO = {"convocacao": "Ordem de Serviço", "conclusao": "Conclusão OS", "cancelamento": "Cancelamento OS",
                  "pept": "Pendências PEPT", "revisao": "Revisão OS"}
-ROTULO = {"criada": "Nova OS", "concluida": "OS concluída", "cancelada": "OS cancelada",
+ROTULO = {"reiteracao": "Reiteração da CEF", "criada": "Nova OS", "concluida": "OS concluída", "cancelada": "OS cancelada",
           "revisao": "Revisão solicitada", "pept_sinalizada": "PEPT resolvida pela CEF"}
 
 
@@ -270,7 +270,7 @@ LOTE = 5   # acima disso, os avisos comuns viram um resumo só
 def rodar_uma_vez(ctx: Contexto) -> int:
     n = 0
     ctx.siopi_fora = False
-    mensagens = ctx.caixa.listar()
+    mensagens = ordenar_cronologicamente(ctx.caixa.listar())
     real, coletor = ctx.notif, None
     if len(mensagens) > LOTE:
         coletor = ctx.notif = NotificadorColetor(real)

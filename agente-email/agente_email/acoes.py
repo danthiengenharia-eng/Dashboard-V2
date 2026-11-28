@@ -3,6 +3,7 @@
 Espelham o que o dashboard faz ao mudar o status (updSt). Em dúvida, não altera e devolve aviso.
 """
 from dataclasses import dataclass, field
+import re
 from datetime import date, timedelta
 from typing import Dict, List, Optional
 
@@ -13,6 +14,7 @@ from .criar_os import NovaOS, montar
 from .eventos import interpretar_conclusao
 from .modelos import Classificacao, Mensagem
 from .planilha import Planilha
+from .texto import normalizar
 
 ZERO = "R$ 0,00"
 
@@ -62,6 +64,13 @@ def aplicar(c: Classificacao, msg: Mensagem, plan: Planilha, regras: dict, hoje:
         return Resultado(False, "ignorado", avisos=c.avisos or ["e-mail não confiável"])
     if c.tipo == "convocacao":
         return _criar_os(c, msg, plan, hoje, cfg)
+
+    if c.tipo == "reiteracao":
+        # Cobrança da CEF: não altera nada, só avisa (com o status atual da OS, se estiver na planilha).
+        achadas = plan.achar_os(c.os_numero)
+        situacao = f" (item {achadas[0].get('item')}, status {achadas[0].get('st')})" if len(achadas) == 1 else " (OS não está na planilha)"
+        n = re.search(r"(\d+)\S{0,2}\s*reitera", normalizar(msg.assunto))
+        return Resultado(True, "reiteracao", {}, [f"{n.group(1) + 'ª ' if n else ''}reiteração da CEF: laudo pendente{situacao}"], pode_mover_email=False)
 
     linha, erro = _linha_unica(plan, c.os_numero)
     if erro:

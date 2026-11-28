@@ -17,6 +17,7 @@ PADROES_ASSUNTO = [
     ("cancelamento", re.compile(r"cancelamento d[ao] ordem (de )?servi\S{0,2}o")),
     ("revisao", re.compile(r"solicita\S{0,3}o de revis\S{0,3}o do valor de avalia\S{0,3}o")),
     ("pept", re.compile(r"resolu\S{0,3}o do pept")),
+    ("reiteracao", re.compile(r"reitera\S{0,3}o\s*-?\s*pend\S{0,3}ncia (do )?laudo")),
 ]
 
 # Nestes tipos o número da OS vem no corpo, não no assunto.

@@ -3,12 +3,13 @@ from datetime import date
 from typing import List
 
 from .acoes import preparar_os
+from .caixa import ordenar_cronologicamente
 from .classificador import classificar
 
 
 def descrever(msgs, plan, cfg, hoje: date) -> List[str]:
     linhas, resumo = [], {"criar": 0, "ja_existe": 0, "aplicar": 0, "sem_os": 0, "problema": 0}
-    for uid, m in msgs:
+    for uid, m in ordenar_cronologicamente(msgs):
         c = classificar(m)
         quando = f"{m.data:%d/%m %H:%M}  " if m.data else "              "
         base = f"{quando}{c.tipo:13} OS {c.os_numero or '—'}"
@@ -21,6 +22,11 @@ def descrever(msgs, plan, cfg, hoje: date) -> List[str]:
             linhas.append(base + ("  | " + "; ".join(c.avisos) if c.avisos else ""))
             continue
         achadas = plan.achar_os(c.os_numero) if c.os_numero else []
+        if c.tipo == "reiteracao":
+            resumo["aplicar"] += 0
+            linhas.append(base + "  | AVISAR com prioridade alta (cobrança de laudo da CEF; não altera a planilha)"
+                          + (f" · OS item {achadas[0].get('item')}, status {achadas[0].get('st')}" if len(achadas) == 1 else " · OS não está na planilha"))
+            continue
         if c.tipo == "convocacao":
             if achadas:
                 resumo["ja_existe"] += 1
