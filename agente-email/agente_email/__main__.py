@@ -117,13 +117,20 @@ def main():
     Path("saida").mkdir(exist_ok=True)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s",
                         handlers=([logging.StreamHandler()] if sys.stderr else []) + [RotatingFileHandler(os.environ.get("LOG", "saida/agente.log"), maxBytes=5_000_000, backupCount=3, encoding="utf-8")])
+    def _queda(tipo, valor, tb):
+        logging.critical("O AGENTE CAIU por erro não tratado", exc_info=(tipo, valor, tb))
+    sys.excepthook = _queda
+    logging.info("agente iniciado (pid %s, pasta %s)", os.getpid(), Path.cwd())
     raiz_drive = os.environ.get("SIOPI_PASTA") or os.environ.get("PASTA_LAUDOS")
     st = Status("saida", raiz_drive)
     st.iniciar()
     code = 0
     try:
         while True:
-            st.processar_comandos()
+            try:
+                st.processar_comandos()
+            except Exception:
+                logging.exception("erro ao ler comandos; ignorado")
             if st.parar:
                 break
             if st.reiniciar:
@@ -165,6 +172,7 @@ def main():
             st.proxima_em = None
     finally:
         st.encerrar()
+        logging.info("agente encerrado (código %s)", code)
     sys.exit(code)
 
 

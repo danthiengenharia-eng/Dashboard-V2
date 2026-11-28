@@ -81,7 +81,10 @@ class Status:
         self.bater()
         def laco():
             while not self._parar_thread.wait(self.intervalo_s):
-                self.bater()
+                try:
+                    self.bater()
+                except Exception:          # o batimento nunca pode morrer em silêncio
+                    pass
         self._thread = threading.Thread(target=laco, daemon=True)
         self._thread.start()
 
