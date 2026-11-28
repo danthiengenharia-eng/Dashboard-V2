@@ -119,3 +119,52 @@ class CaixaImap(Caixa):
             self.c.logout()
         except Exception:
             pass
+
+
+def candidatos_servidor(usuario: str, informado: str = "") -> list:
+    """Servidores IMAP prováveis para o e-mail (o informado vem primeiro)."""
+    dominio = usuario.split("@", 1)[1] if "@" in usuario else ""
+    lista = [informado] if informado else []
+    if dominio:
+        lista += [f"mail.{dominio}", f"imap.{dominio}", dominio]
+    return list(dict.fromkeys(x for x in lista if x))
+
+
+def decodificar_pasta(linha: bytes) -> str:
+    """Nome da pasta como veio do LIST (UTF-7 modificado) em texto normal."""
+    m = re.search(rb'"([^"]*)"\s*$|\s(\S+)\s*$', linha)
+    bruto = (m.group(1) or m.group(2) or b"").decode("ascii", "ignore") if m else ""
+
+    def volta(t):
+        b64 = t.group(1)
+        if not b64:
+            return "&"
+        b64 = b64.replace(",", "/")
+        return base64.b64decode(b64 + "=" * (-len(b64) % 4)).decode("utf-16-be")
+    return re.sub(r"&([^-]*)-", volta, bruto)
+
+
+def testar_conexao(usuario: str, senha: str, servidor: str = "", porta: int = 993, esperadas=()) -> list:
+    """Tenta entrar em cada servidor candidato. Devolve linhas de texto com o resultado (nunca mostra a senha)."""
+    saida = []
+    for srv in candidatos_servidor(usuario, servidor):
+        try:
+            c = imaplib.IMAP4_SSL(srv, porta, timeout=20)
+        except Exception as e:
+            saida.append(f"✗ {srv}: não conectou ({type(e).__name__})")
+            continue
+        try:
+            c.login(usuario, senha)
+        except imaplib.IMAP4.error:
+            saida.append(f"~ {srv}: servidor responde, mas usuário ou senha recusados")
+            continue
+        saida.append(f"✓ {srv}: ENTROU. Use IMAP_SERVIDOR={srv}")
+        tipo, pastas = c.list()
+        nomes = [decodificar_pasta(p) for p in (pastas or []) if p]
+        for esp in esperadas:
+            saida.append(f"   pasta '{esp}': " + ("existe" if esp in nomes else "NÃO existe (o agente cria ao mover)"))
+        tipo, n = c.select("INBOX", readonly=True)
+        saida.append(f"   caixa de entrada: {(n[0] or b'0').decode()} e-mail(s)")
+        c.logout()
+        break
+    return saida

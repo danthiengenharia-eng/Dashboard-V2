@@ -7,6 +7,9 @@ Pré-requisitos: Python 3.11+, Drive para desktop (com a pasta `Laudos` visível
 2. No terminal da pasta:  `pip install -r requirements.txt`
 3. Copie `.env.exemplo` para `.env` e preencha (senha do e-mail, caminhos, tópico do ntfy).
    Copie `config.exemplo.json` para `config.json` (pastas do e-mail e regra de revisão).
+3b. **Descobrir o servidor de e-mail e conferir a conta:** preencha só `IMAP_USUARIO` e `IMAP_SENHA` no `.env`
+   e rode `python -m agente_email --testar-email`. Ele tenta os servidores prováveis (mail.seudominio...),
+   mostra qual funcionou (copie para `IMAP_SERVIDOR`) e diz quais pastas já existem. Não mostra a senha.
 4. **Aviso no iPhone:** instale o app ntfy, toque em "+" e assine o mesmo tópico escrito em `NTFY_TOPICO`
    (use um nome longo e difícil de adivinhar, ele é a "senha" do canal).
 5. **Teste sem risco primeiro:** faça uma cópia da planilha, compartilhe com a conta de serviço e aponte

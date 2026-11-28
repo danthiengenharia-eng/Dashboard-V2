@@ -133,3 +133,11 @@ def test_ntfy_e_agenda():
     assert chamadas[1][0] == "PUT" and chamadas[1][2]["Title"] == "Nova OS c"
     ics = evento_ics(OS, "Entrega", date(2026, 12, 2)).decode()
     assert "DTSTART;VALUE=DATE:20261202" in ics and "TRIGGER:-P1D" in ics
+
+
+def test_candidatos_e_nomes_de_pasta():
+    from agente_email.caixa import candidatos_servidor, decodificar_pasta
+    assert candidatos_servidor("a@x.com.br") == ["mail.x.com.br", "imap.x.com.br", "x.com.br"]
+    assert candidatos_servidor("a@x.com.br", "br1.host.com")[0] == "br1.host.com"
+    assert decodificar_pasta(b'(\\HasNoChildren) "." "Conclus&AOM-o OS"') == "Conclusão OS"
+    assert decodificar_pasta(b'(\\HasNoChildren) "." INBOX') == "INBOX"

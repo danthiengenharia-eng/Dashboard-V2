@@ -50,9 +50,16 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--uma-vez", action="store_true")
     ap.add_argument("--loop", action="store_true")
+    ap.add_argument("--testar-email", action="store_true", help="descobre o servidor IMAP e confere as pastas")
     ap.add_argument("--intervalo", type=int, default=5, help="minutos entre rodadas (padrão 5)")
     a = ap.parse_args()
     carregar_env()
+    if a.testar_email:
+        from .caixa import testar_conexao
+        for linha in testar_conexao(exigir("IMAP_USUARIO"), exigir("IMAP_SENHA"), os.environ.get("IMAP_SERVIDOR", ""),
+                                    esperadas=[v for v in PASTAS_PADRAO.values() if v]):
+            print(linha)
+        return
     Path("saida").mkdir(exist_ok=True)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s",
                         handlers=[logging.StreamHandler(), logging.FileHandler(os.environ.get("LOG", "saida/agente.log"), encoding="utf-8")])
