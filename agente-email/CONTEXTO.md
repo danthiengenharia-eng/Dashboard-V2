@@ -53,7 +53,9 @@ Indefinido (não decide, avisa). Quando Sim, o município é gravado como "<Muni
 ## Estado
 - Pronto: classificador, leitor da convocação, valores da conclusão, regras de conclusão/cancelamento/revisão/PEPT sobre a planilha (`acoes.py`, `planilha.py`), 39 testes (`python -m pytest tests`).
 - Pronto também: criação da OS a partir da convocação (item = maior item + 1; mês = mês atual; entrega = entrada + prazo da atividade; valores pelas tabelas; deslocamento especial detectado), conferida com a configuração real (`dashboard-cef-config.json`).
-- Próximo: criar as pastas/subpastas e salvar anexos pelo Drive para desktop, leitura do IMAP da Hostgator, notificação no iPhone, conferência SIOPI das 23:55.
-- Precisa do usuário: exportar a configuração do dashboard; pasta de destino da revisão; código do agente
-  do SIOPI (que está no PC); conta de serviço do Google.
-- Mac Mini ainda não comprado: tudo roda no Windows por enquanto.
+- Pronto também: pastas/arquivos pelo Drive para desktop (`drive.py`), leitura IMAP e movimentação (`caixa.py`),
+  avisos no iPhone via ntfy com evento .ics da entrega (`notificar.py`), memória para nunca repetir (`estado.py`),
+  rodada completa e retomável (`agente.py`) e execução (`python -m agente_email --uma-vez|--loop`). 49 testes.
+- Próximo: testar numa CÓPIA da planilha com a chave da conta de serviço e o IMAP reais (ver INSTALAR.md);
+  conferência SIOPI das 23:55; completar categoria Novo/Usado pelo SIOPI.
+- Pendente do usuário: pasta de destino do e-mail de revisão (hoje: não move, mas processa uma única vez).

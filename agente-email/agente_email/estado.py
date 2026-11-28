@@ -1,0 +1,36 @@
+"""Memória do agente: o que já foi feito com cada e-mail, para nunca repetir nem avisar em dobro."""
+import json
+import os
+from pathlib import Path
+
+
+class Estado:
+    def __init__(self, caminho=None):
+        self.caminho = Path(caminho) if caminho else None
+        self.d = {}
+        if self.caminho and self.caminho.exists():
+            self.d = json.loads(self.caminho.read_text(encoding="utf-8"))
+
+    def _salvar(self):
+        if not self.caminho:
+            return
+        self.caminho.parent.mkdir(parents=True, exist_ok=True)
+        tmp = self.caminho.with_suffix(".tmp")
+        tmp.write_text(json.dumps(self.d, ensure_ascii=False, indent=1), encoding="utf-8")
+        os.replace(tmp, self.caminho)
+
+    def get(self, mid: str) -> dict:
+        return self.d.get(mid, {})
+
+    def set(self, mid: str, **dados):
+        self.d.setdefault(mid, {}).update(dados)
+        self._salvar()
+
+    def primeira_vez(self, mid: str, chave: str) -> bool:
+        """True só na primeira vez que um aviso `chave` é dado para este e-mail."""
+        avisados = self.d.setdefault(mid, {}).setdefault("avisos", [])
+        if chave in avisados:
+            return False
+        avisados.append(chave)
+        self._salvar()
+        return True

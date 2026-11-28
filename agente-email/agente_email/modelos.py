@@ -9,6 +9,8 @@ class Mensagem:
     assunto: str
     corpo: str
     anexos: List[Tuple[str, bytes]] = field(default_factory=list)
+    id: str = ""          # Message-ID (ou UID) para nunca processar duas vezes
+    bruto: bytes = b""    # e-mail original (.eml) para arquivar na pasta da OS
 
 
 @dataclass
