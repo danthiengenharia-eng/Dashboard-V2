@@ -39,6 +39,11 @@ de divergências (sem corrigir sozinho). Login por usuário e senha; sessão ~1 
 iPhone: aviso via ntfy (ou Telegram) e evento no Google Agenda/Calendário. PWA instalável só depois da
 reformulação visual.
 
+## Deslocamento especial
+O agente compara o valor de deslocamento do .txt (e do SIOPI, quando houver) com a configuração do município:
+igual ao padrão = Não; igual a 21% do padrão (ex.: 40,00 -> 8,40) = Sim; qualquer outro valor ou fontes divergentes =
+Indefinido (não decide, avisa). Quando Sim, o município é gravado como "<Município> (Deslocamento especial)", igual ao dashboard.
+
 ## Google
 - Conta de serviço criada (projeto `agente-danthi`): agente-email@agente-danthi.iam.gserviceaccount.com — só enxerga a planilha das OS.
 - A chave JSON fica só no computador do agente (fora do Drive e do git). Pastas/arquivos usam o Drive para desktop.
