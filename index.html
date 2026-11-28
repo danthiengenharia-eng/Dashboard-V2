@@ -2204,6 +2204,10 @@ body:not(.light-mode) .badge.st-vistoriada{background:rgba(234,179,8,.18) !impor
         <div class="dv" id="d-siopi-matricula">—</div>
       </div>
       <div class="df">
+        <div class="dl">Imóvel <span style="opacity:.5;font-size:9px">(Novo/Usado · SIOPI)</span></div>
+        <div class="dv" id="d-siopi-categoria">—</div>
+      </div>
+      <div class="df">
         <div class="dl">CNM <span style="opacity:.5;font-size:9px">(SIOPI)</span></div>
         <div class="dv" id="d-siopi-cnm">—</div>
       </div>
@@ -4114,7 +4118,8 @@ function openD(idx){
   const _siopiAlerta=document.getElementById('d-siopi-alerta-tip');if(_siopiAlerta)_siopiAlerta.style.display='none';
   // Limpa box de status (etapas/✅/⚠️ da extração anterior) ao trocar de OS
   const _siopiStatus=document.getElementById('d-siopi-status');if(_siopiStatus){_siopiStatus.textContent='';_siopiStatus.style.display='none';}
-  ['d-siopi-matricula','d-siopi-cnm','d-siopi-cartorio','d-siopi-valor'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='—';});
+  ['d-siopi-matricula','d-siopi-categoria','d-siopi-cnm','d-siopi-cartorio','d-siopi-valor'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='—';});
+  setDV('d-siopi-categoria',r.categoria);  // Novo/Usado (coluna 'categoria' da planilha)
   const _draft=r.item?lerDraftFicha(r.item):null;
   // Planilha > draft pros 3 campos sincronizados; draft puro pros 2 locais
   const _matricula=r.matricula||(_draft&&_draft.matricula)||'';
@@ -4504,6 +4509,7 @@ async function enriquecerComSIOPI(){
     //  - cartorio / tipo_construcao → só no draft (uso interno da ficha)
     const tipoSiopi=result.tipo_construcao||result.tipologia||'';
     setDV('d-siopi-matricula',result.matricula);
+    if(result.categoria)setDV('d-siopi-categoria',result.categoria);
     setDV('d-siopi-cnm',result.cnm);
     setDV('d-siopi-cartorio',result.cartorio);
     setDV('d-siopi-valor',result.valor_compra_venda?'R$ '+result.valor_compra_venda:'');
@@ -4526,6 +4532,12 @@ async function enriquecerComSIOPI(){
       updates.push({range:`${CFG.SHT}!${matCol}${COS.ri}`,values:[[matVal]]});
       updates.push({range:`${CFG.SHT}!${cnmCol}${COS.ri}`,values:[[cnmVal]]});
       updates.push({range:`${CFG.SHT}!${vcvCol}${COS.ri}`,values:[[vcvVal]]});
+      // Categoria (Novo/Usado): só grava quando o SIOPI trouxe, para não apagar o que já existe
+      if(result.categoria){
+        const catCol=_campoToCol('categoria')||'AI';
+        updates.push({range:`${CFG.SHT}!${catCol}${COS.ri}`,values:[[result.categoria]]});
+        COS.categoria=result.categoria;
+      }
       COS.matricula=matVal;
       COS.cnm=cnmVal;
       COS.vcv=vcvVal;
