@@ -39,9 +39,15 @@ de divergências (sem corrigir sozinho). Login por usuário e senha; sessão ~1 
 iPhone: aviso via ntfy (ou Telegram) e evento no Google Agenda/Calendário. PWA instalável só depois da
 reformulação visual.
 
+## Google
+- Conta de serviço criada (projeto `agente-danthi`): agente-email@agente-danthi.iam.gserviceaccount.com — só enxerga a planilha das OS.
+- A chave JSON fica só no computador do agente (fora do Drive e do git). Pastas/arquivos usam o Drive para desktop.
+- A configuração do dashboard está no Drive em `dashboard-cef-config.json` (IDs, colunas, atividades, municípios).
+- Objetivo de longo prazo: depender menos do Google; por isso o acesso à planilha fica atrás de `planilha.py`.
+
 ## Estado
-- Pronto: classificador, leitor da convocação, valores da conclusão, 12 testes (`python -m pytest tests`).
-- Próximo: ligar à planilha/Drive (conta de serviço Google) e ao IMAP da Hostgator.
+- Pronto: classificador, leitor da convocação, valores da conclusão, regras de conclusão/cancelamento/revisão/PEPT sobre a planilha (`acoes.py`, `planilha.py`), 21 testes (`python -m pytest tests`).
+- Próximo: criar a OS a partir da convocação (precisa das tabelas de atividade/município), pastas no Drive, IMAP da Hostgator, notificação.
 - Precisa do usuário: exportar a configuração do dashboard; pasta de destino da revisão; código do agente
   do SIOPI (que está no PC); conta de serviço do Google.
 - Mac Mini ainda não comprado: tudo roda no Windows por enquanto.
