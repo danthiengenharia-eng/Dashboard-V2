@@ -83,6 +83,7 @@ def test_revisao_sem_pasta_definida_nao_move_mas_nao_repete(tmp_path):
     linhas = [{"os": OSP, "item": "5", "st": "OS Concluída", "rev": "FALSE"}]
     m = Mensagem("siopi@caixa.gov.br", "Solicitação de revisão do valor de avaliação", f"da OS {OS}, X", id="<r>")
     ctx, caixa, plan, notif = montar(tmp_path, [("1", m)], linhas)
+    ctx.pastas = {**ctx.pastas, "revisao": None}
     rodar_uma_vez(ctx)
     abr = plan.listar()[0]["abr"]
     ctx.hoje = date(2026, 12, 10)
@@ -161,3 +162,19 @@ def test_data_do_email_e_lida():
     e["From"], e["Subject"], e["Date"] = "a@caixa.gov.br", "x", "Fri, 27 Nov 2026 09:45:29 -0300"
     e.set_content("c")
     assert ler_mensagem(e.as_bytes()).data.date() == date(2026, 11, 27)
+
+
+def test_revisao_vai_para_a_pasta_revisao_os_por_padrao(tmp_path):
+    linhas = [{"os": OSP, "item": "5", "st": "OS Concluída", "rev": "FALSE"}]
+    m = Mensagem("siopi@caixa.gov.br", "Solicitação de revisão do valor de avaliação", f"da OS {OS}, X", id="<r2>")
+    ctx, caixa, plan, notif = montar(tmp_path, [("1", m)], linhas)
+    rodar_uma_vez(ctx)
+    assert caixa.movidas == {"1": "Revisão OS"}
+
+
+def test_resolver_pasta_real_do_usuario():
+    from agente_email.caixa import resolver_pasta
+    nomes = ["INBOX", "INBOX.Pendências PEPT", "INBOX.Conclusão OS", "INBOX.Ordem de Serviço", "INBOX.Archive",
+             "INBOX.Archive.Cancelamento OS", "INBOX.Archive.Revisão OS", "INBOX.Trash", "INBOX.Trash.Revisão"]
+    assert resolver_pasta(nomes, ".", "Revisão OS") == "INBOX.Archive.Revisão OS"
+    assert resolver_pasta(nomes, ".", "Cancelamento OS") == "INBOX.Archive.Cancelamento OS"

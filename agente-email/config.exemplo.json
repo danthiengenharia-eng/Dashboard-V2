@@ -14,6 +14,6 @@
     "revisao": "Revisão OS"
   },
   "regras": {
-    "revisao": { "status": "Em revisão", "prazo_dias_corridos": 6 }
-  },
+    "revisao": { "status_planilha": "OS em Revisão", "prazo_dias_corridos": 6 }
+  }
 }
