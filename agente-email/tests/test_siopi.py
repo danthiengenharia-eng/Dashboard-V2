@@ -105,3 +105,16 @@ def test_resposta_ainda_sincronizando_nao_quebra(tmp_path):
 def test_municipio_diferente_no_siopi_so_avisa(tmp_path):
     novos, avisos = campos_planilha({"municipio": "OUTRA CIDADE"}, {"mun": "Cidade Exemplo (Deslocamento especial)", "atv": "A413"})
     assert "mun" not in novos and any("difere" in a for a in avisos)
+
+
+def test_reiniciar_pendentes_volta_so_o_que_nao_terminou(tmp_path):
+    from agente_email.estado import Estado
+    from agente_email.siopi import reiniciar_pendentes
+    e = Estado()
+    e.set("siopi:A", etapa="desistiu", tentativas=3, pedido="x")
+    e.set("siopi:B", etapa="aguardando", pedido="y", enviado="2026-11-28T10:00:00")
+    e.set("siopi:C", etapa="completo")
+    e.set("<mensagem>", etapa="completo")
+    assert reiniciar_pendentes(e) == 2
+    assert e.get("siopi:A")["etapa"] == "pendente" and e.get("siopi:A")["tentativas"] == 0
+    assert e.get("siopi:C")["etapa"] == "completo" and e.get("<mensagem>")["etapa"] == "completo"

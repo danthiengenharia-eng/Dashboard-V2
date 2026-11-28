@@ -30,3 +30,8 @@ Se o agente não conseguir fazer algo, ele não altera nada e avisa no celular.
 Depois de criar cada OS, o agente pede os dados ao **agente do SIOPI** (o mesmo do botão "Obter dados"), que precisa
 estar ligado no computador com o Drive para desktop. Se estiver offline, o agente tenta 3 vezes e avisa no iPhone.
 Para desligar esse passo: `SIOPI=0` no `.env`.
+
+**Atenção ao testar com pasta local:** os pedidos ao SIOPI precisam ir para a pasta `Laudos` do **Drive**, que é a que o
+agente do SIOPI vigia. Se o `PASTA_LAUDOS` do teste for uma pasta local, preencha também
+`SIOPI_PASTA=G:\Meu Drive\Danthi\Caixa Economica Federal\Laudos`. Para refazer os pedidos que ficaram sem resposta:
+`python -m agente_email --refazer-siopi` e depois `--uma-vez`.

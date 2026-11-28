@@ -18,7 +18,7 @@ from .drive import DriveLocal
 from .estado import Estado
 from .notificar import NotificadorNulo, NtfyNotificador
 from .planilha import PlanilhaGoogle
-from .siopi import SiopiArquivos
+from .siopi import SiopiArquivos, reiniciar_pendentes
 
 
 def carregar_env(caminho: str = ".env"):
@@ -78,13 +78,14 @@ def montar() -> Contexto:
     pastas = {**PASTAS_PADRAO, **{k: v for k, v in (ajustes.get("pastas_imap") or {}).items() if k in PASTAS_PADRAO}}
     return Contexto(caixa, plan, DriveLocal(exigir("PASTA_LAUDOS")), notif, cfg, Estado(os.environ.get("ESTADO", "saida/estado.json")),
                     ajustes.get("regras", {}), pastas,
-                    siopi=None if os.environ.get("SIOPI", "1") == "0" else SiopiArquivos(exigir("PASTA_LAUDOS")))
+                    siopi=None if os.environ.get("SIOPI", "1") == "0" else SiopiArquivos(os.environ.get("SIOPI_PASTA") or exigir("PASTA_LAUDOS")))
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--uma-vez", action="store_true")
     ap.add_argument("--loop", action="store_true")
+    ap.add_argument("--refazer-siopi", action="store_true", help="refaz o pedido ao SIOPI das OS que ficaram sem os dados")
     ap.add_argument("--simular", action="store_true", help="mostra o que faria com os e-mails, sem alterar nada")
     ap.add_argument("--testar-email", action="store_true", help="descobre o servidor IMAP e confere as pastas")
     ap.add_argument("--intervalo", type=int, default=5, help="minutos entre rodadas (padrão 5)")
@@ -98,6 +99,12 @@ def main():
         return
     if a.simular:
         simular()
+        return
+    if a.refazer_siopi:
+        n = reiniciar_pendentes(Estado(os.environ.get("ESTADO", "saida/estado.json")))
+        for f in Path(os.environ.get("SIOPI_PASTA") or os.environ.get("PASTA_LAUDOS", ".")).glob("siopi_pedido_*.json"):
+            f.unlink()
+        print(f"{n} OS voltaram para a fila do SIOPI. Rode --uma-vez para refazer os pedidos.")
         return
     data_inicio()   # exige DESDE antes de qualquer alteração
     Path("saida").mkdir(exist_ok=True)

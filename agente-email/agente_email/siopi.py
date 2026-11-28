@@ -116,3 +116,13 @@ class SiopiArquivos:
                 (self.raiz / nome).unlink()
             except OSError:
                 pass
+
+
+def reiniciar_pendentes(estado) -> int:
+    """Volta ao início as OS cujo pedido ao SIOPI não foi concluído (para repetir depois de corrigir a pasta)."""
+    n = 0
+    for chave, est in estado.itens("siopi:"):
+        if est.get("etapa") != "completo":
+            estado.set(chave, etapa="pendente", tentativas=0, pedido=None, enviado=None)
+            n += 1
+    return n
