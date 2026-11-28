@@ -1,0 +1,7 @@
+.env
+config.json
+*.msg
+*.eml
+__pycache__/
+.pytest_cache/
+saida/

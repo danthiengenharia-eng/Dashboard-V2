@@ -1,0 +1,20 @@
+{
+  "_aviso": "Copie para config.json (ignorado pelo git). NUNCA coloque senhas aqui: use o arquivo .env.",
+  "intervalo_minutos": 5,
+  "caixa": {
+    "servidor_imap": "mail.SEU-DOMINIO.com.br",
+    "porta": 993
+  },
+  "pastas_imap": {
+    "origem": "INBOX",
+    "convocacao": "Ordem de Serviço",
+    "conclusao": "Conclusão OS",
+    "cancelamento": "Cancelamento OS",
+    "pept": "Pendências PEPT",
+    "revisao": null
+  },
+  "regras": {
+    "revisao": { "status": "Em revisão", "prazo_dias_corridos": 6 }
+  },
+  "_pendente": "pasta de destino do e-mail de revisão ainda não definida (null = deixa na caixa de entrada)"
+}
