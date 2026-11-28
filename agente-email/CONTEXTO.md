@@ -51,8 +51,9 @@ Indefinido (não decide, avisa). Quando Sim, o município é gravado como "<Muni
 - Objetivo de longo prazo: depender menos do Google; por isso o acesso à planilha fica atrás de `planilha.py`.
 
 ## Estado
-- Pronto: classificador, leitor da convocação, valores da conclusão, regras de conclusão/cancelamento/revisão/PEPT sobre a planilha (`acoes.py`, `planilha.py`), 21 testes (`python -m pytest tests`).
-- Próximo: criar a OS a partir da convocação (precisa das tabelas de atividade/município), pastas no Drive, IMAP da Hostgator, notificação.
+- Pronto: classificador, leitor da convocação, valores da conclusão, regras de conclusão/cancelamento/revisão/PEPT sobre a planilha (`acoes.py`, `planilha.py`), 39 testes (`python -m pytest tests`).
+- Pronto também: criação da OS a partir da convocação (item = maior item + 1; mês = mês atual; entrega = entrada + prazo da atividade; valores pelas tabelas; deslocamento especial detectado), conferida com a configuração real (`dashboard-cef-config.json`).
+- Próximo: criar as pastas/subpastas e salvar anexos pelo Drive para desktop, leitura do IMAP da Hostgator, notificação no iPhone, conferência SIOPI das 23:55.
 - Precisa do usuário: exportar a configuração do dashboard; pasta de destino da revisão; código do agente
   do SIOPI (que está no PC); conta de serviço do Google.
 - Mac Mini ainda não comprado: tudo roda no Windows por enquanto.

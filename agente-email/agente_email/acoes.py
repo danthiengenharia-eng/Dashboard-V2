@@ -6,6 +6,9 @@ from dataclasses import dataclass, field
 from datetime import date, timedelta
 from typing import Dict, List, Optional
 
+from .config import Configuracao
+from .convocacao import decodificar, interpretar
+from .criar_os import NovaOS, montar
 from .eventos import interpretar_conclusao
 from .modelos import Classificacao, Mensagem
 from .planilha import Planilha
@@ -39,6 +42,7 @@ class Resultado:
     avisos: List[str] = field(default_factory=list)       # exigem atenção do usuário
     arquivos: List[str] = field(default_factory=list)      # arquivos a gravar na pasta da OS (feito na camada do Drive)
     pode_mover_email: bool = False
+    nova_os: Optional[NovaOS] = None                       # OS a criar (pastas e anexos são feitos na camada do Drive)
 
 
 def _linha_unica(plan: Planilha, os_numero: str):
@@ -50,11 +54,11 @@ def _linha_unica(plan: Planilha, os_numero: str):
     return achadas[0], None
 
 
-def aplicar(c: Classificacao, msg: Mensagem, plan: Planilha, regras: dict, hoje: date) -> Resultado:
+def aplicar(c: Classificacao, msg: Mensagem, plan: Planilha, regras: dict, hoje: date, cfg: Optional[Configuracao] = None) -> Resultado:
     if not c.confiavel:
         return Resultado(False, "ignorado", avisos=c.avisos or ["e-mail não confiável"])
     if c.tipo == "convocacao":
-        return Resultado(False, "convocacao", avisos=["criação de OS ainda não implementada"])
+        return _criar_os(c, msg, plan, hoje, cfg)
 
     linha, erro = _linha_unica(plan, c.os_numero)
     if erro:
@@ -96,3 +100,21 @@ def aplicar(c: Classificacao, msg: Mensagem, plan: Planilha, regras: dict, hoje:
         return Resultado(True, "pept_sinalizada", {}, avisos, [arquivo], pode_mover_email=True)
 
     return Resultado(False, c.tipo, avisos=["tipo sem regra"])
+
+
+def _criar_os(c: Classificacao, msg: Mensagem, plan: Planilha, hoje: date, cfg: Optional[Configuracao]) -> Resultado:
+    if cfg is None:
+        return Resultado(False, "convocacao", avisos=["configuração do dashboard não carregada"])
+    if plan.achar_os(c.os_numero):
+        return Resultado(False, "convocacao", avisos=["OS já existe na planilha: nada foi criado"])
+    txt = next((decodificar(d) for n, d in msg.anexos if n.lower().endswith(".txt")), msg.corpo)
+    conv = interpretar(txt)
+    if conv.get("os") and conv["os"].replace("/", "") != c.os_numero.replace("/", ""):
+        return Resultado(False, "convocacao", avisos=["OS do anexo diverge da OS do assunto"])
+    conv["os"] = conv.get("os") or c.os_numero
+    nova, avisos = montar(conv, cfg, [l.get("item", "") for l in plan.listar()], hoje)
+    if nova is None:
+        return Resultado(False, "convocacao", avisos=avisos)
+    nova.campos["item"] = nova.campos["item"]
+    plan.adicionar(nova.campos)
+    return Resultado(True, "criada", nova.campos, nova.avisos, nova_os=nova, pode_mover_email=True)
