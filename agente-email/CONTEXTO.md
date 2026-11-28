@@ -56,6 +56,8 @@ Indefinido (não decide, avisa). Quando Sim, o município é gravado como "<Muni
 - Pronto também: pastas/arquivos pelo Drive para desktop (`drive.py`), leitura IMAP e movimentação (`caixa.py`),
   avisos no iPhone via ntfy com evento .ics da entrega (`notificar.py`), memória para nunca repetir (`estado.py`),
   rodada completa e retomável (`agente.py`) e execução (`python -m agente_email --uma-vez|--loop`). 49 testes.
+- Caixa real: servidor `mail.danthiengenharia.com.br` OK (login testado pelo usuário); 628 e-mails na caixa de entrada.
+  Proteções: `DESDE` obrigatório, `--simular`, reconhecimento de pastas existentes (INBOX.*) para não duplicar.
 - Próximo: testar numa CÓPIA da planilha com a chave da conta de serviço e o IMAP reais (ver INSTALAR.md);
   conferência SIOPI das 23:55; completar categoria Novo/Usado pelo SIOPI.
 - Pendente do usuário: pasta de destino do e-mail de revisão (hoje: não move, mas processa uma única vez).

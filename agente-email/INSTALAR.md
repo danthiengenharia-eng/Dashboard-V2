@@ -15,6 +15,9 @@ Pré-requisitos: Python 3.11+, Drive para desktop (com a pasta `Laudos` visível
 5. **Teste sem risco primeiro:** faça uma cópia da planilha, compartilhe com a conta de serviço e aponte
    o `CONFIG_DASHBOARD` para uma cópia do arquivo de configuração com o `sid` da planilha de teste.
    Rode `python -m agente_email --uma-vez` e confira a linha criada, as pastas e o aviso.
+5b. **Proteção dos e-mails antigos (obrigatório):** a caixa tem centenas de e-mails antigos. No `.env`, preencha
+   `DESDE=AAAA-MM-DD` com o dia a partir do qual o agente deve agir (ex.: `DESDE=2026-11-28`). Sem isso ele não roda.
+   Antes de rodar de verdade, use `python -m agente_email --simular`: ele só LISTA o que faria, sem alterar nada.
 6. **Rodar sempre:** `python -m agente_email --loop` (a cada 5 minutos).
    No Windows, para iniciar sozinho com o computador (Agendador de Tarefas):
    `schtasks /Create /SC ONSTART /TN "AgenteEmailDanthi" /TR "cmd /c cd /d C:\agente\agente-email && python -m agente_email --loop" /RU SYSTEM`

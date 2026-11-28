@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import List, Optional, Tuple
 
 
@@ -11,6 +12,7 @@ class Mensagem:
     anexos: List[Tuple[str, bytes]] = field(default_factory=list)
     id: str = ""          # Message-ID (ou UID) para nunca processar duas vezes
     bruto: bytes = b""    # e-mail original (.eml) para arquivar na pasta da OS
+    data: Optional[datetime] = None   # cabeçalho Date
 
 
 @dataclass

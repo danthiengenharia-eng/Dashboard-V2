@@ -141,3 +141,23 @@ def test_candidatos_e_nomes_de_pasta():
     assert candidatos_servidor("a@x.com.br", "br1.host.com")[0] == "br1.host.com"
     assert decodificar_pasta(b'(\\HasNoChildren) "." "Conclus&AOM-o OS"') == "Conclusão OS"
     assert decodificar_pasta(b'(\\HasNoChildren) "." INBOX') == "INBOX"
+
+
+def test_resolver_pasta_usa_a_existente_com_prefixo_inbox():
+    from agente_email.caixa import resolver_pasta, separar_list
+    nomes = ["INBOX", "INBOX.Sent", "INBOX.Ordem de Serviço", "INBOX.Conclusao OS"]
+    assert resolver_pasta(nomes, ".", "Ordem de Serviço") == "INBOX.Ordem de Serviço"
+    assert resolver_pasta(nomes, ".", "Conclusão OS") == "INBOX.Conclusao OS"          # ignora acento
+    assert resolver_pasta(nomes, ".", "Pendências PEPT") == "INBOX.Pendências PEPT"    # cria dentro de INBOX.
+    assert resolver_pasta(["INBOX", "Sent"], "/", "Pendências PEPT") == "Pendências PEPT"
+    assert separar_list(b'(\\HasNoChildren) "." "INBOX.Ordem de Servi&AOc-o"') == (".", "INBOX.Ordem de Serviço")
+    assert separar_list(b'(\\HasNoChildren) "." INBOX.Sent') == (".", "INBOX.Sent")
+
+
+def test_data_do_email_e_lida():
+    from email.message import EmailMessage
+    from agente_email.caixa import ler_mensagem
+    e = EmailMessage()
+    e["From"], e["Subject"], e["Date"] = "a@caixa.gov.br", "x", "Fri, 27 Nov 2026 09:45:29 -0300"
+    e.set_content("c")
+    assert ler_mensagem(e.as_bytes()).data.date() == date(2026, 11, 27)
