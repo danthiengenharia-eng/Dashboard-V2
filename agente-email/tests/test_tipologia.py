@@ -58,3 +58,10 @@ def test_siopi_nao_troca_a_tipologia_de_obra():
 
 def test_inferir_direto():
     assert inferir("loja térrea", "A413", TIPOLOGIAS_PADRAO)[0] == "Loja"
+
+
+def test_descricao_real_de_e401_construcao_residencial():
+    d = ("Acompanhamento construção residencial. Encerramento fase obra, 100% o\n"
+         "           bra concluída com apresentação do habite-se e registro averbação da c")
+    o = tip_de(txt("E401", descricao=d, assunto="VISTORIA,ACOMP.E RCTO.DE EQUIP,INSUMOS,OBRAS E SER"))
+    assert o.campos["tip"] == "Obra Residencial" and not o.avisos
