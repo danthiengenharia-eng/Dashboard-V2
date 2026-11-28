@@ -94,10 +94,14 @@ def main():
     ap.add_argument("--loop", action="store_true")
     ap.add_argument("--refazer-siopi", action="store_true", help="refaz o pedido ao SIOPI das OS que ficaram sem os dados")
     ap.add_argument("--diagnostico", action="store_true", help="mostra versão, caminhos, arquivos e processos (sem senhas)")
+    ap.add_argument("--raiz", help="pasta Laudos do Drive (mesmo parâmetro dos outros agentes); usada para pedidos ao SIOPI e batimento")
     ap.add_argument("--simular", action="store_true", help="mostra o que faria com os e-mails, sem alterar nada")
     ap.add_argument("--testar-email", action="store_true", help="descobre o servidor IMAP e confere as pastas")
     ap.add_argument("--intervalo", type=int, default=5, help="minutos entre rodadas (padrão 5)")
     a = ap.parse_args()
+    if a.raiz:
+        os.environ["SIOPI_PASTA"] = a.raiz
+        os.environ.setdefault("PASTA_LAUDOS", a.raiz)
     carregar_env()
     if a.diagnostico:
         from .diagnostico import gerar

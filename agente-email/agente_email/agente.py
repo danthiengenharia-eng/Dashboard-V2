@@ -300,3 +300,13 @@ def rodar_uma_vez(ctx: Contexto) -> int:
         if ctx.status is not None:
             ctx.status.evento(f"{ctx.ignorados} e-mail(s) ignorados: já constam como tratados (estado.json)")
     return n
+
+
+if __name__ == "__main__":
+    # Permite iniciar como os outros agentes:  python -m agente_email.agente --raiz "<pasta Laudos>"
+    import sys
+
+    from .__main__ import main
+    if not any(a in sys.argv for a in ("--uma-vez", "--loop", "--simular", "--testar-email", "--diagnostico", "--refazer-siopi", "-h", "--help")):
+        sys.argv.append("--loop")
+    main()
