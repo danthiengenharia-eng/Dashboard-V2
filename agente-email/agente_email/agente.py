@@ -21,7 +21,7 @@ from .planilha import Planilha
 log = logging.getLogger("agente")
 
 PASTAS_PADRAO = {"convocacao": "Ordem de Serviço", "conclusao": "Conclusão OS", "cancelamento": "Cancelamento OS",
-                 "pept": "Pendências PEPT", "revisao": None}
+                 "pept": "Pendências PEPT", "revisao": "Revisão OS"}
 ROTULO = {"criada": "Nova OS", "concluida": "OS concluída", "cancelada": "OS cancelada",
           "revisao": "Revisão solicitada", "pept_sinalizada": "PEPT resolvida pela CEF"}
 

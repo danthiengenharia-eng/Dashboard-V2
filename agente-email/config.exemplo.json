@@ -11,10 +11,9 @@
     "conclusao": "Conclusão OS",
     "cancelamento": "Cancelamento OS",
     "pept": "Pendências PEPT",
-    "revisao": null
+    "revisao": "Revisão OS"
   },
   "regras": {
     "revisao": { "status": "Em revisão", "prazo_dias_corridos": 6 }
   },
-  "_pendente": "pasta de destino do e-mail de revisão ainda não definida (null = deixa na caixa de entrada)"
 }
