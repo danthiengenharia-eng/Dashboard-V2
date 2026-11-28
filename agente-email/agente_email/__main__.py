@@ -9,7 +9,7 @@ import time
 from pathlib import Path
 
 from .agente import PASTAS_PADRAO, Contexto, rodar_uma_vez
-from datetime import date
+from datetime import date, timedelta
 
 from .agenda import AgendaIcloud
 from .caixa import CaixaImap
@@ -21,6 +21,7 @@ from .estado import Estado
 from .notificar import NotificadorNulo, NtfyNotificador
 from .planilha import PlanilhaGoogle
 from .siopi import SiopiArquivos, reiniciar_pendentes
+from .status import NotificadorRegistro, Status
 
 
 def carregar_env(caminho: str = ".env"):
@@ -116,23 +117,55 @@ def main():
     Path("saida").mkdir(exist_ok=True)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s",
                         handlers=([logging.StreamHandler()] if sys.stderr else []) + [RotatingFileHandler(os.environ.get("LOG", "saida/agente.log"), maxBytes=5_000_000, backupCount=3, encoding="utf-8")])
-    while True:
-        ctx = None
-        try:
-            ctx = montar()
-            ctx.estado.podar()
-            n = rodar_uma_vez(ctx)
-            logging.info("rodada concluída: %d e-mail(s)", n)
-        except SystemExit:
-            raise
-        except Exception:
-            logging.exception("falha na rodada (conexão ou configuração); tentarei de novo")
-        finally:
-            if ctx:
-                ctx.caixa.fechar()
-        if not a.loop:
-            break
-        time.sleep(a.intervalo * 60)
+    raiz_drive = os.environ.get("SIOPI_PASTA") or os.environ.get("PASTA_LAUDOS")
+    st = Status("saida", raiz_drive)
+    st.iniciar()
+    code = 0
+    try:
+        while True:
+            st.processar_comandos()
+            if st.parar:
+                break
+            if st.reiniciar:
+                code = 1                      # o Agendador de Tarefas reinicia o agente em 1 minuto
+                break
+            if not st.pausado:
+                ctx = None
+                st.estado, st.detalhe = "trabalhando", "lendo a caixa de e-mail"
+                st.bater()
+                try:
+                    ctx = montar()
+                    ctx.status = st
+                    ctx.notif = NotificadorRegistro(ctx.notif, st)
+                    ctx.estado.podar()
+                    n = rodar_uma_vez(ctx)
+                    logging.info("rodada concluída: %d e-mail(s)", n)
+                    st.rodada_ok(n)
+                except SystemExit as e:
+                    st.falha(str(e) or "configuração incompleta")
+                    raise
+                except Exception as e:
+                    logging.exception("falha na rodada (conexão ou configuração); tentarei de novo")
+                    st.falha(f"falha na rodada: {type(e).__name__}")
+                finally:
+                    if ctx:
+                        ctx.caixa.fechar()
+                    st.estado, st.detalhe = "ocioso", ""
+            if not a.loop:
+                break
+            espera = a.intervalo * 60
+            st.proxima_em = (st.relogio() + timedelta(seconds=espera)).isoformat(timespec="seconds")
+            st.acordar.clear()
+            st.bater()
+            while espera > 0 and not st.acordar.is_set():
+                time.sleep(min(5, espera))
+                espera -= 5
+                if st.processar_comandos() and (st.parar or st.reiniciar):
+                    break
+            st.proxima_em = None
+    finally:
+        st.encerrar()
+    sys.exit(code)
 
 
 if __name__ == "__main__":

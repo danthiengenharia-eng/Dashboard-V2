@@ -70,6 +70,8 @@ Indefinido (não decide, avisa). Quando Sim, o município é gravado como "<Muni
   e-mails tratados do mais antigo ao mais novo, resumo único de avisos em lotes (>5). 83 testes.
 - Mês de faturamento (coluna 'mes') e pasta do mês seguem a DATA DE ENTREGA (entrega 02/12 -> dez-26 / 2026-12);
   sem prazo na atividade usa o mês atual. Itens numerados pela data de emissão do e-mail. Reiteração de laudo = só avisa. 89 testes.
+- Painel de status: batimento a cada 30 s (`saida/status.json` e `agente_status_email.json` na Laudos, lido pelo painel 'Agentes'
+  do dashboard) + janela `painel_agente.pyw` (tkinter) com comandos pausar/retomar/rodar agora/parar/reiniciar. 96 testes.
 - Decisão do usuário: o fluxo de entrada é sempre buscar no SIOPI; o botão 'Salvar OS' do dashboard fica para a
   reformulação visual (pode ser removido ou fundido ao 'Obter dados').
 - Próximo: testar numa CÓPIA da planilha com a chave da conta de serviço e o IMAP reais (ver INSTALAR.md);

@@ -46,6 +46,7 @@ class Contexto:
     tentativas_max: int = 3
     permitir_sem_siopi: bool = True               # depois das tentativas, cria a OS sem SIOPI (e avisa) em vez de perder a demanda
     agenda: Optional[Agenda] = None               # compromissos no iCloud; None = só aviso com arquivo .ics
+    status: Optional[object] = None               # Status do painel (opcional)
     siopi_fora: bool = False                      # agente do SIOPI offline nesta rodada: não espera de novo
 
 
@@ -275,7 +276,9 @@ def rodar_uma_vez(ctx: Contexto) -> int:
     if len(mensagens) > LOTE:
         coletor = ctx.notif = NotificadorColetor(real)
     try:
-        for uid, msg in mensagens:
+        for i, (uid, msg) in enumerate(mensagens, 1):
+            if ctx.status is not None:
+                ctx.status.detalhe = f"e-mail {i} de {len(mensagens)}: {' '.join((msg.assunto or '').split())[:60]}"
             try:
                 processar(ctx, uid, msg)
                 n += 1

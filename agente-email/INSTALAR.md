@@ -66,3 +66,11 @@ mudar e **remove** quando a OS é concluída ou cancelada. Em revisão, cria tam
 6. Só então `python -m agente_email --uma-vez`. Os e-mails são tratados do mais antigo ao mais novo; cada OS espera o SIOPI e entra
    completa. Com mais de 5 e-mails, o iPhone recebe **um resumo** (alertas continuam individuais).
 7. Conferiu? `python -m agente_email --loop` (e o início automático com o Windows).
+
+## Ver se o agente está ligado
+- **No Windows:** dê dois cliques em `painel_agente.pyw`. A janela mostra a bolinha (verde = online, amarelo = pausado, vermelho =
+  problema ou offline), a última e a próxima rodada e a atividade recente, com botões **Pausar, Retomar, Rodar agora, Limpar alerta,
+  Ligar/Desligar agente, Abrir log**. Pode fechar a janela: o agente continua rodando. Dica: botão direito > *Enviar para > Área de trabalho*
+  cria um atalho. Se a janela mostrar OFFLINE, o agente não deu sinal nos últimos 2,5 minutos.
+- **No dashboard:** o painel "Agentes" (canto da tela) passa a mostrar o "Agente de e-mail" com os mesmos botões de pausar/retomar.
+  O agente grava um batimento a cada 30 s em `agente_status_email.json` na pasta Laudos do Drive.
