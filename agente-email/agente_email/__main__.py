@@ -2,6 +2,7 @@
 import argparse
 import json
 import logging
+from logging.handlers import RotatingFileHandler
 import os
 import sys
 import time
@@ -114,11 +115,12 @@ def main():
     data_inicio()   # exige DESDE antes de qualquer alteração
     Path("saida").mkdir(exist_ok=True)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s",
-                        handlers=([logging.StreamHandler()] if sys.stderr else []) + [logging.FileHandler(os.environ.get("LOG", "saida/agente.log"), encoding="utf-8")])
+                        handlers=([logging.StreamHandler()] if sys.stderr else []) + [RotatingFileHandler(os.environ.get("LOG", "saida/agente.log"), maxBytes=5_000_000, backupCount=3, encoding="utf-8")])
     while True:
         ctx = None
         try:
             ctx = montar()
+            ctx.estado.podar()
             n = rodar_uma_vez(ctx)
             logging.info("rodada concluída: %d e-mail(s)", n)
         except SystemExit:

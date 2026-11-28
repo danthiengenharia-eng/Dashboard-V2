@@ -1,6 +1,7 @@
 """Memória do agente: o que já foi feito com cada e-mail, para nunca repetir nem avisar em dobro."""
 import json
 import os
+from datetime import datetime, timedelta
 from pathlib import Path
 
 
@@ -24,6 +25,7 @@ class Estado:
 
     def set(self, mid: str, **dados):
         self.d.setdefault(mid, {}).update(dados)
+        self.d[mid]["ts"] = datetime.now().isoformat(timespec="seconds")
         self._salvar()
 
     def primeira_vez(self, mid: str, chave: str) -> bool:
@@ -37,3 +39,13 @@ class Estado:
 
     def itens(self, prefixo: str):
         return [(k, dict(v)) for k, v in self.d.items() if k.startswith(prefixo)]
+
+    def podar(self, dias: int = 365) -> int:
+        """Esquece e-mails concluídos há mais de `dias` (já saíram da caixa). Nunca mexe no que está em andamento."""
+        limite = (datetime.now() - timedelta(days=dias)).isoformat(timespec="seconds")
+        velhos = [k for k, v in self.d.items() if v.get("etapa") in ("completo", "ok", "desistiu") and v.get("ts", "9999") < limite]
+        for k in velhos:
+            del self.d[k]
+        if velhos:
+            self._salvar()
+        return len(velhos)

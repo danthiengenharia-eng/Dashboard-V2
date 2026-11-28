@@ -202,3 +202,11 @@ def test_ensaio_mostra_o_que_ja_existe_e_o_que_sera_criado(tmp_path):
     saida = "\n".join(descrever(msgs, plan, CFG, HOJE))
     assert "JÁ ESTÁ NA PLANILHA (item 9)" in saida and "CRIAR item 10" in saida and "OS NÃO ESTÁ NA PLANILHA" in saida
     assert "1 OS a criar · 1 já existem (ignoradas) · 0 a aplicar · 1 sem OS na planilha" in saida
+
+
+def test_estado_poda_so_o_antigo_e_concluido():
+    from agente_email.estado import Estado
+    e = Estado()
+    e.set("velho-ok", etapa="completo"); e.set("velho-andamento", etapa="aplicado"); e.set("novo", etapa="completo")
+    e.d["velho-ok"]["ts"] = e.d["velho-andamento"]["ts"] = "2020-01-01T00:00:00"
+    assert e.podar(365) == 1 and "velho-ok" not in e.d and "velho-andamento" in e.d and "novo" in e.d
