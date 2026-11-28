@@ -14,7 +14,8 @@ def descrever(msgs, plan, cfg, hoje: date) -> List[str]:
         base = f"{quando}{c.tipo:13} OS {c.os_numero or '—'}"
         if c.tipo == "desconhecido":
             resumo["problema"] += 1
-            linhas.append(base + "  | NÃO RECONHECIDO: " + "; ".join(c.avisos))
+            assunto = " ".join((m.assunto or "").split())[:90]
+            linhas.append(base + f"  | NÃO RECONHECIDO: assunto \"{assunto}\" de {m.remetente}")
             continue
         if plan is None:
             linhas.append(base + ("  | " + "; ".join(c.avisos) if c.avisos else ""))

@@ -210,3 +210,9 @@ def test_estado_poda_so_o_antigo_e_concluido():
     e.set("velho-ok", etapa="completo"); e.set("velho-andamento", etapa="aplicado"); e.set("novo", etapa="completo")
     e.d["velho-ok"]["ts"] = e.d["velho-andamento"]["ts"] = "2020-01-01T00:00:00"
     assert e.podar(365) == 1 and "velho-ok" not in e.d and "velho-andamento" in e.d and "novo" in e.d
+
+
+def test_ensaio_mostra_o_assunto_do_email_nao_reconhecido():
+    from agente_email.ensaio import descrever
+    m = Mensagem("alguem@caixa.gov.br", "Recusa da   Ordem de Serviço X", "", id="<z>")
+    assert 'assunto "Recusa da Ordem de Serviço X" de alguem@caixa.gov.br' in "\n".join(descrever([("1", m)], PlanilhaMemoria([]), CFG, HOJE))
