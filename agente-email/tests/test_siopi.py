@@ -70,7 +70,7 @@ def test_os_so_entra_na_planilha_completa(tmp_path):
     ctx, caixa, plan, notif = com_siopi(tmp_path, [("1", convocacao())])
     raiz = tmp_path / "Laudos"
     ctx.rel.ao_dormir = agente_responde(raiz)
-    pasta = raiz / "2026-11" / "S1-A413-1111222200000000120260101"
+    pasta = raiz / "2026-12" / "S1-A413-1111222200000000120260101"
     original = plan.adicionar
 
     def conferindo(campos):                   # no instante da inserção, o resto já precisa estar pronto
@@ -105,7 +105,7 @@ def test_siopi_offline_nao_cria_os_pela_metade(tmp_path):
     raiz = tmp_path / "Laudos"
     rodar_uma_vez(ctx)                                  # ninguém responde
     assert plan.listar() == [] and caixa.movidas == {} and not list(raiz.glob("siopi_pedido_*.json"))
-    assert not (raiz / "2026-11").exists()              # nem pastas nem linha
+    assert not (raiz / "2026-12").exists() and not (raiz / "2026-11").exists()              # nem pastas nem linha
     assert "SIOPI sem resposta" in notif.enviados[0]["titulo"] and "NÃO foi criada" in notif.enviados[0]["texto"]
 
 
@@ -167,7 +167,7 @@ def test_nao_repete_nem_duplica_documentos(tmp_path):
     for _ in range(3):
         rodar_uma_vez(ctx)
     assert len(notif.enviados) == n and len(plan.listar()) == 1
-    docs = list((raiz / "2026-11" / "S1-A413-1111222200000000120260101" / "02 - Documentos").iterdir())
+    docs = list((raiz / "2026-12" / "S1-A413-1111222200000000120260101" / "02 - Documentos").iterdir())
     assert len(docs) == 1
 
 

@@ -41,7 +41,7 @@ def test_fluxo_completo_da_nova_demanda(tmp_path):
     assert rodar_uma_vez(ctx) == 1
     l = plan.listar()[0]
     assert l["item"] == "1" and l["vd"] == "R$ 3,15" and "Deslocamento especial" in l["mun"]
-    pasta = tmp_path / "Laudos" / "2026-11" / "S1-A413-1111222200000000120260101"
+    pasta = tmp_path / "Laudos" / "2026-12" / "S1-A413-1111222200000000120260101"
     assert (pasta / "01 - Convocação").is_dir() and (pasta / "02 - Documentos").is_dir()
     assert (pasta / "convocacao.txt").read_text() == TXT and (pasta / "01 - Convocação" / "email_convocacao.eml").read_bytes() == b"EML"
     assert caixa.movidas == {"1": "Ordem de Serviço"}
@@ -66,7 +66,7 @@ def test_falha_no_drive_e_retomada_sem_duplicar(tmp_path):
     ctx.drive.criar_estrutura = real
     rodar_uma_vez(ctx)
     assert len(plan.listar()) == 1 and caixa.movidas == {"1": "Ordem de Serviço"}
-    assert (tmp_path / "Laudos" / "2026-11" / "S1-A413-1111222200000000120260101").is_dir()
+    assert (tmp_path / "Laudos" / "2026-12" / "S1-A413-1111222200000000120260101").is_dir()
 
 
 def test_cancelamento_e_conclusao_movem_para_suas_pastas(tmp_path):

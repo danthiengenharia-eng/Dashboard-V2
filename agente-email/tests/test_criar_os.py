@@ -45,8 +45,8 @@ def test_cria_os_com_deslocamento_especial():
     l = p.listar()[-1]
     assert l["item"] == "1496" and l["mun"] == "Cidade Exemplo (Deslocamento especial)" and l["polo"] == "Polo B"
     assert (l["vos"], l["vd"], l["vt"]) == ("R$ 466,00", "R$ 3,15", "R$ 469,15")
-    assert (l["siopi"], l["ent"], l["mes"], l["st"]) == ("26/11/2026", "02/12/2026", "nov-26", "Sem vistoria - não agendado")
-    assert r.nova_os.pasta_os == "S1496-A413-1111222200000000120260101" and r.nova_os.pasta_mes == "2026-11"
+    assert (l["siopi"], l["ent"], l["mes"], l["st"]) == ("26/11/2026", "02/12/2026", "dez-26", "Sem vistoria - não agendado")
+    assert r.nova_os.pasta_os == "S1496-A413-1111222200000000120260101" and r.nova_os.pasta_mes == "2026-12"
     assert l["os"] == OS.replace("/", "")
 
 
@@ -92,3 +92,27 @@ def test_atividade_ou_municipio_desconhecido_nao_cria():
 def test_sem_configuracao_nao_cria():
     m, c = conv()
     assert not aplicar(c, m, PlanilhaMemoria([]), {}, HOJE, None).aplicado
+
+
+def test_mes_de_faturamento_e_o_mes_da_entrega():
+    from agente_email.criar_os import montar as m
+    base = {"os": OS, "atividade": "A413", "endereco": "Rua X, 1", "bairro": "B", "municipio": "Cidade Exemplo", "cep": "1", "valor_deslocamento": "15,00"}
+    # entrega vira o mês: 26/11 + 6 dias = 02/12 -> dez-26, pasta 2026-12
+    o, _ = m({**base, "data_os": "26/11/2026"}, CFG, [], HOJE)
+    assert (o.campos["ent"], o.campos["mes"], o.pasta_mes) == ("02/12/2026", "dez-26", "2026-12")
+    # entrega no mesmo mês: 20/11 + 6 = 26/11 -> nov-26
+    o, _ = m({**base, "data_os": "20/11/2026"}, CFG, [], HOJE)
+    assert (o.campos["ent"], o.campos["mes"], o.pasta_mes) == ("26/11/2026", "nov-26", "2026-11")
+    # virada de ano: 28/12 + 6 = 03/01 -> jan-27
+    o, _ = m({**base, "data_os": "28/12/2026"}, CFG, [], HOJE)
+    assert (o.campos["mes"], o.pasta_mes) == ("jan-27", "2027-01")
+
+
+def test_sem_prazo_na_atividade_usa_o_mes_atual():
+    from agente_email.config import Configuracao as C
+    from agente_email.criar_os import montar as m
+    cfg = C.de_dict({"sid": "x", "sht": "A", "fmtPasta": "YYYY-MM", "fmtPastaOS": "S{nr}-{atv}-{os}",
+                     "atv": {"A413": {"v": 466, "d": True}}, "mun": {"Cidade Exemplo": {"v": 15, "polo": "B"}}})
+    o, _ = m({"os": OS, "atividade": "A413", "endereco": "R", "bairro": "B", "municipio": "Cidade Exemplo", "cep": "1",
+              "valor_deslocamento": "15,00", "data_os": "26/11/2026"}, cfg, [], HOJE)
+    assert o.campos["ent"] == "" and o.campos["mes"] == "nov-26"

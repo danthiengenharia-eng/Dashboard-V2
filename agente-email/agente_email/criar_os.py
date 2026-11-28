@@ -71,7 +71,7 @@ def montar(conv: dict, cfg: Configuracao, itens_existentes: List[str], hoje: dat
     d, m, y = (int(x) for x in conv["data_os"].split("/"))
     entrada = date(y, m, d)
     entrega = entrada + timedelta(days=int(a["p"])) if a.get("p") else None
-    mes = mes_abreviado(hoje)
+    mes = mes_abreviado(entrega or hoje)        # mês da ENTREGA (ex.: entrega em 02/12 -> dez-26); sem prazo, mês atual
 
     tip = conv.get("tipologia") or ""
     if not tip:
