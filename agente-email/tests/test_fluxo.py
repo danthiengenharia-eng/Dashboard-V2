@@ -242,3 +242,15 @@ def test_itens_seguem_a_data_de_emissao_e_nao_a_ordem_de_chegada(tmp_path):
     linhas = plan.listar()
     assert [l["item"] for l in linhas] == ["1", "2", "3"]
     assert [l["os"] for l in linhas] == [f"1111.2222.00000000{i}2026.01.01" for i in (2, 3, 1)]   # emitidos: 06h, 12h, 17h
+
+
+def test_email_ja_tratado_e_ignorado_e_a_rodada_diz_quantos(tmp_path, caplog):
+    import logging
+    ctx, caixa, plan, notif = montar(tmp_path, [("1", convocacao())])
+    rodar_uma_vez(ctx)
+    caixa.movidas.clear()                                 # o e-mail volta à caixa, mas o estado.json ainda o conhece
+    plan.linhas.clear()                                   # e a linha foi apagada da planilha
+    with caplog.at_level(logging.INFO, logger="agente"):
+        rodar_uma_vez(ctx)
+    assert plan.listar() == [] and ctx.ignorados == 1
+    assert any("ignorados porque já constam como tratados" in r.message for r in caplog.records)

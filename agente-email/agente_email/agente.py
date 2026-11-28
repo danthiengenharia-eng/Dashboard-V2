@@ -47,6 +47,7 @@ class Contexto:
     permitir_sem_siopi: bool = True               # depois das tentativas, cria a OS sem SIOPI (e avisa) em vez de perder a demanda
     agenda: Optional[Agenda] = None               # compromissos no iCloud; None = só aviso com arquivo .ics
     status: Optional[object] = None               # Status do painel (opcional)
+    ignorados: int = 0
     siopi_fora: bool = False                      # agente do SIOPI offline nesta rodada: não espera de novo
 
 
@@ -162,6 +163,8 @@ def processar(ctx: Contexto, uid: str, msg) -> None:
     mid = msg.id or uid
     est = ctx.estado.get(mid)
     if est.get("etapa") == "completo":
+        log.info("ignorado (já tratado antes): %s", " ".join((msg.assunto or "").split())[:70])
+        ctx.ignorados += 1
         return
     c = classificar(msg)
     if c.tipo == "desconhecido":
@@ -271,6 +274,7 @@ LOTE = 5   # acima disso, os avisos comuns viram um resumo só
 def rodar_uma_vez(ctx: Contexto) -> int:
     n = 0
     ctx.siopi_fora = False
+    ctx.ignorados = 0
     mensagens = ordenar_cronologicamente(ctx.caixa.listar())
     real, coletor = ctx.notif, None
     if len(mensagens) > LOTE:
@@ -291,4 +295,8 @@ def rodar_uma_vez(ctx: Contexto) -> int:
         ctx.notif = real
         if coletor:
             coletor.fechar(n)
+    if ctx.ignorados:
+        log.warning("%d e-mail(s) ignorados porque já constam como tratados em saida/estado.json (apague o arquivo para refazer)", ctx.ignorados)
+        if ctx.status is not None:
+            ctx.status.evento(f"{ctx.ignorados} e-mail(s) ignorados: já constam como tratados (estado.json)")
     return n
