@@ -386,6 +386,8 @@ body.light-mode .badge.badge-lau { background: rgba(22, 163, 74, 0.12); border: 
 
 .badge-atrasado{background:rgba(220,38,38,0.12);border:1px solid rgba(220,38,38,0.3);color:#ff453a;font-size:9px;padding:2px 6px;border-radius:10px;font-weight:700;margin-left:4px}
 body.light-mode .badge-atrasado{background:rgba(220,38,38,0.10);border-color:rgba(220,38,38,0.25);color:#dc2626}
+.badge-folga{background:rgba(48,209,88,0.12);border:1px solid rgba(48,209,88,0.35);color:#30d158;font-size:9px;padding:2px 6px;border-radius:10px;font-weight:700;margin-left:4px}
+body.light-mode .badge-folga{background:rgba(22,163,74,0.12);border-color:rgba(22,163,74,0.35);color:#15803d}
 .badge-vence{background:rgba(255,159,10,0.12);border:1px solid rgba(255,159,10,0.3);color:#ff9f0a;font-size:9px;padding:2px 6px;border-radius:10px;font-weight:700;margin-left:4px}
 body.light-mode .badge-vence{background:rgba(217,119,6,0.10);border-color:rgba(217,119,6,0.25);color:#b45309}
 
@@ -1446,7 +1448,7 @@ tbody tr:hover>td{background:var(--mica-surface-hover)}
   table{font-size:13px}
   thead th{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;padding:9px 10px;font-weight:600;position:sticky;top:0;z-index:5;background:var(--mica-surface);border-bottom:1.5px solid var(--mica-border-light)}
   tbody td{padding:0 10px !important;height:40px;font-size:13px !important}
-  tbody td .badge,tbody td .badge-atrasado,tbody td .badge-vence{font-size:11px !important}
+  tbody td .badge,tbody td .badge-atrasado,tbody td .badge-vence,tbody td .badge-folga,tbody td .badge-suspenso{font-size:11px !important}
   .topbar,.topbar:hover{position:sticky;top:0;left:auto;right:auto;bottom:auto;width:auto;height:50px;min-height:50px;flex-direction:row;align-items:center;justify-content:center;padding:0 12px;gap:3px;border-right:none;border-bottom:1px solid var(--chrome-border);overflow:visible;box-shadow:none;transition:none}
   .brand-logo-fallback{flex-direction:column;align-items:flex-start;gap:0;padding:0 12px 0 2px;margin:0 6px 0 0;border-bottom:none;border-right:1px solid var(--mica-border)}
   .brand-logo-fallback::before{display:none}
@@ -1570,7 +1572,7 @@ tbody tr:hover>td{background:var(--mica-surface-hover)}
   .twrap{overflow-x:auto !important}
   table{font-size:12.5px}
   tbody td{padding:0 10px !important;height:40px;font-size:12.5px !important}
-  tbody td .badge,tbody td .badge-atrasado,tbody td .badge-vence{font-size:11px !important}
+  tbody td .badge,tbody td .badge-atrasado,tbody td .badge-vence,tbody td .badge-folga,tbody td .badge-suspenso{font-size:11px !important}
   thead th:nth-child(2),tbody td:nth-child(2){min-width:238px;white-space:nowrap}
   thead th:nth-child(3),tbody td:nth-child(3){min-width:300px}
 }
@@ -2003,7 +2005,7 @@ body:not(.light-mode) .badge.st-vistoriada{background:rgba(234,179,8,.18) !impor
       </div>
       <div class="fg" style="margin-bottom:.6rem">
         <div class="ff full">
-          <label>Buscar dados via SIOPI (extensão)</label>
+          <label>Buscar dados via SIOPI</label>
           <div style="display:flex;gap:.5rem;align-items:stretch">
             <input id="nova-siopi-os" placeholder="7891.4095.000167944/2025.01.01" style="flex:1"
               onkeydown="if(event.key==='Enter'){event.preventDefault();buscarViaSIOPINovaOS();}">
@@ -2140,6 +2142,8 @@ body:not(.light-mode) .badge.st-vistoriada{background:rgba(234,179,8,.18) !impor
       <button class="stbtn" style="background:#7e22ce" onclick="updSt('OS em Revisão')">Em revisão</button>
       <button class="stbtn" style="background:#dc2626" onclick="updSt('OS Cancelada')">Cancelada</button>
     </div></div>
+    <div class="ds" id="d-analise-sec"><h3>Análise documental</h3><div id="d-analise"></div></div>
+    <div class="ds" id="d-pept-sec"><h3>PEPT e prazo</h3><div id="d-pept"></div></div>
 
     <div class="ds"><h3>Localização</h3><div class="dg">
       <div class="df full">
@@ -3044,6 +3048,7 @@ function parseRow(r,i){
     // Categoria do Imóvel (Novo/Usado) — extraída do SIOPI. Coluna nova (AI por default);
     // se a empresa mapeou outro índice em CFG.COLS.categoria, esse prevalece.
     categoria:P(r[ci('categoria',34)]),
+    peptHist:window.PEPT?(PEPT.mapa[P(r[ci('os',1)])]||''):'',
     ord:P(r[ci('item',0)])
   };
 }
@@ -3106,15 +3111,17 @@ function isParaRota(r){
 // CONFIG_USER legado removido — substituído pelo setupLoader() + _DCEF_KEY
 
 function prazoStatus(r){
-  if(!r.ent||['OS Concluída','OS Cancelada'].includes(r.st))return null;
+  if(['OS Concluída','OS Cancelada'].includes(r.st))return null;
+  const susp=window.PEPT&&PEPT.aberta(r);
+  if(susp)return{type:'suspenso',diff:susp.restam,vencida:PEPT.vencida(susp)};
+  if(!r.ent)return null;
   const parts=r.ent.split('/');if(parts.length!==3)return null;
   const dt=new Date(parseInt(parts[2]),parseInt(parts[1])-1,parseInt(parts[0]));
   if(isNaN(dt.getTime()))return null;
   const today=new Date();today.setHours(0,0,0,0);
   const diff=Math.ceil((dt-today)/(1000*60*60*24));
   if(diff<0)return{type:'atrasado',diff:Math.abs(diff)};
-  if(diff<=3)return{type:'vence',diff};
-  return null;
+  return{type:diff<=5?'vence':'folga',diff}; // amarelo: faltam até 5 dias (inclui o dia da entrega); verde: mais de 5
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -3388,6 +3395,7 @@ async function loadData(){
   try{
     const r=await gapi.client.sheets.spreadsheets.values.get({spreadsheetId:CFG.SID,range:`${CFG.SHT}!A2:AZ`});
     const rows=r.result.values||[];
+    if(window.PEPT)await PEPT.carregar();
     ALL=rows.map((r,i)=>({r,i})).filter(x=>x.r.length>0&&x.r[0]).map(x=>parseRow(x.r,x.i));
     loadPlanilha1();
     window.danthiART={
@@ -3404,6 +3412,7 @@ async function loadData(){
       }
     };
     applyFilters(); // já chama refreshVisible
+    if(window.ANALISE)ANALISE.carregarResumo(); // selo da análise documental (não bloqueia a lista)
     // Re-popula dropdowns que dependem de ALL (município na rota)
     if(TAB==='rota'||SPLIT_TAB==='rota')initRota();
   }catch(e){
@@ -3608,14 +3617,14 @@ function _cardOS(r,c,i){
   tr.className=(c.cls||'')+' os-card-row';
   const td=document.createElement('td');td.colSpan=14;
   const pz=(typeof prazoStatus==='function')?prazoStatus(r):null;
-  const pzH=pz?(pz.type==='atrasado'?'<span class="badge-atrasado">&#9650; '+pz.diff+'d</span>':'<span class="badge-vence">&#9201; '+pz.diff+'d</span>'):'';
+  const pzH=pz?(pz.type==='suspenso'?PEPT.selo(pz.diff,pz.vencida):pz.type==='atrasado'?'<span class="badge-atrasado">&#9650; '+pz.diff+'d</span>':'<span class="badge-'+pz.type+'">&#9201; '+pz.diff+'d</span>'):'';
   const _tc=(typeof titleCase==='function')?titleCase:(x=>x||'');
   const _nm=(typeof nMun==='function')?nMun:(x=>x||'');
   const _brl=(typeof brl==='function')?brl:(x=>'R$ '+x);
   const _fA=(typeof fmtArea==='function')?fmtArea:(x=>x||'—');
   const _rm=(typeof rsm2==='function')?rsm2:(_=>'—');
   td.innerHTML='<div class="os-card"><div class="os-card-rail"></div><div class="os-card-main">'
-    +'<div class="os-card-head"><div class="os-card-id">#'+(r.item||'&mdash;')+' '+badge(r)+' '+pzH+'</div>'
+    +'<div class="os-card-head"><div class="os-card-id">#'+(r.item||'&mdash;')+' '+badge(r)+' '+pzH+(window.ANALISE?ANALISE.selo(r):'')+'</div>'
     +'<div class="os-card-val">'+(r.vt>0?_brl(r.vt):'&mdash;')+'</div></div>'
     +'<div class="os-card-end">'+_tc(r.end||'')+'</div>'
     +'<div class="os-card-sub">'+[_tc(r.bairro||''),_tc(_nm(r.mun)||''),r.tip||''].filter(Boolean).join(' &middot; ')+'</div>'
@@ -3688,9 +3697,9 @@ function renderTable(){
     tr.addEventListener('click',()=>openD(i));
     const pz=prazoStatus(r);
     let prazoHtml='';
-    if(pz){prazoHtml=pz.type==='atrasado'?`<span class="badge-atrasado">▲ ${pz.diff}d</span>`:`<span class="badge-vence">⏱ ${pz.diff}d</span>`;}
+    if(pz){prazoHtml=pz.type==='suspenso'?PEPT.selo(pz.diff,pz.vencida):pz.type==='atrasado'?`<span class="badge-atrasado">▲ ${pz.diff}d</span>`:`<span class="badge-${pz.type}">⏱ ${pz.diff}d</span>`;}
     const _alertaMat=r.alertaMat==='divergente'?`<span title="⚠️ Matrícula divergente da Certidão — possível cancelamento da demanda" style="display:inline-block;margin-right:4px;color:#dc2626;font-weight:700">⚠</span>`:'';
-    [{h:_alertaMat+(r.item||'—'),s:'font-size:11px;text-align:center'+(r.alertaMat==='divergente'?';background:rgba(220,38,38,0.10)':'')},{t:r.os,s:'font-size:10px;max-width:140px;overflow:hidden;text-overflow:ellipsis'},{t:titleCase(r.end),s:'max-width:190px;overflow:hidden;text-overflow:ellipsis'},{t:titleCase(r.bairro),s:'max-width:95px;overflow:hidden;text-overflow:ellipsis'},{t:titleCase(nMun(r.mun)),s:'max-width:110px;overflow:hidden;text-overflow:ellipsis'},{t:r.atv,s:'font-size:11px;max-width:90px;overflow:hidden;text-overflow:ellipsis'},{t:r.tip,s:''},{t:fmtArea(r.area),s:'font-size:11px'},{t:r.mes,s:'font-size:11px'},{h:badge(r)+prazoHtml},{t:r.vt>0?brl(r.vt):'—',s:'font-size:11px;text-align:right'},{t:r.va>0?brl(r.va):'—',s:'font-size:11px;text-align:right'},{t:rsm2(r),s:'font-size:11px;text-align:right'}].forEach(col=>{
+    [{h:_alertaMat+(r.item||'—'),s:'font-size:11px;text-align:center'+(r.alertaMat==='divergente'?';background:rgba(220,38,38,0.10)':'')},{t:r.os,s:'font-size:10px;max-width:140px;overflow:hidden;text-overflow:ellipsis'},{t:titleCase(r.end),s:'max-width:190px;overflow:hidden;text-overflow:ellipsis'},{t:titleCase(r.bairro),s:'max-width:95px;overflow:hidden;text-overflow:ellipsis'},{t:titleCase(nMun(r.mun)),s:'max-width:110px;overflow:hidden;text-overflow:ellipsis'},{t:r.atv,s:'font-size:11px;max-width:90px;overflow:hidden;text-overflow:ellipsis'},{t:r.tip,s:''},{t:fmtArea(r.area),s:'font-size:11px'},{t:r.mes,s:'font-size:11px'},{h:badge(r)+prazoHtml+(window.ANALISE?ANALISE.selo(r):'')},{t:r.vt>0?brl(r.vt):'—',s:'font-size:11px;text-align:right'},{t:r.va>0?brl(r.va):'—',s:'font-size:11px;text-align:right'},{t:rsm2(r),s:'font-size:11px;text-align:right'}].forEach(col=>{
       const td=document.createElement('td');if(col.h)td.innerHTML=col.h;else td.textContent=col.t||'—';if(col.s)td.style.cssText=col.s;if(col.t)td.title=col.t;tr.appendChild(td);
     });
     const tdD=document.createElement('td');tdD.style.textAlign='center';const btn=document.createElement('button');btn.textContent='📁';btn.style.cssText='background:none;border:none;cursor:pointer;font-size:13px';btn.addEventListener('click',e=>{e.stopPropagation();openD(i);});tdD.appendChild(btn);tr.appendChild(tdD);tbody.appendChild(tr);
@@ -4071,6 +4080,8 @@ function openD(idx){
   if(r.vis)bdg.push(`<span class="badge badge-vis">Vistoria ✓</span>`);
   if(r.lau)bdg.push(`<span class="badge badge-lau">Laudo ✓</span>`);
   document.getElementById('d-badges').innerHTML=bdg.join('');
+  if(window.PEPT)PEPT.render(r);
+  if(window.ANALISE)ANALISE.abrir(r);
   // Fill display values
   setDV('d-end',titleCase(r.end));setDV('d-bairro',titleCase(r.bairro));setDV('d-mun',`${titleCase(nMun(r.mun))} / ${poloNome(r.polo)}`);setDV('d-cep',r.cep);setDV('d-polo',poloNome(r.polo));
   setDV('d-tip',r.tip);setDV('d-area',fmtArea(r.area));setDV('d-vaval',brl(r.va));setDV('d-rsm2',rsm2(r));
@@ -4120,9 +4131,7 @@ function openD(idx){
     // Aviso de tipologia divergente persiste também
     if(_draft.tipoConstrucao){
       const TIP_OPTS=['Apartamento','Casa','Casa comercial','Obra Residencial','Terreno','Sala comercial','Loja','Gleba'];
-      const raw=nrm(_draft.tipoConstrucao);
-      const sorted=[...TIP_OPTS].sort((a,b)=>b.length-a.length);
-      const matched=sorted.find(o=>raw.includes(nrm(o)));
+      const matched=tipologiaSIOPI({tipo_construcao:_draft.tipoConstrucao,endereco:r.end},TIP_OPTS).valor;
       if(matched&&matched!==r.tip&&_siopiAlerta){
         _siopiAlerta.innerHTML=`⚠️ <b>Tipologia divergente</b><br>SIOPI: <b>${matched}</b> · Dashboard: <b>${r.tip||'—'}</b><br><span style="font-size:10px;opacity:.85">Corrija manualmente em "Editar OS" se necessário.</span>`;
         _siopiAlerta.style.display='block';
@@ -4526,9 +4535,7 @@ async function enriquecerComSIOPI(){
     // Compara tipo de construção do SIOPI com tipologia da OS — só sinaliza, não edita
     if(tipoSiopi){
       const TIP_OPTS=['Apartamento','Casa','Casa comercial','Obra Residencial','Terreno','Sala comercial','Loja','Gleba'];
-      const raw=nrm(tipoSiopi);
-      const sorted=[...TIP_OPTS].sort((a,b)=>b.length-a.length);
-      const matched=sorted.find(o=>raw.includes(nrm(o)));
+      const matched=tipologiaSIOPI(result,TIP_OPTS).valor;
       const alertaEl=document.getElementById('d-siopi-alerta-tip');
       if(matched&&matched!==COS.tip){
         if(alertaEl){
@@ -5763,7 +5770,7 @@ function renderCal(){
       const dt=new Date(a,m,d),isH=dt.toDateString()===hoje.toDateString(),evs=evsDia(dt);
       const numH=isH?`<div class="cal-num-hj">${d}</div>`:`<div class="cal-num">${d}</div>`;
       // Show ALL events (no truncation)
-      const evsH=evs.map(r=>{const c=stCfg(r),idx=ALL.indexOf(r);return`<div class="cal-ev ${c.cls}" onclick="openFromCal(${idx})" title="${r.end}">#${r.item} ${r.tip||''}</div>`;}).join('');
+      const evsH=evs.map(r=>{const c=stCfg(r),idx=ALL.indexOf(r);return`<div class="cal-ev ${c.cls}" onclick="openFromCal(${idx})" title="${r.end}">${window.PEPT&&PEPT.aberta(r)?'⏸ ':''}#${r.item} ${r.tip||''}</div>`;}).join('');
       html+=`<div class="cal-cell${isH?' hoje-cell':''}">${numH}${evsH}</div>`;
     }
     const tot=first+ndm,rest=tot%7===0?0:7-tot%7;
@@ -5775,13 +5782,13 @@ function renderCal(){
     tit.textContent=`${dias[0].toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})} — ${dias[6].toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric'})}`;
     let html=`<div class="cal-sem-grid">`;
     dias.forEach((d,i)=>{const isH=d.toDateString()===hoje.toDateString();html+=`<div class="cal-sem-dh" style="${isH?'background:var(--accent);color:#fff;border-radius:6px':''}"><div>${DIAS_S[i]}</div><div style="font-size:14px;font-weight:700">${d.getDate()}</div></div>`;});
-    dias.forEach(d=>{const evs=evsDia(d),isH=d.toDateString()===hoje.toDateString();html+=`<div class="cal-sem-col" style="${isH?'outline:2px solid var(--accent)':''}">`;if(!evs.length)html+=`<div style="font-size:10px;color:var(--text-muted);text-align:center;margin-top:6px">—</div>`;evs.forEach(r=>{const c=stCfg(r),idx=ALL.indexOf(r);html+=`<div class="cal-ev ${c.cls}" onclick="openFromCal(${idx})">#${r.item} ${(r.tip||'').substring(0,8)}</div>`;});html+='</div>';});
+    dias.forEach(d=>{const evs=evsDia(d),isH=d.toDateString()===hoje.toDateString();html+=`<div class="cal-sem-col" style="${isH?'outline:2px solid var(--accent)':''}">`;if(!evs.length)html+=`<div style="font-size:10px;color:var(--text-muted);text-align:center;margin-top:6px">—</div>`;evs.forEach(r=>{const c=stCfg(r),idx=ALL.indexOf(r);html+=`<div class="cal-ev ${c.cls}" onclick="openFromCal(${idx})">${window.PEPT&&PEPT.aberta(r)?'⏸ ':''}#${r.item} ${(r.tip||'').substring(0,8)}</div>`;});html+='</div>';});
     html+='</div>';body.innerHTML=html;
   }else{
     tit.textContent=CALD.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
     const evs=evsDia(CALD);
     if(!evs.length){body.innerHTML=`<div style="text-align:center;padding:3rem;color:var(--text-muted)">Nenhuma OS com entrega neste dia</div>`;return;}
-    body.innerHTML=evs.map(r=>{const c=stCfg(r),idx=ALL.indexOf(r);return`<div class="cal-dia-ev ${c.cls}" onclick="openFromCal(${idx})"><div style="font-size:18px;font-weight:700;min-width:36px">#${r.item}</div><div style="flex:1"><div style="font-weight:700;font-size:12px">${r.os}</div><div style="font-size:11px;margin-top:1px">${r.end}</div><div style="font-size:11px">${r.bairro} — ${nMun(r.mun)}</div><div style="font-size:11px">${r.tip} · ${r.area} · ${brl(r.vt)}</div></div><div style="font-size:11px;text-align:right"><div style="font-weight:700">${c.lbl}</div><div>${r.atv}</div></div></div>`;}).join('');
+    body.innerHTML=evs.map(r=>{const c=stCfg(r),idx=ALL.indexOf(r);return`<div class="cal-dia-ev ${c.cls}" onclick="openFromCal(${idx})"><div style="font-size:18px;font-weight:700;min-width:36px">${window.PEPT&&PEPT.aberta(r)?'⏸ ':''}#${r.item}</div><div style="flex:1"><div style="font-weight:700;font-size:12px">${r.os}</div><div style="font-size:11px;margin-top:1px">${r.end}</div><div style="font-size:11px">${r.bairro} — ${nMun(r.mun)}</div><div style="font-size:11px">${r.tip} · ${r.area} · ${brl(r.vt)}</div></div><div style="font-size:11px;text-align:right"><div style="font-weight:700">${c.lbl}</div><div>${r.atv}</div></div></div>`;}).join('');
   }
 }
 function openFromCal(idx){
@@ -6452,6 +6459,30 @@ function calcTotal(){
 // para o salvar() gravar nas colunas certas depois. Vira {} a cada nova busca.
 let NOVA_SIOPI_EXTRAS = {};
 
+// Tipologia a partir do SIOPI. O complemento da unidade vale mais que o "Tipo de construção": há OS em que o SIOPI marca
+// construção "Casa" e o complemento é "APTO 302" (caso real, 26/11/2026).
+function tipologiaSIOPI(r, opcoes){
+  const norm = s => String(s||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
+  const opcao = nome => opcoes.find(o => norm(o) === norm(nome));
+  const doSiopi = [r.tipo_construcao, r.tipologia, r.tipo_imovel].map(norm).filter(Boolean);
+  let pelaBase = '';
+  for(const alvo of doSiopi){
+    const maiores = [...opcoes].filter(o => norm(o)).sort((a,b) => norm(b).length - norm(a).length);
+    pelaBase = opcao(alvo) || maiores.find(o => alvo.includes(norm(o))) || maiores.reverse().find(o => norm(o).includes(alvo)) || '';
+    if(pelaBase) break;
+  }
+  const regras = [[/\b(?:apartamento|apto|apt|ap)\b\.? ?(?:n[o.]* ?)?\d/, 'Apartamento'], [/\bloja\b\.? ?(?:n[o.]* ?)?\d/, 'Loja'], [/\bsala\b\.? ?(?:n[o.]* ?)?\d/, 'Sala comercial']];
+  for(const fonte of [r.complemento, r.endereco]){
+    for(const [re, nome] of regras){
+      if(re.test(norm(fonte)) && opcao(nome)){
+        const diverge = !!pelaBase && norm(pelaBase) !== norm(nome);
+        return { valor: opcao(nome), aviso: diverge ? 'o complemento é "' + String(r.complemento || r.endereco).slice(0,40) + '", mas o SIOPI marca construção "' + (r.tipo_construcao || r.tipo_imovel) + '"' : '' };
+      }
+    }
+  }
+  return { valor: pelaBase, aviso: '' };
+}
+
 async function buscarViaSIOPINovaOS(){
   const inp = document.getElementById('nova-siopi-os');
   const btn = document.getElementById('nova-siopi-btn');
@@ -6546,12 +6577,13 @@ async function buscarViaSIOPINovaOS(){
       else { console.warn('[SIOPI Nova OS] atividade não cadastrada:', r.atividade_extraida); }
     }
 
-    // Tipologia: preenche se casar com uma das opções
-    if(r.tipo_construcao || r.tipo_imovel){
+    // Tipologia: confere e corrige (inclusive a que veio do .txt)
+    let tipoDoSiopi = { valor: '', aviso: '' };
+    {
       const selTip = document.getElementById('ntip');
-      const alvo = (r.tipo_construcao || r.tipo_imovel).toLowerCase();
-      const match = [...selTip.options].find(o => o.text.toLowerCase().includes(alvo) || alvo.includes(o.text.toLowerCase()));
-      if(match) selTip.value = match.value;
+      tipoDoSiopi = tipologiaSIOPI(r, [...selTip.options].map(o => o.text));
+      const op = [...selTip.options].find(o => o.text === tipoDoSiopi.valor);
+      if(op) selTip.value = op.value;
     }
 
     // Data SIOPI = Data de Abertura da demanda
@@ -6584,6 +6616,7 @@ async function buscarViaSIOPINovaOS(){
 
     const partes = [];
     if(r.endereco) partes.push('📍 ' + r.endereco);
+    if(tipoDoSiopi.valor) partes.push('🏠 ' + tipoDoSiopi.valor + (tipoDoSiopi.aviso ? ' (confira: ' + tipoDoSiopi.aviso + ')' : ''));
     if(r.categoria) partes.push('🏷️ ' + r.categoria);
     if(r.atividade_extraida) partes.push('⚙️ ' + r.atividade_extraida);
     if(r.documentos && r.documentos.length) partes.push(`📎 ${r.documentos.filter(d=>d.bytes).length}/${r.documentos.length} doc(s)`);
@@ -6718,7 +6751,8 @@ async function salvar(){
     // criarPastasDrive zera TXT_FILE_CONVOCACAO após subir o .txt — guarda antes pra saber
     // depois que já havia convocação anexada (e não gerar PNG/.txt sintético por cima).
     const temTxtAnexado = !!TXT_FILE_CONVOCACAO;
-    await criarPastasDrive(novoItem,atv,osp,mes);
+    const pastaNovaId=await criarPastasDrive(novoItem,atv,osp,mes);
+    const docsEnviados=[];let docsFalharam=0;
 
     // Se veio via SIOPI e trouxe documentos, sobe todos para 02 - Documentos (num passo só,
     // logo após as pastas serem criadas — sem janela em que a subpasta fica vazia).
@@ -6737,16 +6771,17 @@ async function salvar(){
             const existentes = await listarArquivosExistentes(docsFolderId);
             let enviados = 0;
             for(const doc of docs){
-              if(!doc.bytes) continue;  // pula documentos que não baixaram
+              if(!doc.bytes){docsFalharam++;continue;}  // pula documentos que não baixaram
               try{
                 const nome = gerarNomeUnico(doc.nome, existentes);
                 await uploadDocumentoParaDrive(doc, nome, docsFolderId);
                 existentes.add(nome);
-                enviados++;
-              }catch(err){console.warn('[SIOPI Nova OS] upload falhou:', doc.nome, err);}
+                enviados++;docsEnviados.push(nome);
+              }catch(err){docsFalharam++;console.warn('[SIOPI Nova OS] upload falhou:', doc.nome, err);}
             }
             if(enviados) showToast(`📁 ${enviados}/${docs.length} documento(s) salvos`);
           }else{
+            docsFalharam++;
             console.warn('[SIOPI Nova OS] pasta 02-Documentos não encontrada');
           }
         }
@@ -6808,7 +6843,19 @@ async function salvar(){
             console.warn('[SIOPI Nova OS] subpasta de convocação (role=txt) não encontrada');
           }
         }
-      }catch(err){console.error('[SIOPI Nova OS] erro nos uploads pós-salvar:', err);}
+      }catch(err){docsFalharam++;console.error('[SIOPI Nova OS] erro nos uploads pós-salvar:', err);}
+    }
+
+    // ETAPA 1 AUTOMÁTICA: gravado por ÚLTIMO, avisa o computador que a OS está completa e informa tipologia e tipo de vistoria.
+    // Se algum documento falhou no envio, não grava: a etapa 1 fica no botão.
+    if(pastaNovaId){
+      if(docsFalharam){showToast('⚠️ Documento não enviado: nesta OS a etapa 1 do SIMIL não roda sozinha.');}
+      else{
+        try{
+          await criarJsonNaPasta('simil_auto.json',{versao:1,criado_em:new Date().toISOString(),os:String(os).trim(),item:novoItem,atividade:atv,
+            tipologia:document.getElementById('ntip').value,tipo_vistoria:document.getElementById('ntv').value,municipio:munNm,mes:mes,documentos:docsEnviados},pastaNovaId);
+        }catch(err){console.warn('[SIMIL automático]',err);showToast('⚠️ Nesta OS a etapa 1 do SIMIL não vai rodar sozinha: use o botão.');}
+      }
     }
 
     await loadData();
@@ -6847,6 +6894,7 @@ function limparFormNovaOS() {
 async function updSt(ns){
   if(!AUTH){showToast('Entre com Google primeiro.');return;}
   if(!COS)return;
+  if(window.PEPT&&!PEPT.permitirStatus(COS,ns))return;
   try{
     let vOSFmt='R$ 0,00', vDeslocFmt='R$ 0,00', vTotalFmt='R$ 0,00';
     if(ns !== 'OS Cancelada'){
@@ -10561,10 +10609,24 @@ async function _uploadFotoParaDrive(file, nome, folderId, barId, onProgress){
 <!-- SIMIL-VISTORIA:INICIO -->
 <script>
 /* Formulário rápido de vistoria (SIMIL, etapa 2) — inserido no dashboard por simil/gerar_form_dashboard.py.
-   A especificação (SPEC) vem de simil/vistoria_apartamento.json (fonte única, também usada pelo agente). */
+   As especificações (SPECS) vêm de simil/vistoria_<tipologia>.json (fonte única, também usada pelo agente): apartamento, casa e lote. */
 (function () {
-  const SPEC = {"_comentario": "Especificação ÚNICA do formulário rápido de vistoria (apartamento) e do preenchimento da etapa 2 no SIMIL. 'aba' = painel do SIMIL; 'id' = sufixo do id do campo no SIMIL; opções com o texto EXATO do SIMIL; 'padrao' = valor já marcado no formulário.", "listas": {"conservacao": ["Em construção ou na planta", "Bom (aparência de novo)", "Bom (aparência de usado)", "Regular (reparos simples)", "Regular (reparos importantes)", "Ruim"], "padrao": ["Alto (superior, luxo)", "Alto (por predominância)", "Normal (c/ aspectos de alto)", "Normal (forte predominância)", "Normal (c/ aspectos de baixo)", "Baixo", "Mínimo"], "influencia": ["Favorável", "Desfavorável", "Sem Influência"], "revestimento_piso": ["Cimentado", "Cerâmica Comercial", "São Tomé", "Emborrachado", "Granitina", "Formicado", "Porcelanato 2ª", "Flutuante", "Granito/Mármore 2ª", "Cerâmica Extra", "Ardósia", "Vinílico", "Madeira", "Granito/Mármore 1ª", "Porcelanato 1ª", "Outros, Vide Inform. Compl."], "esquadrias": ["Alumínio", "Ferro", "Vidro Temperado", "PVC", "Madeira", "Outros, Vide Inform. Compl"], "fachada": ["Sem Revestimento", "Cimentado", "Pintura/Textura", "Grafiato", "Cerâmica de Baixa Qualidade", "Ardósia ou Compatível", "COBOGO", "Vulcanizado ou Formicado", "Granitina ou Compatível", "Concreto Aparente", "Cerâmica de Boa Qualidade", "Porcelanato", "Madeira ou Emadeirado", "Granito ou Compatível", "Mármore ou Compatível", "Aluminio Composto", "Pele de Vidro", "Pastilha", "Outros, Vide Inform. Complem."], "cercamento": ["Não Possui", "Parcial", "Total"], "tipo_cercamento": ["Sem Cercamento", "Arame", "Tela", "Gradil", "Muro", "Outros, Vide Inform. Compl."], "sem_possui": ["Aparentemente Não Possui", "Aparentemente Possui, Vide Informações Complementares"], "sem_possui_inv": ["Aparentemente Não Possui, Vide Informações Complementares", "Aparentemente Possui"], "pavimentacao": ["SS", "T", "MEZ", "SLJ", "PAV", "COB", "SS + T", "T + MEZ", "T + SLJ", "T + PAV", "T + COB", "PAV + COB", "SS + T + MEZ", "SS + T + SLJ", "SS + T + PAV", "SS + T + COB", "T + MEZ +SLJ", "SS + T + MEZ + SLJ", "T + MEZ + SLJ + PAV", "SS + T + MEZ + SLJ + PAV", "T + MEZ + SLJ + PAV + COB", "SS + T + MEZ + SLJ + PAV + COB", "Outros, Vide Inform. Compl."], "revestimento_parede": ["Cimentado", "Cerâmica Comercial", "São Tomé", "Emborrachado", "Granitina", "Formicado", "Porcelanato 2ª", "Granito/Mármore 2ª", "Cerâmica Extra", "Ardósia", "Vinílico", "Madeira", "Granito/Mármore 1ª", "Porcelanato 1ª", "Azulejo", "Pintura/Textura", "Grafiato", "Outros, Vide Inform. Compl."]}, "secoes": [{"titulo": "Vistoria", "aba": "avaliandaI", "campos": [{"chave": "tipoVistoria", "rotulo": "Tipo de vistoria", "tipo": "radio", "opcoes": ["Interna e Externa", "Somente Externa", "Não Realizada", "Outras"], "padrao": "Interna e Externa", "simil": {"id": "tipoVistoria", "tipo": "radio"}}, {"chave": "dataVistoria", "rotulo": "Data da vistoria", "tipo": "data", "padrao": "hoje", "simil": {"id": "dataVistoria_input", "tipo": "data"}}]}, {"titulo": "Unidade", "aba": "avaliandaI", "campos": [{"chave": "andar", "rotulo": "Andar", "tipo": "numero", "maxlen": 4, "simil": {"id": "andar", "tipo": "txt"}}, {"chave": "pavimentosUnidade", "rotulo": "Pavimentos da unidade", "tipo": "numero", "padrao": "1", "maxlen": 2, "simil": {"id": "pavimentos", "tipo": "txt"}}, {"chave": "unidadesAndar", "rotulo": "Unidades no andar", "tipo": "numero", "maxlen": 2, "simil": {"id": "unidades", "tipo": "txt"}}, {"chave": "cobertura", "rotulo": "É cobertura", "tipo": "sim_nao", "padrao": "Não", "simil": {"id": "checkUnidadeCobertura_input", "tipo": "chk"}}, {"chave": "estadoConservacao", "rotulo": "Estado de conservação", "tipo": "radio", "lista": "conservacao", "padrao": "Bom (aparência de usado)", "simil": {"id": "estadoConservacao", "tipo": "radio"}}, {"chave": "padraoAcabamento", "rotulo": "Padrão de acabamento", "tipo": "radio", "lista": "padrao", "padrao": "Normal (forte predominância)", "simil": {"id": "padraoAcabamento", "tipo": "radio"}}, {"chave": "uso", "rotulo": "Uso", "tipo": "radio", "opcoes": ["Residencial", "Residencial-Comercial/Institucional", "Comercial/Institucional", "Outros, Vide Inform. Compl."], "padrao": "Residencial", "simil": {"id": "uso", "tipo": "radio"}}, {"chave": "paredesInternas", "rotulo": "Paredes internas", "tipo": "radio", "opcoes": ["Alvenaria", "Gesso", "Madeira", "Concreto", "Aço", "Outras"], "padrao": "Alvenaria", "simil": {"id": "paredesInternas", "tipo": "radio"}}, {"chave": "ocupacao", "rotulo": "Ocupação", "tipo": "radio", "opcoes": ["Ocupado", "Desocupado", "Não Constatado", "Desocupado (aparentemente foi ocupado)", "Outras, Vide Inform. Compl."], "padrao": "Ocupado", "simil": {"id": "ocupacao", "tipo": "radio"}}, {"chave": "posicaoFisica", "rotulo": "Posição da unidade", "tipo": "radio", "opcoes": ["Frente/Canto", "Frente/Meio", "Fundos/Canto", "Fundos/Meio", "Lateral", "Outros, Vide Inform. Compl."], "padrao": "Frente/Meio", "simil": {"id": "posicaoFisica", "tipo": "radio"}}, {"chave": "orientacao", "rotulo": "Orientação", "tipo": "radio", "lista": "influencia", "padrao": "Sem Influência", "simil": {"id": "orientacao", "tipo": "radio"}}, {"chave": "vista", "rotulo": "Vista", "tipo": "radio", "lista": "influencia", "padrao": "Sem Influência", "simil": {"id": "vista", "tipo": "radio"}}]}, {"titulo": "Vagas e cômodos", "aba": "avaliandaII", "campos": [{"chave": "vagasCobertasLivres", "rotulo": "Vagas cobertas livres", "tipo": "numero", "padrao": "0", "maxlen": 8, "simil": {"id": "cobertasLivre", "tipo": "txt", "aba": "avaliandaI"}}, {"chave": "vagasDescobertasLivres", "rotulo": "Vagas descobertas livres", "tipo": "numero", "padrao": "0", "maxlen": 8, "simil": {"id": "descobertasLivre", "tipo": "txt", "aba": "avaliandaI"}}, {"chave": "quartos", "rotulo": "Quartos", "tipo": "numero", "maxlen": 2, "simil": {"id": "quarto", "tipo": "txt"}, "modelo": "quartos"}, {"chave": "banheirosSuite", "rotulo": "Banheiros de suíte (privativos)", "tipo": "numero", "padrao": "0", "maxlen": 2, "simil": {"id": "banheirosPrivativos", "tipo": "txt"}, "modelo": "suites"}, {"chave": "banheirosSociais", "rotulo": "Banheiros sociais", "tipo": "numero", "padrao": "1", "maxlen": 2, "simil": {"id": "banheiroSocial", "tipo": "txt"}}, {"chave": "salas", "rotulo": "Salas", "tipo": "numero", "padrao": "1", "maxlen": 2, "simil": {"id": "salas", "tipo": "txt"}}, {"chave": "cozinhas", "rotulo": "Cozinhas", "tipo": "numero", "padrao": "1", "maxlen": 2, "simil": {"id": "cozinha", "tipo": "txt"}}, {"chave": "areasServico", "rotulo": "Áreas de serviço", "tipo": "numero", "padrao": "1", "maxlen": 2, "simil": {"id": "areaServico", "tipo": "txt"}}, {"chave": "varandas", "rotulo": "Varandas/sacadas", "tipo": "numero", "padrao": "0", "maxlen": 2, "simil": {"id": "sacadaVaranda", "tipo": "txt"}}, {"chave": "lavabos", "rotulo": "Lavabos", "tipo": "numero", "padrao": "0", "maxlen": 2, "simil": {"id": "lavabo", "tipo": "txt"}}]}, {"titulo": "Acabamentos da unidade", "aba": "avaliandaII", "campos": [{"chave": "pisosMolhadas", "rotulo": "Piso (áreas molhadas)", "tipo": "lista", "lista": "revestimento_piso", "padrao": "Cerâmica Comercial", "simil": {"id": "pisosMolhadas", "tipo": "sel"}}, {"chave": "paredesMolhadas", "rotulo": "Paredes (áreas molhadas)", "tipo": "lista", "lista": "revestimento_parede", "padrao": "Azulejo", "simil": {"id": "paredesMolhadas", "tipo": "sel"}}, {"chave": "pisoSecas", "rotulo": "Piso (áreas secas)", "tipo": "lista", "lista": "revestimento_piso", "padrao": "Cerâmica Comercial", "simil": {"id": "pisoSecas", "tipo": "sel"}}, {"chave": "pavimentacao", "rotulo": "Pavimento(s) da unidade", "tipo": "lista", "lista": "pavimentacao", "padrao": "PAV", "simil": {"id": "pavimentacao", "tipo": "sel"}}]}, {"titulo": "Prédio", "aba": "predio", "campos": [{"chave": "predioPavimentos", "rotulo": "Pavimentos do prédio", "tipo": "numero", "maxlen": 3, "simil": {"id": "pavimento", "tipo": "txt"}}, {"chave": "predioUnidades", "rotulo": "Unidades do prédio", "tipo": "numero", "maxlen": 3, "simil": {"id": "unidade", "tipo": "txt"}}, {"chave": "predioSubsolos", "rotulo": "Subsolos", "tipo": "numero", "padrao": "0", "maxlen": 3, "simil": {"id": "subsolo", "tipo": "txt"}}, {"chave": "predioElevadores", "rotulo": "Elevadores", "tipo": "numero", "padrao": "0", "maxlen": 3, "simil": {"id": "elevador", "tipo": "txt"}}, {"chave": "idadeAparente", "rotulo": "Idade aparente (anos)", "tipo": "numero", "faixa_para": {"simil": "idadeEstimada", "faixas": [[0, 0, "Na Planta"], [1, 5, "<= 5"], [6, 10, "> 5 <= 10"], [11, 20, "> 10 <= 20"], [21, 50, "> 20 <= 50"], [51, 100, "> 50 <= 100"], [101, 999, "> 100"]]}, "modelo": "idade", "simil": {"id": "idadeEstimada", "tipo": "radio"}}, {"chave": "predioConservacao", "rotulo": "Conservação do prédio", "tipo": "radio", "lista": "conservacao", "padrao": "Bom (aparência de usado)", "simil": {"id": "estadoConcervacao", "tipo": "radio"}}, {"chave": "predioDestinacao", "rotulo": "Destinação", "tipo": "radio", "opcoes": ["Residencial", "Comercial/Institucional", "Misto", "Outros, Vide Inform. Complem."], "padrao": "Residencial", "simil": {"id": "destinacao", "tipo": "radio"}}, {"chave": "predioPadrao", "rotulo": "Padrão de acabamento do prédio", "tipo": "radio", "lista": "padrao", "padrao": "Normal (forte predominância)", "simil": {"id": "padraoAcabamentoPredio", "tipo": "radio"}}, {"chave": "insercao", "rotulo": "Inserção", "tipo": "radio", "opcoes": ["Condomínio", "Condomínio (parte de outro condomínio)", "Condomínio (parte de empreendimento não condominial)"], "padrao": "Condomínio", "simil": {"id": "insercaodoPredio", "tipo": "radio"}}, {"chave": "esquadriasPrincipal", "rotulo": "Esquadrias (fachada principal)", "tipo": "lista", "lista": "esquadrias", "padrao": "Alumínio", "simil": {"id": "tipoEsquadrias", "tipo": "sel"}}, {"chave": "fachadaPrincipal", "rotulo": "Fachada principal", "tipo": "lista", "lista": "fachada", "padrao": "Pintura/Textura", "simil": {"id": "tipoFachadas", "tipo": "sel"}}]}, {"titulo": "Empreendimento e patologias", "aba": "patologia", "campos": [{"chave": "empCercamento", "rotulo": "Cercamento do empreendimento", "tipo": "radio", "lista": "cercamento", "padrao": "Total", "simil": {"id": "cercamentoAbaEmpreedimento", "tipo": "radio"}}, {"chave": "empControleAcesso", "rotulo": "Controle de acesso", "tipo": "radio", "opcoes": ["Sim", "Não"], "padrao": "Sim", "simil": {"id": "controleAcesso", "tipo": "radio"}}, {"chave": "patViciosGraves", "rotulo": "Vícios de construção graves", "tipo": "radio", "lista": "sem_possui", "padrao": "Aparentemente Não Possui", "simil": {"id": "viciosConstrucoesGraves", "tipo": "radio"}, "oculto": true}, {"chave": "patEstabilidade", "rotulo": "Estabilidade e solidez", "tipo": "radio", "lista": "sem_possui_inv", "padrao": "Aparentemente Não Possui, Vide Informações Complementares", "simil": {"id": "estabilidadeSolidez", "tipo": "radio"}, "oculto": true}, {"chave": "patHabitabilidade", "rotulo": "Condições de habitabilidade", "tipo": "radio", "lista": "sem_possui_inv", "padrao": "Aparentemente Não Possui, Vide Informações Complementares", "simil": {"id": "condicoesHabitalidade", "tipo": "radio"}, "oculto": true}, {"chave": "patOutros", "rotulo": "Outros danos graves", "tipo": "radio", "lista": "sem_possui", "padrao": "Aparentemente Não Possui", "simil": {"id": "outros", "tipo": "radio"}, "oculto": true}]}, {"titulo": "Especificação e mercado", "aba": "especificacao", "campos": [{"chave": "imovelReal", "rotulo": "Imóvel conforme a documentação", "tipo": "radio", "opcoes": ["Aparenta Conformidade Com a Documentação", "Não Aparenta Conformidade Com a Documentação, Vide Informações Complementares"], "padrao": "Aparenta Conformidade Com a Documentação", "simil": {"id": "imovelReal", "tipo": "radio"}, "trava_se_divergencia": true, "oculto": true}, {"chave": "metodoEspecificacao", "rotulo": "Método", "tipo": "radio", "opcoes": ["Comparativo de Dados", "Involutivo", "Renda", "Evolutivo", "Quantificação de Custo", "Comparativo de Custo", "Outros, Vide Inform. Compl."], "padrao": "Comparativo de Dados", "simil": {"id": "metodoEspecificacao", "tipo": "radio"}, "oculto": true}, {"chave": "performancePercebida", "rotulo": "Desempenho do mercado", "tipo": "radio", "opcoes": ["Aparentemente Aquecido", "Sem Destaque", "Aparentemente Recessivo"], "padrao": "Sem Destaque", "simil": {"id": "performancePercebida", "tipo": "radio"}, "oculto": true}, {"chave": "nivelOferta", "rotulo": "Nível de oferta", "tipo": "radio", "opcoes": ["Aparentemente Alto", "Sem Destaque", "Aparentemente Baixo"], "padrao": "Sem Destaque", "simil": {"id": "nivelOferta", "tipo": "radio"}, "oculto": true}, {"chave": "liquidezInferida", "rotulo": "Liquidez", "tipo": "radio", "opcoes": ["Provavelmente Alta", "Sem Destaque", "Provavelmente Baixa"], "padrao": "Sem Destaque", "simil": {"id": "liquidezInferida", "tipo": "radio"}, "oculto": true}]}], "regiao": {"aba": "regiao", "campos": [{"chave": "usosPredominantes", "rotulo": "Usos predominantes", "tipo": "multi", "opcoes": ["Residencial Unifamiliar", "Residencial Multifamiliar", "Comercial", "Industrial", "Institucional", "Outros, Vide Inform. Compl."], "sugestao": "mapa"}, {"chave": "infraestrutura", "rotulo": "Infra-estrutura urbana", "tipo": "multi", "opcoes": ["Água Potável", "Esgoto Sanitário", "Energia Elétrica", "Telefone", "Pavimentação", "Esgoto Pluvial", "Gás Canalizado", "Iluminação Pública"], "sugestao": "mapa"}, {"chave": "servicos", "rotulo": "Serviços públicos e comunitários", "tipo": "multi", "opcoes": ["Coleta de Lixo", "Transporte Coletivo", "Comércio", "Rede Bancária", "Educação", "Saúde", "Segurança", "Outros, Vide Inform. Compl."], "sugestao": "mapa"}, {"chave": "padraoRegiao", "rotulo": "Padrão da região", "tipo": "radio", "lista": "padrao", "padrao": "Normal (forte predominância)", "simil": {"id": "padraoEspesificacao", "tipo": "radio"}}, {"chave": "valorizantes", "rotulo": "Influência valorizante", "tipo": "lista", "opcoes": ["Sem Destaque", "Shopping", "Comércio", "Orla", "Estação de Metrô/Trem", "Indústria", "Parques", "Clubes", "Empreendimentos", "Outros, Vide Inform. Compl."], "padrao": "Sem Destaque", "simil": {"id": "selectOneMenuVal", "tipo": "sel"}}, {"chave": "desvalorizantes", "rotulo": "Influência desvalorizante", "tipo": "lista", "opcoes": ["Sem Destaque", "Area de Desmoronamento", "Aterro Sanitário/Lixão", "Estação de Tratamento de Esgoto", "Estação Metrô/Trem", "Subhabitação", "Torre Telefonia ou Energia", "Empreendimento", "Indústria", "Area Inundável", "Presídios", "Feira Livre", "Outros, Vide Inform. Complem."], "padrao": "Sem Destaque", "simil": {"id": "selectOneMenuDesv", "tipo": "sel"}}, {"chave": "viaAcesso", "rotulo": "Via de acesso", "tipo": "lista", "opcoes": ["Arterial ou Principal", "Coletora ou Secundária", "Local", "Rodovia", "Vicinal", "Outros, Vide Inform. Compl."], "padrao": "Local", "sugestao": "mapa", "simil": {"id": "viaAcesso", "tipo": "sel"}}, {"chave": "contextoUrbano", "rotulo": "Região no contexto urbano", "tipo": "lista", "opcoes": ["Região Central", "Região Não Central", "Ocupação Periférica/Suburbana", "Não Inserido na Malha", "Outros, Vide Inform. Compl."], "padrao": "Região Não Central", "sugestao": "mapa", "simil": {"id": "regiaoContextoUrbano", "tipo": "sel"}}]}, "requisitos": {"aba": "pesquisa", "radio": {"chave": "atendimentoRequisitos", "opcoes": ["Sim, Atendeu", "Não atendeu, Requisitos Mínimos Gerais", "Não é o Caso"], "padrao": "Sim, Atendeu"}, "observacao": "As caixas de requisitos mínimos (21 gerais e 24 FGTS/MCMV) ficam desmarcadas por padrão; o formulário só pergunta 'algum requisito não atendido?' e, se sim, mostra a lista."}, "equipamentos": {"aba": "avaliandaII", "multi": ["Aquecimento Solar", "Armários Embutidos", "Ar Condicionado", "Campo de Futebol/Golfe", "Equipamento de Segurança", "Espaço com Churrasqueira", "Espaço c/ Churrasqueira Privativo", "Gerador", "Lareira", "Rede Interna de Gás", "Mini-Quadra Esportiva", "Piscina", "Piscina Privativa", "Playground", "Poço Artesiano", "Portaria e/ou Guarita", "Salão de Festas", "Outros Salões de Lazer", "Sauna / Ofurô / Hidromassagem", "Sauna / Ofurô / Hidromassagem Privativa", "Quadra de Tênis", "Quadra Poliesportiva", "Central Aquecimento de Água", "Pilotis", "Não Possui Equipamentos"]}, "fotos": {"aba": "foto", "maximo": 12, "legendas": ["Ar Condicionado", "Área de Serviço", "Armários", "Banheiro de Empregada", "Banheiro Privativo", "Banheiro Social", "Barrihete", "Caixa d'água", "Campo de Futebol/Golfe", "Churrasqueira", "Closet", "Cobertura", "Copa", "Cozinha", "Despesa/Depósito", "Escritório/Gabinete", "Estacionamento", "Fachada", "Fachada Principal", "Fachada Secundária", "Frente", "Fundos", "Garagem", "Guarita", "Hall", "Hidrômetro", "Identificação do Imóvel", "Jardins", "Lareira", "Lateral Direita", "Lateral Esquerda", "Lavabo", "Logradouro", "Mezanino", "Outros, Vide Inf. Compl.", "Pilotis", "Piscina", "Playground", "Portaria", "Quadra de Tênis", "Quadra Esportiva", "Quadro de Distribuição", "Quarto", "Rua de Acesso", "Sacada / Varanda", "Sala", "Salão de Festas", "Salões Outros (Exceto de Festas)", "Sauna / Ofurô / Hidromassagem", "Sprinkler", "Terraço", "Vista"], "descricao_maxlen": 50, "repetidos": "se a mesma legenda aparecer mais de uma vez (ex.: Quarto), sugerir 'Quarto 2', 'Quarto 3' na descrição"}};
-  let ENVIADO_EM = 0, POLL = null, ETAPA1 = false, R = null, D = {}, EQUIP = [], REGIAO = {}, FOTOS = [], DISPON = [], PASTA = null, STATUS = null, REGREV = false, REQNAO = false;
+  const SPECS = {"apartamento": {"_comentario": "Especificação ÚNICA do formulário rápido de vistoria (apartamento) e do preenchimento da etapa 2 no SIMIL. 'aba' = painel do SIMIL; 'id' = sufixo do id do campo no SIMIL; opções com o texto EXATO do SIMIL; 'padrao' = valor já marcado no formulário.", "tipologia": "apartamento", "verificado": true, "obrigatorios": ["andar", "quartos", "predioPavimentos", "predioUnidades", "idadeAparente"], "listas": {"conservacao": ["Em construção ou na planta", "Bom (aparência de novo)", "Bom (aparência de usado)", "Regular (reparos simples)", "Regular (reparos importantes)", "Ruim"], "padrao": ["Alto (superior, luxo)", "Alto (por predominância)", "Normal (c/ aspectos de alto)", "Normal (forte predominância)", "Normal (c/ aspectos de baixo)", "Baixo", "Mínimo"], "influencia": ["Favorável", "Desfavorável", "Sem Influência"], "revestimento_piso": ["Cimentado", "Cerâmica Comercial", "São Tomé", "Emborrachado", "Granitina", "Formicado", "Porcelanato 2ª", "Flutuante", "Granito/Mármore 2ª", "Cerâmica Extra", "Ardósia", "Vinílico", "Madeira", "Granito/Mármore 1ª", "Porcelanato 1ª", "Outros, Vide Inform. Compl."], "esquadrias": ["Alumínio", "Ferro", "Vidro Temperado", "PVC", "Madeira", "Outros, Vide Inform. Compl"], "fachada": ["Sem Revestimento", "Cimentado", "Pintura/Textura", "Grafiato", "Cerâmica de Baixa Qualidade", "Ardósia ou Compatível", "COBOGO", "Vulcanizado ou Formicado", "Granitina ou Compatível", "Concreto Aparente", "Cerâmica de Boa Qualidade", "Porcelanato", "Madeira ou Emadeirado", "Granito ou Compatível", "Mármore ou Compatível", "Aluminio Composto", "Pele de Vidro", "Pastilha", "Outros, Vide Inform. Complem."], "cercamento": ["Não Possui", "Parcial", "Total"], "tipo_cercamento": ["Sem Cercamento", "Arame", "Tela", "Gradil", "Muro", "Outros, Vide Inform. Compl."], "sem_possui": ["Aparentemente Não Possui", "Aparentemente Possui, Vide Informações Complementares"], "sem_possui_inv": ["Aparentemente Não Possui, Vide Informações Complementares", "Aparentemente Possui"], "pavimentacao": ["SS", "T", "MEZ", "SLJ", "PAV", "COB", "SS + T", "T + MEZ", "T + SLJ", "T + PAV", "T + COB", "PAV + COB", "SS + T + MEZ", "SS + T + SLJ", "SS + T + PAV", "SS + T + COB", "T + MEZ +SLJ", "SS + T + MEZ + SLJ", "T + MEZ + SLJ + PAV", "SS + T + MEZ + SLJ + PAV", "T + MEZ + SLJ + PAV + COB", "SS + T + MEZ + SLJ + PAV + COB", "Outros, Vide Inform. Compl."], "revestimento_parede": ["Cimentado", "Cerâmica Comercial", "São Tomé", "Emborrachado", "Granitina", "Formicado", "Porcelanato 2ª", "Granito/Mármore 2ª", "Cerâmica Extra", "Ardósia", "Vinílico", "Madeira", "Granito/Mármore 1ª", "Porcelanato 1ª", "Azulejo", "Pintura/Textura", "Grafiato", "Outros, Vide Inform. Compl."]}, "secoes": [{"titulo": "Vistoria", "aba": "avaliandaI", "campos": [{"chave": "tipoVistoria", "rotulo": "Tipo de vistoria", "tipo": "radio", "opcoes": ["Interna e Externa", "Somente Externa", "Não Realizada", "Outras"], "padrao": "Interna e Externa", "simil": {"id": "tipoVistoria", "tipo": "radio"}}, {"chave": "dataVistoria", "rotulo": "Data da vistoria", "tipo": "data", "padrao": "hoje", "simil": {"id": "dataVistoria_input", "tipo": "data"}}]}, {"titulo": "Unidade", "aba": "avaliandaI", "campos": [{"chave": "andar", "rotulo": "Andar", "tipo": "numero", "maxlen": 4, "simil": {"id": "andar", "tipo": "txt"}}, {"chave": "pavimentosUnidade", "rotulo": "Pavimentos da unidade", "tipo": "numero", "padrao": "1", "maxlen": 2, "simil": {"id": "pavimentos", "tipo": "txt"}}, {"chave": "unidadesAndar", "rotulo": "Unidades no andar", "tipo": "numero", "maxlen": 2, "simil": {"id": "unidades", "tipo": "txt"}}, {"chave": "cobertura", "rotulo": "É cobertura", "tipo": "sim_nao", "padrao": "Não", "simil": {"id": "checkUnidadeCobertura_input", "tipo": "chk"}}, {"chave": "estadoConservacao", "rotulo": "Estado de conservação", "tipo": "radio", "lista": "conservacao", "padrao": "Bom (aparência de usado)", "simil": {"id": "estadoConservacao", "tipo": "radio"}}, {"chave": "padraoAcabamento", "rotulo": "Padrão de acabamento", "tipo": "radio", "lista": "padrao", "padrao": "Normal (forte predominância)", "simil": {"id": "padraoAcabamento", "tipo": "radio"}}, {"chave": "uso", "rotulo": "Uso", "tipo": "radio", "opcoes": ["Residencial", "Residencial-Comercial/Institucional", "Comercial/Institucional", "Outros, Vide Inform. Compl."], "padrao": "Residencial", "simil": {"id": "uso", "tipo": "radio"}}, {"chave": "paredesInternas", "rotulo": "Paredes internas", "tipo": "radio", "opcoes": ["Alvenaria", "Gesso", "Madeira", "Concreto", "Aço", "Outras"], "padrao": "Alvenaria", "simil": {"id": "paredesInternas", "tipo": "radio"}}, {"chave": "ocupacao", "rotulo": "Ocupação", "tipo": "radio", "opcoes": ["Ocupado", "Desocupado", "Não Constatado", "Desocupado (aparentemente foi ocupado)", "Outras, Vide Inform. Compl."], "padrao": "Ocupado", "simil": {"id": "ocupacao", "tipo": "radio"}}, {"chave": "posicaoFisica", "rotulo": "Posição da unidade", "tipo": "radio", "opcoes": ["Frente/Canto", "Frente/Meio", "Fundos/Canto", "Fundos/Meio", "Lateral", "Outros, Vide Inform. Compl."], "padrao": "Frente/Meio", "simil": {"id": "posicaoFisica", "tipo": "radio"}}, {"chave": "orientacao", "rotulo": "Orientação", "tipo": "radio", "lista": "influencia", "padrao": "Sem Influência", "simil": {"id": "orientacao", "tipo": "radio"}}, {"chave": "vista", "rotulo": "Vista", "tipo": "radio", "lista": "influencia", "padrao": "Sem Influência", "simil": {"id": "vista", "tipo": "radio"}}]}, {"titulo": "Vagas e cômodos", "aba": "avaliandaII", "campos": [{"chave": "vagasCobertasLivres", "rotulo": "Vagas cobertas livres", "tipo": "numero", "padrao": "0", "maxlen": 8, "simil": {"id": "cobertasLivre", "tipo": "txt", "aba": "avaliandaI"}}, {"chave": "vagasDescobertasLivres", "rotulo": "Vagas descobertas livres", "tipo": "numero", "padrao": "0", "maxlen": 8, "simil": {"id": "descobertasLivre", "tipo": "txt", "aba": "avaliandaI"}}, {"chave": "quartos", "rotulo": "Quartos", "tipo": "numero", "maxlen": 2, "simil": {"id": "quarto", "tipo": "txt"}, "modelo": "quartos"}, {"chave": "banheirosSuite", "rotulo": "Banheiros de suíte (privativos)", "tipo": "numero", "padrao": "0", "maxlen": 2, "simil": {"id": "banheirosPrivativos", "tipo": "txt"}, "modelo": "suites"}, {"chave": "banheirosSociais", "rotulo": "Banheiros sociais", "tipo": "numero", "padrao": "1", "maxlen": 2, "simil": {"id": "banheiroSocial", "tipo": "txt"}}, {"chave": "salas", "rotulo": "Salas", "tipo": "numero", "padrao": "1", "maxlen": 2, "simil": {"id": "salas", "tipo": "txt"}}, {"chave": "cozinhas", "rotulo": "Cozinhas", "tipo": "numero", "padrao": "1", "maxlen": 2, "simil": {"id": "cozinha", "tipo": "txt"}}, {"chave": "areasServico", "rotulo": "Áreas de serviço", "tipo": "numero", "padrao": "1", "maxlen": 2, "simil": {"id": "areaServico", "tipo": "txt"}}, {"chave": "varandas", "rotulo": "Varandas/sacadas", "tipo": "numero", "padrao": "0", "maxlen": 2, "simil": {"id": "sacadaVaranda", "tipo": "txt"}}, {"chave": "lavabos", "rotulo": "Lavabos", "tipo": "numero", "padrao": "0", "maxlen": 2, "simil": {"id": "lavabo", "tipo": "txt"}}]}, {"titulo": "Acabamentos da unidade", "aba": "avaliandaII", "campos": [{"chave": "pisosMolhadas", "rotulo": "Piso (áreas molhadas)", "tipo": "lista", "lista": "revestimento_piso", "padrao": "Cerâmica Comercial", "simil": {"id": "pisosMolhadas", "tipo": "sel"}}, {"chave": "paredesMolhadas", "rotulo": "Paredes (áreas molhadas)", "tipo": "lista", "lista": "revestimento_parede", "padrao": "Azulejo", "simil": {"id": "paredesMolhadas", "tipo": "sel"}}, {"chave": "pisoSecas", "rotulo": "Piso (áreas secas)", "tipo": "lista", "lista": "revestimento_piso", "padrao": "Cerâmica Comercial", "simil": {"id": "pisoSecas", "tipo": "sel"}}, {"chave": "pavimentacao", "rotulo": "Pavimento(s) da unidade", "tipo": "lista", "lista": "pavimentacao", "padrao": "PAV", "simil": {"id": "pavimentacao", "tipo": "sel"}}]}, {"titulo": "Prédio", "aba": "predio", "campos": [{"chave": "predioPavimentos", "rotulo": "Pavimentos do prédio", "tipo": "numero", "maxlen": 3, "simil": {"id": "pavimento", "tipo": "txt"}}, {"chave": "predioUnidades", "rotulo": "Unidades do prédio", "tipo": "numero", "maxlen": 3, "simil": {"id": "unidade", "tipo": "txt"}}, {"chave": "predioSubsolos", "rotulo": "Subsolos", "tipo": "numero", "padrao": "0", "maxlen": 3, "simil": {"id": "subsolo", "tipo": "txt"}}, {"chave": "predioElevadores", "rotulo": "Elevadores", "tipo": "numero", "padrao": "0", "maxlen": 3, "simil": {"id": "elevador", "tipo": "txt"}}, {"chave": "idadeAparente", "rotulo": "Idade aparente (anos)", "tipo": "numero", "faixa_para": {"simil": "idadeEstimada", "faixas": [[0, 0, "Na Planta"], [1, 5, "<= 5"], [6, 10, "> 5 <= 10"], [11, 20, "> 10 <= 20"], [21, 50, "> 20 <= 50"], [51, 100, "> 50 <= 100"], [101, 999, "> 100"]]}, "modelo": "idade", "simil": {"id": "idadeEstimada", "tipo": "radio"}}, {"chave": "predioConservacao", "rotulo": "Conservação do prédio", "tipo": "radio", "lista": "conservacao", "padrao": "Bom (aparência de usado)", "simil": {"id": "estadoConcervacao", "tipo": "radio"}}, {"chave": "predioDestinacao", "rotulo": "Destinação", "tipo": "radio", "opcoes": ["Residencial", "Comercial/Institucional", "Misto", "Outros, Vide Inform. Complem."], "padrao": "Residencial", "simil": {"id": "destinacao", "tipo": "radio"}}, {"chave": "predioPadrao", "rotulo": "Padrão de acabamento do prédio", "tipo": "radio", "lista": "padrao", "padrao": "Normal (forte predominância)", "simil": {"id": "padraoAcabamentoPredio", "tipo": "radio"}}, {"chave": "insercao", "rotulo": "Inserção", "tipo": "radio", "opcoes": ["Condomínio", "Condomínio (parte de outro condomínio)", "Condomínio (parte de empreendimento não condominial)"], "padrao": "Condomínio", "simil": {"id": "insercaodoPredio", "tipo": "radio"}}, {"chave": "esquadriasPrincipal", "rotulo": "Esquadrias (fachada principal)", "tipo": "lista", "lista": "esquadrias", "padrao": "Alumínio", "simil": {"id": "tipoEsquadrias", "tipo": "sel"}}, {"chave": "esquadriasDemais", "rotulo": "Esquadrias (demais fachadas)", "tipo": "lista", "lista": "esquadrias", "padrao": "Alumínio", "simil": {"id": "paredeEsquadrias", "tipo": "sel"}}, {"chave": "fachadaPrincipal", "rotulo": "Fachada principal", "tipo": "lista", "lista": "fachada", "padrao": "Pintura/Textura", "simil": {"id": "tipoFachadas", "tipo": "sel"}}, {"chave": "fachadaDemais", "rotulo": "Fachadas (demais)", "tipo": "lista", "lista": "fachada", "padrao": "Pintura/Textura", "simil": {"id": "paredeFachadas", "tipo": "sel"}}]}, {"titulo": "Empreendimento e patologias", "aba": "patologia", "campos": [{"chave": "empCercamento", "rotulo": "Cercamento do empreendimento", "tipo": "radio", "lista": "cercamento", "padrao": "Total", "simil": {"id": "cercamentoAbaEmpreedimento", "tipo": "radio"}}, {"chave": "empControleAcesso", "rotulo": "Controle de acesso", "tipo": "radio", "opcoes": ["Sim", "Não"], "padrao": "Sim", "simil": {"id": "controleAcesso", "tipo": "radio"}}, {"chave": "patViciosGraves", "rotulo": "Vícios de construção graves", "tipo": "radio", "lista": "sem_possui", "padrao": "Aparentemente Não Possui", "simil": {"id": "viciosConstrucoesGraves", "tipo": "radio"}, "oculto": true}, {"chave": "patEstabilidade", "rotulo": "Estabilidade e solidez", "tipo": "radio", "lista": "sem_possui_inv", "padrao": "Aparentemente Não Possui, Vide Informações Complementares", "simil": {"id": "estabilidadeSolidez", "tipo": "radio"}, "oculto": true}, {"chave": "patHabitabilidade", "rotulo": "Condições de habitabilidade", "tipo": "radio", "lista": "sem_possui_inv", "padrao": "Aparentemente Não Possui, Vide Informações Complementares", "simil": {"id": "condicoesHabitalidade", "tipo": "radio"}, "oculto": true}, {"chave": "patOutros", "rotulo": "Outros danos graves", "tipo": "radio", "lista": "sem_possui", "padrao": "Aparentemente Não Possui", "simil": {"id": "outros", "tipo": "radio"}, "oculto": true}]}, {"titulo": "Especificação e mercado", "aba": "especificacao", "campos": [{"chave": "imovelReal", "rotulo": "Imóvel conforme a documentação", "tipo": "radio", "opcoes": ["Aparenta Conformidade Com a Documentação", "Não Aparenta Conformidade Com a Documentação, Vide Informações Complementares"], "padrao": "Aparenta Conformidade Com a Documentação", "simil": {"id": "imovelReal", "tipo": "radio"}, "trava_se_divergencia": true, "oculto": true}, {"chave": "metodoEspecificacao", "rotulo": "Método", "tipo": "radio", "opcoes": ["Comparativo de Dados", "Involutivo", "Renda", "Evolutivo", "Quantificação de Custo", "Comparativo de Custo", "Outros, Vide Inform. Compl."], "padrao": "Comparativo de Dados", "simil": {"id": "metodoEspecificacao", "tipo": "radio"}, "oculto": true}, {"chave": "performancePercebida", "rotulo": "Desempenho do mercado", "tipo": "radio", "opcoes": ["Aparentemente Aquecido", "Sem Destaque", "Aparentemente Recessivo"], "padrao": "Sem Destaque", "simil": {"id": "performancePercebida", "tipo": "radio"}, "oculto": true}, {"chave": "nivelOferta", "rotulo": "Nível de oferta", "tipo": "radio", "opcoes": ["Aparentemente Alto", "Sem Destaque", "Aparentemente Baixo"], "padrao": "Sem Destaque", "simil": {"id": "nivelOferta", "tipo": "radio"}, "oculto": true}, {"chave": "liquidezInferida", "rotulo": "Liquidez", "tipo": "radio", "opcoes": ["Provavelmente Alta", "Sem Destaque", "Provavelmente Baixa"], "padrao": "Sem Destaque", "simil": {"id": "liquidezInferida", "tipo": "radio"}, "oculto": true}]}], "regiao": {"aba": "regiao", "campos": [{"chave": "usosPredominantes", "rotulo": "Usos predominantes", "tipo": "multi", "opcoes": ["Residencial Unifamiliar", "Residencial Multifamiliar", "Comercial", "Industrial", "Institucional", "Outros, Vide Inform. Compl."], "sugestao": "mapa"}, {"chave": "infraestrutura", "rotulo": "Infra-estrutura urbana", "tipo": "multi", "opcoes": ["Água Potável", "Esgoto Sanitário", "Energia Elétrica", "Telefone", "Pavimentação", "Esgoto Pluvial", "Gás Canalizado", "Iluminação Pública"], "sugestao": "mapa"}, {"chave": "servicos", "rotulo": "Serviços públicos e comunitários", "tipo": "multi", "opcoes": ["Coleta de Lixo", "Transporte Coletivo", "Comércio", "Rede Bancária", "Educação", "Saúde", "Segurança", "Outros, Vide Inform. Compl."], "sugestao": "mapa"}, {"chave": "padraoRegiao", "rotulo": "Padrão da região", "tipo": "radio", "lista": "padrao", "padrao": "Normal (forte predominância)", "simil": {"id": "padraoEspesificacao", "tipo": "radio"}}, {"chave": "valorizantes", "rotulo": "Influência valorizante", "tipo": "lista", "opcoes": ["Sem Destaque", "Shopping", "Comércio", "Orla", "Estação de Metrô/Trem", "Indústria", "Parques", "Clubes", "Empreendimentos", "Outros, Vide Inform. Compl."], "padrao": "Sem Destaque", "simil": {"id": "selectOneMenuVal", "tipo": "sel"}}, {"chave": "desvalorizantes", "rotulo": "Influência desvalorizante", "tipo": "lista", "opcoes": ["Sem Destaque", "Area de Desmoronamento", "Aterro Sanitário/Lixão", "Estação de Tratamento de Esgoto", "Estação Metrô/Trem", "Subhabitação", "Torre Telefonia ou Energia", "Empreendimento", "Indústria", "Area Inundável", "Presídios", "Feira Livre", "Outros, Vide Inform. Complem."], "padrao": "Sem Destaque", "simil": {"id": "selectOneMenuDesv", "tipo": "sel"}}, {"chave": "viaAcesso", "rotulo": "Via de acesso", "tipo": "lista", "opcoes": ["Arterial ou Principal", "Coletora ou Secundária", "Local", "Rodovia", "Vicinal", "Outros, Vide Inform. Compl."], "padrao": "Local", "sugestao": "mapa", "simil": {"id": "viaAcesso", "tipo": "sel"}}, {"chave": "contextoUrbano", "rotulo": "Região no contexto urbano", "tipo": "lista", "opcoes": ["Região Central", "Região Não Central", "Ocupação Periférica/Suburbana", "Não Inserido na Malha", "Outros, Vide Inform. Compl."], "padrao": "Região Não Central", "sugestao": "mapa", "simil": {"id": "regiaoContextoUrbano", "tipo": "sel"}}]}, "requisitos": {"aba": "pesquisa", "radio": {"chave": "atendimentoRequisitos", "opcoes": ["Sim, Atendeu", "Não atendeu, Requisitos Mínimos Gerais", "Não é o Caso"], "padrao": "Sim, Atendeu"}, "observacao": "As caixas de requisitos mínimos (21 gerais e 24 FGTS/MCMV) ficam desmarcadas por padrão; o formulário só pergunta 'algum requisito não atendido?' e, se sim, mostra a lista."}, "equipamentos": {"aba": "avaliandaII", "multi": ["Aquecimento Solar", "Armários Embutidos", "Ar Condicionado", "Campo de Futebol/Golfe", "Equipamento de Segurança", "Espaço com Churrasqueira", "Espaço c/ Churrasqueira Privativo", "Gerador", "Lareira", "Rede Interna de Gás", "Mini-Quadra Esportiva", "Piscina", "Piscina Privativa", "Playground", "Poço Artesiano", "Portaria e/ou Guarita", "Salão de Festas", "Outros Salões de Lazer", "Sauna / Ofurô / Hidromassagem", "Sauna / Ofurô / Hidromassagem Privativa", "Quadra de Tênis", "Quadra Poliesportiva", "Central Aquecimento de Água", "Pilotis", "Não Possui Equipamentos"]}, "fotos": {"aba": "foto", "maximo": 12, "legendas": ["Ar Condicionado", "Área de Serviço", "Armários", "Banheiro de Empregada", "Banheiro Privativo", "Banheiro Social", "Barrihete", "Caixa d'água", "Campo de Futebol/Golfe", "Churrasqueira", "Closet", "Cobertura", "Copa", "Cozinha", "Despesa/Depósito", "Escritório/Gabinete", "Estacionamento", "Fachada", "Fachada Principal", "Fachada Secundária", "Frente", "Fundos", "Garagem", "Guarita", "Hall", "Hidrômetro", "Identificação do Imóvel", "Jardins", "Lareira", "Lateral Direita", "Lateral Esquerda", "Lavabo", "Logradouro", "Mezanino", "Outros, Vide Inf. Compl.", "Pilotis", "Piscina", "Playground", "Portaria", "Quadra de Tênis", "Quadra Esportiva", "Quadro de Distribuição", "Quarto", "Rua de Acesso", "Sacada / Varanda", "Sala", "Salão de Festas", "Salões Outros (Exceto de Festas)", "Sauna / Ofurô / Hidromassagem", "Sprinkler", "Terraço", "Vista"], "descricao_maxlen": 50, "repetidos": "se a mesma legenda aparecer mais de uma vez (ex.: Quarto), sugerir 'Quarto 2', 'Quarto 3' na descrição"}}, "casa": {"_comentario": "Especificação ÚNICA do formulário rápido de vistoria (CASA — Unidade Isolada Construção) e do preenchimento da etapa 2 no SIMIL. RASCUNHO montado a partir de mapa_casa.md: verificado=false => o executor confere a tela real antes de preencher e aborta se algo não bater. Rode simil/escanear_laudo.py (somente leitura), corrija ids/opções e marque verificado=true. 'ocorrencia' = n-ésima vez que o mesmo sufixo de id aparece na aba (ex.: tipoFachadas = Teto (0) e Fachada principal (1)).", "tipologia": "casa", "verificado": true, "escaneado_em": "2026-11-24", "obrigatorios": ["quartos", "idadeAparente"], "abas": {"regiao": "Reg./C. Customizáveis", "avaliandaI": "Un. Avaliando I", "avaliandaII": "Un. Avaliando II", "patologia": "Emp. Patologias", "especificacao": "Manif./Especificação", "pesquisa": "Requisitos", "foto": "Fotos", "terreno": "Terreno"}, "listas": {"conservacao": ["Em construção ou na planta", "Bom (aparência de novo)", "Bom (aparência de usado)", "Regular (reparos simples)", "Regular (reparos importantes)", "Ruim"], "padrao": ["Alto (superior, luxo)", "Alto (por predominância)", "Normal (c/ aspectos de alto)", "Normal (forte predominância)", "Normal (c/ aspectos de baixo)", "Baixo", "Mínimo"], "influencia": ["Favorável", "Desfavorável", "Sem Influência"], "revestimento_piso": ["Cimentado", "Cerâmica Comercial", "São Tomé", "Emborrachado", "Granitina", "Formicado", "Porcelanato 2ª", "Flutuante", "Granito/Mármore 2ª", "Cerâmica Extra", "Ardósia", "Vinílico", "Madeira", "Granito/Mármore 1ª", "Porcelanato 1ª", "Outros, Vide Inform. Compl."], "revestimento_parede": ["Cimentado", "Cerâmica Comercial", "São Tomé", "Emborrachado", "Granitina", "Formicado", "Porcelanato 2ª", "Granito/Mármore 2ª", "Cerâmica Extra", "Ardósia", "Vinílico", "Madeira", "Granito/Mármore 1ª", "Porcelanato 1ª", "Azulejo", "Pintura/Textura", "Grafiato", "Outros, Vide Inform. Compl."], "esquadrias": ["Alumínio", "Ferro", "Vidro Temperado", "PVC", "Madeira", "Outros, Vide Inform. Compl"], "fachada": ["Sem Revestimento", "Cimentado", "Pintura/Textura", "Grafiato", "Cerâmica de Baixa Qualidade", "Ardósia ou Compatível", "COBOGO", "Vulcanizado ou Formicado", "Granitina ou Compatível", "Concreto Aparente", "Cerâmica de Boa Qualidade", "Porcelanato", "Madeira ou Emadeirado", "Granito ou Compatível", "Mármore ou Compatível", "Aluminio Composto", "Pele de Vidro", "Pastilha", "Outros, Vide Inform. Complem."], "cercamento": ["Não Possui", "Parcial", "Total"], "tipo_cercamento": ["Sem Cercamento", "Arame", "Tela", "Gradil", "Muro", "Outros, Vide Inform. Compl."], "sem_possui": ["Aparentemente Não Possui", "Aparentemente Possui, Vide Informações Complementares"], "sem_possui_inv": ["Aparentemente Não Possui, Vide Informações Complementares", "Aparentemente Possui"], "teto": ["Telhado aparente", "Forro de PVC", "Forro de gesso", "Forro de aglomerado", "Forro de madeira", "Forro metálico", "Forro outros", "Laje", "Outros, Vide Inform. Compl"], "cobertura": ["Telha de fibrocimento, sem laje", "Telha metálica, sem laje", "Telha de barro, sem laje", "Telha de concreto, sem laje", "Telha de fibrocimento, com laje", "Telha metálica, com laje", "Telha de barro, com laje", "Telha de concreto, com laje", "Laje impermeabilizada", "Outros, Vide Inform. Compl"]}, "secoes": [{"titulo": "Vistoria", "aba": "avaliandaI", "campos": [{"chave": "tipoVistoria", "rotulo": "Tipo de vistoria", "tipo": "radio", "opcoes": ["Interna e Externa", "Somente Externa", "Não Realizada", "Outras"], "padrao": "Interna e Externa", "simil": {"id": "tipoVistoria", "tipo": "radio"}}, {"chave": "dataVistoria", "rotulo": "Data da vistoria", "tipo": "data", "padrao": "hoje", "simil": {"id": "dataVistoria_input", "tipo": "data"}}]}, {"titulo": "Vagas e pavimentos", "aba": "avaliandaI", "campos": [{"chave": "vagasCobertas", "rotulo": "Vagas cobertas", "tipo": "numero", "maxlen": 8, "padrao": "0", "simil": {"id": "totalCobertas", "tipo": "txt"}}, {"chave": "vagasDescobertas", "rotulo": "Vagas descobertas", "tipo": "numero", "maxlen": 8, "padrao": "0", "simil": {"id": "totalDescobertas", "tipo": "txt"}}, {"chave": "pavSubsolo", "rotulo": "Subsolos (pavimentos)", "tipo": "numero", "maxlen": 2, "padrao": "0", "simil": {"id": "SS", "tipo": "txt"}}, {"chave": "pavTerreo", "rotulo": "Térreo (pavimentos)", "tipo": "numero", "maxlen": 2, "padrao": "1", "simil": {"id": "terreos", "tipo": "txt"}}, {"chave": "pavMezanino", "rotulo": "Mezaninos", "tipo": "numero", "maxlen": 2, "padrao": "0", "simil": {"id": "mezaninos", "tipo": "txt"}}, {"chave": "pavSobreloja", "rotulo": "Sobrelojas", "tipo": "numero", "maxlen": 2, "padrao": "0", "simil": {"id": "sobrelojas", "tipo": "txt"}}, {"chave": "pavSuperiores", "rotulo": "Pavimentos superiores", "tipo": "numero", "maxlen": 3, "padrao": "0", "simil": {"id": "outros", "tipo": "txt"}}, {"chave": "pavCobertura", "rotulo": "Coberturas (pavimento)", "tipo": "numero", "maxlen": 2, "padrao": "0", "simil": {"id": "corbeturas", "tipo": "txt"}}]}, {"titulo": "Edificação", "aba": "avaliandaI", "campos": [{"chave": "estadoConservacao", "rotulo": "Estado de conservação", "tipo": "radio", "lista": "conservacao", "padrao": "Bom (aparência de usado)", "simil": {"id": "estadoConservacao", "tipo": "radio"}}, {"chave": "padraoAcabamento", "rotulo": "Padrão de acabamento", "tipo": "radio", "lista": "padrao", "padrao": "Normal (forte predominância)", "simil": {"id": "padraoAcabamento", "tipo": "radio"}}, {"chave": "teto", "rotulo": "Teto", "tipo": "lista", "lista": "teto", "padrao": "Laje", "simil": {"id": "tipoFachadas", "tipo": "sel", "ocorrencia": 1}}, {"chave": "cobertura", "rotulo": "Cobertura", "tipo": "lista", "lista": "cobertura", "padrao": "Telha de fibrocimento, com laje", "simil": {"id": "paredeFachadas", "tipo": "sel", "ocorrencia": 1}}, {"chave": "fachadaPrincipal", "rotulo": "Fachada principal", "tipo": "lista", "lista": "fachada", "padrao": "Pintura/Textura", "simil": {"id": "tipoFachadas", "tipo": "sel"}}, {"chave": "fachadaDemais", "rotulo": "Fachadas (demais)", "tipo": "lista", "lista": "fachada", "padrao": "Pintura/Textura", "simil": {"id": "paredeFachadas", "tipo": "sel"}}, {"chave": "paredesExternas", "rotulo": "Paredes externas", "tipo": "radio", "opcoes": ["Alvenaria", "Gesso", "Madeira", "Concreto", "Aço", "Outras"], "padrao": "Alvenaria", "simil": {"id": "paredesExternas", "tipo": "radio"}}, {"chave": "idadeAparente", "rotulo": "Idade aparente (anos)", "tipo": "numero", "faixa_para": {"simil": "idadeEstimada", "faixas": [[0, 0, "Na Planta"], [1, 5, "<= 5"], [6, 10, "> 5 <= 10"], [11, 20, "> 10 <= 20"], [21, 50, "> 20 <= 50"], [51, 100, "> 50 <= 100"], [101, 999, "> 100"]]}, "modelo": "idade", "simil": {"id": "idadeEstimada", "tipo": "radio"}}, {"chave": "uso", "rotulo": "Uso", "tipo": "radio", "opcoes": ["Residencial-Comercial/Institucional", "Comercial/Institucional", "Residencial Unifamiliar", "Residencial Multifamiliar", "Industrial", "Industrial-Comercial/Institucional", "Outros, Vide Inform. Compl."], "padrao": "Residencial Unifamiliar", "simil": {"id": "uso", "tipo": "radio"}}, {"chave": "ocupacao", "rotulo": "Ocupação", "tipo": "radio", "opcoes": ["Ocupado", "Desocupado", "Não Constatado", "Desocupado (aparentemente foi ocupado)", "Outras, Vide Inform. Compl."], "padrao": "Ocupado", "simil": {"id": "ocupacao", "tipo": "radio"}}, {"chave": "esquadriasPrincipal", "rotulo": "Esquadrias (fachada principal)", "tipo": "lista", "lista": "esquadrias", "padrao": "Alumínio", "simil": {"id": "tipoEsquadrias", "tipo": "sel"}}, {"chave": "esquadriasDemais", "rotulo": "Esquadrias (demais fachadas)", "tipo": "lista", "lista": "esquadrias", "padrao": "Alumínio", "simil": {"id": "paredeEsquadrias", "tipo": "sel"}}, {"chave": "orientacao", "rotulo": "Orientação", "tipo": "radio", "lista": "influencia", "padrao": "Sem Influência", "simil": {"id": "orientacao", "tipo": "radio"}}, {"chave": "vista", "rotulo": "Vista", "tipo": "radio", "lista": "influencia", "padrao": "Sem Influência", "simil": {"id": "vista", "tipo": "radio"}}, {"chave": "insercao", "rotulo": "Inserção", "tipo": "radio", "opcoes": ["Isolado", "Isolado (parte de empreend. não condominial)", "Condomínio"], "padrao": "Isolado", "simil": {"id": "insercaoConstrucao", "tipo": "radio"}}, {"chave": "implantacao", "rotulo": "Implantação no terreno", "tipo": "radio", "opcoes": ["Isolada", "Justaposta", "Geminada"], "padrao": "Isolada", "simil": {"id": "implantacaoTerreno", "tipo": "radio"}}]}, {"titulo": "Cômodos", "aba": "avaliandaII", "campos": [{"chave": "quartos", "rotulo": "Quartos", "tipo": "numero", "maxlen": 2, "simil": {"id": "quarto", "tipo": "txt"}, "modelo": "quartos"}, {"chave": "banheirosSuite", "rotulo": "Banheiros de suíte (privativos)", "tipo": "numero", "padrao": "0", "maxlen": 2, "simil": {"id": "banheirosPrivativos", "tipo": "txt"}, "modelo": "suites"}, {"chave": "banheirosSociais", "rotulo": "Banheiros sociais", "tipo": "numero", "padrao": "1", "maxlen": 2, "simil": {"id": "banheiroSocial", "tipo": "txt"}}, {"chave": "salas", "rotulo": "Salas", "tipo": "numero", "padrao": "1", "maxlen": 2, "simil": {"id": "salas", "tipo": "txt"}}, {"chave": "cozinhas", "rotulo": "Cozinhas", "tipo": "numero", "padrao": "1", "maxlen": 2, "simil": {"id": "cozinha", "tipo": "txt"}}, {"chave": "areasServico", "rotulo": "Áreas de serviço", "tipo": "numero", "padrao": "1", "maxlen": 2, "simil": {"id": "areaServico", "tipo": "txt"}}, {"chave": "varandas", "rotulo": "Varandas/sacadas", "tipo": "numero", "padrao": "0", "maxlen": 2, "simil": {"id": "sacadaVaranda", "tipo": "txt"}}, {"chave": "lavabos", "rotulo": "Lavabos", "tipo": "numero", "padrao": "0", "maxlen": 2, "simil": {"id": "lavabo", "tipo": "txt"}}]}, {"titulo": "Acabamentos", "aba": "avaliandaII", "campos": [{"chave": "pisosMolhadas", "rotulo": "Piso (áreas molhadas)", "tipo": "lista", "lista": "revestimento_piso", "padrao": "Cerâmica Comercial", "simil": {"id": "pisosMolhadas", "tipo": "sel"}}, {"chave": "paredesMolhadas", "rotulo": "Paredes (áreas molhadas)", "tipo": "lista", "lista": "revestimento_parede", "padrao": "Azulejo", "simil": {"id": "paredesMolhadas", "tipo": "sel"}}, {"chave": "pisoSecas", "rotulo": "Piso (áreas secas)", "tipo": "lista", "lista": "revestimento_piso", "padrao": "Cerâmica Comercial", "simil": {"id": "pisoSecas", "tipo": "sel"}}]}, {"titulo": "Terreno", "aba": "terreno", "campos": [{"chave": "terrenoArea", "rotulo": "Área do terreno (m²)", "tipo": "decimal", "maxlen": 13, "simil": {"id": "area", "tipo": "txt", "aba": "terreno"}}, {"chave": "terrenoTestada", "rotulo": "Testada (m)", "tipo": "decimal", "maxlen": 13, "simil": {"id": "testada", "tipo": "txt", "aba": "terreno"}}, {"chave": "terrenoLados", "rotulo": "Dimensões (lados)", "tipo": "texto", "maxlen": 100, "simil": {"id": "dimensao", "tipo": "txt", "aba": "terreno"}}, {"chave": "terrenoPosicao", "rotulo": "Posição na quadra", "tipo": "radio", "opcoes": ["Meio de Quadra", "Esquina", "Isolado", "Outros, Vide Inform. Compl."], "padrao": "Meio de Quadra", "simil": {"id": "posicao", "tipo": "radio", "aba": "terreno"}}, {"chave": "terrenoCota", "rotulo": "Cota de greide", "tipo": "radio", "opcoes": ["Abaixo", "Igual ou Acima", "Outros, Vide Inform. Compl."], "padrao": "Igual ou Acima", "simil": {"id": "cotaGreide", "tipo": "radio", "aba": "terreno"}}, {"chave": "terrenoFormato", "rotulo": "Formato", "tipo": "radio", "opcoes": ["Quadrado", "Retangular", "Triangular", "Trapezoidal", "Irregular", "Outras, Vide Inform. Compl."], "padrao": "Retangular", "simil": {"id": "formatoAproximado", "tipo": "radio", "aba": "terreno"}}, {"chave": "terrenoInclinacao", "rotulo": "Inclinação", "tipo": "radio", "opcoes": ["Plano", "Aclive para o Fundo", "Declive para o Fundo"], "padrao": "Plano", "simil": {"id": "inclinacao", "tipo": "radio", "aba": "terreno"}}, {"chave": "terrenoVocacao", "rotulo": "Vocação principal", "tipo": "radio", "opcoes": ["Residência Unifamiliar", "Residência Multifamiliar", "Comercial", "Institucional", "Industrial", "Outros, Vide Inform. Compl."], "padrao": "Residência Unifamiliar", "simil": {"id": "vocacaoPrincipal", "tipo": "radio", "aba": "terreno"}}, {"chave": "terrenoCercamento", "rotulo": "Cercamento do terreno", "tipo": "radio", "lista": "cercamento", "padrao": "Total", "simil": {"id": "cercamentoAbaTerreno", "tipo": "radio", "aba": "terreno"}}, {"chave": "terrenoCercFrente", "rotulo": "Cercamento da frente", "tipo": "radio", "lista": "tipo_cercamento", "padrao": "Muro", "simil": {"id": "tipoCercamentoFrenteHabilitadoAbaTerreno", "tipo": "radio", "aba": "terreno"}, "ignorar_se": {"chave": "terrenoCercamento", "valores": ["Não Possui"]}}, {"chave": "terrenoCercLateral", "rotulo": "Cercamento lateral/fundo", "tipo": "radio", "lista": "tipo_cercamento", "padrao": "Muro", "simil": {"id": "tipoCercamentoLateralHabilitadoAbaTerreno", "tipo": "radio", "aba": "terreno"}, "ignorar_se": {"chave": "terrenoCercamento", "valores": ["Não Possui"]}}]}, {"titulo": "Patologias", "aba": "patologia", "campos": [{"chave": "patViciosGraves", "rotulo": "Vícios de construção graves", "tipo": "radio", "lista": "sem_possui", "padrao": "Aparentemente Não Possui", "simil": {"id": "viciosConstrucoesGraves", "tipo": "radio"}, "oculto": true}, {"chave": "patEstabilidade", "rotulo": "Estabilidade e solidez", "tipo": "radio", "lista": "sem_possui_inv", "padrao": "Aparentemente Não Possui, Vide Informações Complementares", "simil": {"id": "estabilidadeSolidez", "tipo": "radio"}, "oculto": true}, {"chave": "patHabitabilidade", "rotulo": "Condições de habitabilidade", "tipo": "radio", "lista": "sem_possui_inv", "padrao": "Aparentemente Não Possui, Vide Informações Complementares", "simil": {"id": "condicoesHabitalidade", "tipo": "radio"}, "oculto": true}, {"chave": "patOutros", "rotulo": "Outros danos graves", "tipo": "radio", "lista": "sem_possui", "padrao": "Aparentemente Não Possui", "simil": {"id": "outros", "tipo": "radio"}, "oculto": true}]}, {"titulo": "Especificação e mercado", "aba": "especificacao", "campos": [{"chave": "imovelReal", "rotulo": "Imóvel conforme a documentação", "tipo": "radio", "opcoes": ["Aparenta Conformidade Com a Documentação", "Não Aparenta Conformidade Com a Documentação, Vide Informações Complementares"], "padrao": "Aparenta Conformidade Com a Documentação", "simil": {"id": "imovelReal", "tipo": "radio"}, "trava_se_divergencia": true, "oculto": true}, {"chave": "metodoEspecificacao", "rotulo": "Método", "tipo": "radio", "opcoes": ["Comparativo de Dados", "Involutivo", "Renda", "Evolutivo", "Quantificação de Custo", "Comparativo de Custo", "Outros, Vide Inform. Compl."], "padrao": "Comparativo de Dados", "simil": {"id": "metodoEspecificacao", "tipo": "radio"}, "oculto": true}, {"chave": "performancePercebida", "rotulo": "Desempenho do mercado", "tipo": "radio", "opcoes": ["Aparentemente Aquecido", "Sem Destaque", "Aparentemente Recessivo"], "padrao": "Sem Destaque", "simil": {"id": "performancePercebida", "tipo": "radio"}, "oculto": true}, {"chave": "nivelOferta", "rotulo": "Nível de oferta", "tipo": "radio", "opcoes": ["Aparentemente Alto", "Sem Destaque", "Aparentemente Baixo"], "padrao": "Sem Destaque", "simil": {"id": "nivelOferta", "tipo": "radio"}, "oculto": true}, {"chave": "liquidezInferida", "rotulo": "Liquidez", "tipo": "radio", "opcoes": ["Provavelmente Alta", "Sem Destaque", "Provavelmente Baixa"], "padrao": "Sem Destaque", "simil": {"id": "liquidezInferida", "tipo": "radio"}, "oculto": true}]}], "regiao": {"aba": "regiao", "campos": [{"chave": "usosPredominantes", "rotulo": "Usos predominantes", "tipo": "multi", "opcoes": ["Residencial Unifamiliar", "Residencial Multifamiliar", "Comercial", "Industrial", "Institucional", "Outros, Vide Inform. Compl."], "sugestao": "mapa"}, {"chave": "infraestrutura", "rotulo": "Infra-estrutura urbana", "tipo": "multi", "opcoes": ["Água Potável", "Esgoto Sanitário", "Energia Elétrica", "Telefone", "Pavimentação", "Esgoto Pluvial", "Gás Canalizado", "Iluminação Pública"], "sugestao": "mapa"}, {"chave": "servicos", "rotulo": "Serviços públicos e comunitários", "tipo": "multi", "opcoes": ["Coleta de Lixo", "Transporte Coletivo", "Comércio", "Rede Bancária", "Educação", "Saúde", "Segurança", "Outros, Vide Inform. Compl."], "sugestao": "mapa"}, {"chave": "padraoRegiao", "rotulo": "Padrão da região", "tipo": "radio", "lista": "padrao", "padrao": "Normal (forte predominância)", "simil": {"id": "padraoEspesificacao", "tipo": "radio"}}, {"chave": "valorizantes", "rotulo": "Influência valorizante", "tipo": "lista", "opcoes": ["Sem Destaque", "Shopping", "Comércio", "Orla", "Estação de Metrô/Trem", "Indústria", "Parques", "Clubes", "Empreendimentos", "Outros, Vide Inform. Compl."], "padrao": "Sem Destaque", "simil": {"id": "selectOneMenuVal", "tipo": "sel"}}, {"chave": "desvalorizantes", "rotulo": "Influência desvalorizante", "tipo": "lista", "opcoes": ["Sem Destaque", "Area de Desmoronamento", "Aterro Sanitário/Lixão", "Estação de Tratamento de Esgoto", "Estação Metrô/Trem", "Subhabitação", "Torre Telefonia ou Energia", "Empreendimento", "Indústria", "Area Inundável", "Presídios", "Feira Livre", "Outros, Vide Inform. Complem."], "padrao": "Sem Destaque", "simil": {"id": "selectOneMenuDesv", "tipo": "sel"}}, {"chave": "viaAcesso", "rotulo": "Via de acesso", "tipo": "lista", "opcoes": ["Arterial ou Principal", "Coletora ou Secundária", "Local", "Rodovia", "Vicinal", "Outros, Vide Inform. Compl."], "padrao": "Local", "sugestao": "mapa", "simil": {"id": "viaAcesso", "tipo": "sel"}}, {"chave": "contextoUrbano", "rotulo": "Região no contexto urbano", "tipo": "lista", "opcoes": ["Região Central", "Região Não Central", "Ocupação Periférica/Suburbana", "Não Inserido na Malha", "Outros, Vide Inform. Compl."], "padrao": "Região Não Central", "sugestao": "mapa", "simil": {"id": "regiaoContextoUrbano", "tipo": "sel"}}]}, "requisitos": {"aba": "pesquisa", "radio": {"chave": "atendimentoRequisitos", "opcoes": ["Sim, Atendeu", "Não atendeu, Requisitos Mínimos Gerais", "Não é o Caso"], "padrao": "Sim, Atendeu"}, "observacao": "As caixas de requisitos mínimos (21 gerais e 24 FGTS/MCMV) ficam desmarcadas por padrão; o formulário só pergunta 'algum requisito não atendido?' e, se sim, mostra a lista."}, "fotos": {"aba": "foto", "maximo": 12, "legendas": ["Ar Condicionado", "Área de Serviço", "Armários", "Banheiro de Empregada", "Banheiro Privativo", "Banheiro Social", "Barrihete", "Caixa d'água", "Campo de Futebol/Golfe", "Churrasqueira", "Closet", "Cobertura", "Copa", "Cozinha", "Despesa/Depósito", "Escritório/Gabinete", "Estacionamento", "Fachada", "Fachada Principal", "Fachada Secundária", "Frente", "Fundos", "Garagem", "Guarita", "Hall", "Hidrômetro", "Identificação do Imóvel", "Jardins", "Lareira", "Lateral Direita", "Lateral Esquerda", "Lavabo", "Logradouro", "Mezanino", "Outros, Vide Inf. Compl.", "Pilotis", "Piscina", "Playground", "Portaria", "Quadra de Tênis", "Quadra Esportiva", "Quadro de Distribuição", "Quarto", "Rua de Acesso", "Sacada / Varanda", "Sala", "Salão de Festas", "Salões Outros (Exceto de Festas)", "Sauna / Ofurô / Hidromassagem", "Sprinkler", "Terraço", "Vista"], "descricao_maxlen": 50, "repetidos": "se a mesma legenda aparecer mais de uma vez (ex.: Quarto), sugerir 'Quarto 2', 'Quarto 3' na descrição"}, "equipamentos": {"aba": "avaliandaII", "multi": ["Aquecimento Solar", "Armários Embutidos", "Ar Condicionado", "Campo de Futebol/Golfe", "Equipamento de Segurança", "Espaço com Churrasqueira", "Espaço c/ Churrasqueira Privativo", "Gerador", "Lareira", "Rede Interna de Gás", "Mini-Quadra Esportiva", "Piscina", "Piscina Privativa", "Playground", "Poço Artesiano", "Portaria e/ou Guarita", "Salão de Festas", "Outros Salões de Lazer", "Sauna / Ofurô / Hidromassagem", "Sauna / Ofurô / Hidromassagem Privativa", "Quadra de Tênis", "Quadra Poliesportiva", "Central Aquecimento de Água", "Pilotis", "Não Possui Equipamentos"], "nome": "equipamentos"}}, "lote": {"_comentario": "Especificação ÚNICA do formulário rápido de vistoria (LOTE — Unidade Isolada Terreno) e do preenchimento da etapa 2 no SIMIL. RASCUNHO montado a partir de mapa_lote.md (verificado=false => o executor confere a tela real antes de preencher). Parâmetros urbanísticos (CAB, CAM, taxa de ocupação, gabarito...) vêm da legislação municipal: ficam opcionais, sem padrão. Rode simil/escanear_laudo.py (somente leitura) para confirmar a aba das dimensões do terreno e os demais ids.", "tipologia": "lote", "verificado": true, "escaneado_em": "2026-11-24", "obrigatorios": ["terrenoArea", "terrenoTestada"], "abas": {"regiao": "Reg./C. Customizáveis", "avaliandaI": "Un. Avaliando I", "avaliandaII": "Un. Avaliando II", "patologia": "Emp. Patologias", "especificacao": "Manif./Especificação", "pesquisa": "Requisitos", "foto": "Fotos", "empreendimentoTerreno": "Empreendimento"}, "listas": {"influencia": ["Favorável", "Desfavorável", "Sem Influência"], "padrao": ["Alto (superior, luxo)", "Alto (por predominância)", "Normal (c/ aspectos de alto)", "Normal (forte predominância)", "Normal (c/ aspectos de baixo)", "Baixo", "Mínimo"], "cercamento": ["Não Possui", "Parcial", "Total"], "tipo_cercamento": ["Sem Cercamento", "Arame", "Tela", "Gradil", "Muro", "Outros, Vide Inform. Compl."]}, "secoes": [{"titulo": "Vistoria", "aba": "avaliandaII", "campos": [{"chave": "tipoVistoria", "rotulo": "Tipo de vistoria", "tipo": "radio", "opcoes": ["Interna e Externa", "Somente Externa", "Não Realizada", "Outras"], "padrao": "Interna e Externa", "simil": {"id": "tipoVistoria", "tipo": "radio"}}, {"chave": "dataVistoria", "rotulo": "Data da vistoria", "tipo": "data", "padrao": "hoje", "simil": {"id": "dataVistoria_input", "tipo": "data"}}, {"chave": "ocupacao", "rotulo": "Ocupação", "tipo": "radio", "opcoes": ["Ocupado", "Desocupado", "Não Constatado", "Desocupado (aparentemente foi ocupado)", "Outras, Vide Inform. Compl."], "padrao": "Desocupado", "simil": {"id": "ocupacao", "tipo": "radio"}}, {"chave": "orientacao", "rotulo": "Orientação", "tipo": "radio", "lista": "influencia", "padrao": "Sem Influência", "simil": {"id": "orientacao", "tipo": "radio"}}, {"chave": "vista", "rotulo": "Vista", "tipo": "radio", "lista": "influencia", "padrao": "Sem Influência", "simil": {"id": "vista", "tipo": "radio"}}]}, {"titulo": "Terreno", "aba": "avaliandaI", "campos": [{"chave": "terrenoArea", "rotulo": "Área do terreno (m²)", "tipo": "decimal", "maxlen": 13, "simil": {"id": "area", "tipo": "txt", "aba": "avaliandaI"}}, {"chave": "terrenoTestada", "rotulo": "Testada (m)", "tipo": "decimal", "maxlen": 13, "simil": {"id": "testada", "tipo": "txt", "aba": "avaliandaI"}}, {"chave": "terrenoLados", "rotulo": "Dimensões (lados)", "tipo": "texto", "maxlen": 100, "simil": {"id": "dimensao", "tipo": "txt", "aba": "avaliandaI"}}, {"chave": "terrenoPosicao", "rotulo": "Posição na quadra", "tipo": "radio", "opcoes": ["Meio de Quadra", "Esquina", "Isolado", "Outros, Vide Inform. Compl."], "padrao": "Meio de Quadra", "simil": {"id": "posicao", "tipo": "radio", "aba": "avaliandaI"}}, {"chave": "terrenoCota", "rotulo": "Cota de greide", "tipo": "radio", "opcoes": ["Abaixo", "Igual ou Acima", "Outros, Vide Inform. Compl."], "padrao": "Igual ou Acima", "simil": {"id": "cotaGreide", "tipo": "radio", "aba": "avaliandaI"}}, {"chave": "terrenoFormato", "rotulo": "Formato", "tipo": "radio", "opcoes": ["Quadrado", "Retangular", "Triangular", "Trapezoidal", "Irregular", "Outras, Vide Inform. Compl."], "padrao": "Retangular", "simil": {"id": "formatoAproximado", "tipo": "radio", "aba": "avaliandaI"}}, {"chave": "terrenoInclinacao", "rotulo": "Inclinação", "tipo": "radio", "opcoes": ["Plano", "Aclive para o Fundo", "Declive para o Fundo"], "padrao": "Plano", "simil": {"id": "inclinacao", "tipo": "radio", "aba": "avaliandaI"}}, {"chave": "terrenoVocacao", "rotulo": "Vocação principal", "tipo": "radio", "opcoes": ["Residência Unifamiliar", "Residência Multifamiliar", "Comercial", "Institucional", "Industrial", "Outros, Vide Inform. Compl."], "padrao": "Residência Unifamiliar", "simil": {"id": "vocacaoPrincipal", "tipo": "radio", "aba": "avaliandaI"}}, {"chave": "terrenoCercamento", "rotulo": "Cercamento do terreno", "tipo": "radio", "lista": "cercamento", "padrao": "Total", "simil": {"id": "cercamentoUnidade", "tipo": "radio"}}, {"chave": "terrenoCercFrente", "rotulo": "Cercamento da frente", "tipo": "radio", "lista": "tipo_cercamento", "padrao": "Muro", "simil": {"id": "padraoEspesificacaoPatologiaUnidadeHabilitado", "tipo": "radio", "aba": "avaliandaI"}, "ignorar_se": {"chave": "terrenoCercamento", "valores": ["Não Possui"]}}, {"chave": "terrenoCercLateral", "rotulo": "Cercamento lateral/fundo", "tipo": "radio", "lista": "tipo_cercamento", "padrao": "Muro", "simil": {"id": "lateraisFundoPatologiaUnidadeHabilitado", "tipo": "radio", "aba": "avaliandaI"}, "ignorar_se": {"chave": "terrenoCercamento", "valores": ["Não Possui"]}}]}, {"titulo": "Parâmetros urbanísticos", "aba": "avaliandaII", "campos": [{"chave": "restricoesFisicas", "rotulo": "Restrições físicas (%)", "tipo": "decimal", "maxlen": 6, "simil": {"id": "restricoesFisicas", "tipo": "txt"}}, {"chave": "cab", "rotulo": "CAB (%)", "tipo": "decimal", "maxlen": 7, "simil": {"id": "cab", "tipo": "txt"}}, {"chave": "cam", "rotulo": "CAM (%)", "tipo": "decimal", "maxlen": 7, "simil": {"id": "cam", "tipo": "txt"}}, {"chave": "txOcupacao", "rotulo": "Taxa de ocupação (%)", "tipo": "decimal", "maxlen": 6, "simil": {"id": "txOcupacao", "tipo": "txt"}}, {"chave": "gabarito", "rotulo": "Gabarito (pavimentos)", "tipo": "numero", "maxlen": 14, "simil": {"id": "gabarito_2", "tipo": "txt"}}, {"chave": "numeroFrentes", "rotulo": "Número de frentes", "tipo": "numero", "maxlen": 14, "padrao": "1", "simil": {"id": "numeroFrentes", "tipo": "txt"}}, {"chave": "destinacao", "rotulo": "Destinação", "tipo": "radio", "opcoes": ["Residencia Unifamiliar", "Residencia Multifamiliar", "Comercial/Institucional", "Residencial - Comercial/Institucional", "Industrial", "Industrial - Comercial/Institucional", "Outros, Vide Inform. Complem."], "padrao": "Residencia Unifamiliar", "simil": {"id": "destinacaoes", "tipo": "radio"}}, {"chave": "restricaoUso", "rotulo": "Restrição de uso", "tipo": "radio", "opcoes": ["Baixo", "Não Merece Destaque", "Alto"], "padrao": "Não Merece Destaque", "simil": {"id": "restricaoUso", "tipo": "radio"}}, {"chave": "superficie", "rotulo": "Superfície", "tipo": "radio", "opcoes": ["Seco", "Alagável", "Brejoso"], "padrao": "Seco", "simil": {"id": "superficie", "tipo": "radio"}}]}, {"titulo": "Empreendimento", "aba": "empreendimentoTerreno", "campos": [{"chave": "empPadrao", "rotulo": "Padrão do empreendimento", "tipo": "radio", "lista": "padrao", "simil": {"id": "padraoAcabamentoEmpreendimento", "tipo": "radio"}}, {"chave": "empCercamento", "rotulo": "Cercamento do empreendimento", "tipo": "radio", "lista": "cercamento", "simil": {"id": "cercamentoEmpreendimento", "tipo": "radio"}}]}, {"titulo": "Especificação e mercado", "aba": "especificacao", "campos": [{"chave": "imovelReal", "rotulo": "Imóvel conforme a documentação", "tipo": "radio", "opcoes": ["Aparenta Conformidade Com a Documentação", "Não Aparenta Conformidade Com a Documentação, Vide Informações Complementares"], "padrao": "Aparenta Conformidade Com a Documentação", "simil": {"id": "imovelReal", "tipo": "radio"}, "trava_se_divergencia": true, "oculto": true}, {"chave": "metodoEspecificacao", "rotulo": "Método", "tipo": "radio", "opcoes": ["Comparativo de Dados", "Involutivo", "Renda", "Evolutivo", "Quantificação de Custo", "Comparativo de Custo", "Outros, Vide Inform. Compl."], "padrao": "Comparativo de Dados", "simil": {"id": "metodoEspecificacao", "tipo": "radio"}, "oculto": true}, {"chave": "performancePercebida", "rotulo": "Desempenho do mercado", "tipo": "radio", "opcoes": ["Aparentemente Aquecido", "Sem Destaque", "Aparentemente Recessivo"], "padrao": "Sem Destaque", "simil": {"id": "performancePercebida", "tipo": "radio"}, "oculto": true}, {"chave": "nivelOferta", "rotulo": "Nível de oferta", "tipo": "radio", "opcoes": ["Aparentemente Alto", "Sem Destaque", "Aparentemente Baixo"], "padrao": "Sem Destaque", "simil": {"id": "nivelOferta", "tipo": "radio"}, "oculto": true}, {"chave": "liquidezInferida", "rotulo": "Liquidez", "tipo": "radio", "opcoes": ["Provavelmente Alta", "Sem Destaque", "Provavelmente Baixa"], "padrao": "Sem Destaque", "simil": {"id": "liquidezInferida", "tipo": "radio"}, "oculto": true}]}], "regiao": {"aba": "regiao", "campos": [{"chave": "usosPredominantes", "rotulo": "Usos predominantes", "tipo": "multi", "opcoes": ["Residencial Unifamiliar", "Residencial Multifamiliar", "Comercial", "Industrial", "Institucional", "Outros, Vide Inform. Compl."], "sugestao": "mapa"}, {"chave": "infraestrutura", "rotulo": "Infra-estrutura urbana", "tipo": "multi", "opcoes": ["Água Potável", "Esgoto Sanitário", "Energia Elétrica", "Telefone", "Pavimentação", "Esgoto Pluvial", "Gás Canalizado", "Iluminação Pública"], "sugestao": "mapa"}, {"chave": "servicos", "rotulo": "Serviços públicos e comunitários", "tipo": "multi", "opcoes": ["Coleta de Lixo", "Transporte Coletivo", "Comércio", "Rede Bancária", "Educação", "Saúde", "Segurança", "Outros, Vide Inform. Compl."], "sugestao": "mapa"}, {"chave": "padraoRegiao", "rotulo": "Padrão da região", "tipo": "radio", "lista": "padrao", "padrao": "Normal (forte predominância)", "simil": {"id": "padraoEspesificacao", "tipo": "radio"}}, {"chave": "valorizantes", "rotulo": "Influência valorizante", "tipo": "lista", "opcoes": ["Sem Destaque", "Shopping", "Comércio", "Orla", "Estação de Metrô/Trem", "Indústria", "Parques", "Clubes", "Empreendimentos", "Outros, Vide Inform. Compl."], "padrao": "Sem Destaque", "simil": {"id": "selectOneMenuVal", "tipo": "sel"}}, {"chave": "desvalorizantes", "rotulo": "Influência desvalorizante", "tipo": "lista", "opcoes": ["Sem Destaque", "Area de Desmoronamento", "Aterro Sanitário/Lixão", "Estação de Tratamento de Esgoto", "Estação Metrô/Trem", "Subhabitação", "Torre Telefonia ou Energia", "Empreendimento", "Indústria", "Area Inundável", "Presídios", "Feira Livre", "Outros, Vide Inform. Complem."], "padrao": "Sem Destaque", "simil": {"id": "selectOneMenuDesv", "tipo": "sel"}}, {"chave": "viaAcesso", "rotulo": "Via de acesso", "tipo": "lista", "opcoes": ["Arterial ou Principal", "Coletora ou Secundária", "Local", "Rodovia", "Vicinal", "Outros, Vide Inform. Compl."], "padrao": "Local", "sugestao": "mapa", "simil": {"id": "viaAcesso", "tipo": "sel"}}, {"chave": "contextoUrbano", "rotulo": "Região no contexto urbano", "tipo": "lista", "opcoes": ["Região Central", "Região Não Central", "Ocupação Periférica/Suburbana", "Não Inserido na Malha", "Outros, Vide Inform. Compl."], "padrao": "Região Não Central", "sugestao": "mapa", "simil": {"id": "regiaoContextoUrbano", "tipo": "sel"}}]}, "requisitos": {"aba": "pesquisa", "radio": {"chave": "atendimentoRequisitos", "opcoes": ["Sim, Atendeu", "Não atendeu, Requisitos Mínimos Gerais", "Não é o Caso"], "padrao": "Sim, Atendeu"}, "observacao": "As caixas de requisitos mínimos (21 gerais e 24 FGTS/MCMV) ficam desmarcadas por padrão; o formulário só pergunta 'algum requisito não atendido?' e, se sim, mostra a lista."}, "fotos": {"aba": "foto", "maximo": 12, "legendas": ["Ar Condicionado", "Área de Serviço", "Armários", "Banheiro de Empregada", "Banheiro Privativo", "Banheiro Social", "Barrihete", "Caixa d'água", "Campo de Futebol/Golfe", "Churrasqueira", "Closet", "Cobertura", "Copa", "Cozinha", "Despesa/Depósito", "Escritório/Gabinete", "Estacionamento", "Fachada", "Fachada Principal", "Fachada Secundária", "Frente", "Fundos", "Garagem", "Guarita", "Hall", "Hidrômetro", "Identificação do Imóvel", "Jardins", "Lareira", "Lateral Direita", "Lateral Esquerda", "Lavabo", "Logradouro", "Mezanino", "Outros, Vide Inf. Compl.", "Pilotis", "Piscina", "Playground", "Portaria", "Quadra de Tênis", "Quadra Esportiva", "Quadro de Distribuição", "Quarto", "Rua de Acesso", "Sacada / Varanda", "Sala", "Salão de Festas", "Salões Outros (Exceto de Festas)", "Sauna / Ofurô / Hidromassagem", "Sprinkler", "Terraço", "Vista"], "descricao_maxlen": 50, "repetidos": "se a mesma legenda aparecer mais de uma vez (ex.: Quarto), sugerir 'Quarto 2', 'Quarto 3' na descrição"}, "equipamentos": {"aba": "empreendimentoTerreno", "nome": "equipamentos", "id_regex": null, "multi": ["Estacionamento para Visitantes", "Portaria e/ou Guarita", "Playground", "Espaço com Churrasqueira", "Gerador", "Piscina", "Mini-Quadra Esportiva", "Outros Salões de Lazer", "Equipamentos de Segurança", "Central Aquecimento de Água", "Salão de Festas", "Sauna / Ofurô / Hidromassagem Privativa", "Quadra de Tênis", "Quadra Poliesportiva", "Rede Interna de Gás", "Poço Artesiano", "Não Possui Equipamentos"]}, "benfeitorias": {"aba": "avaliandaII", "nome": "benfeitorias", "id_regex": "benfeitorias_|equipamento_25", "nao_possui": "Não Possui Benfeitorias", "multi": ["Contenção", "Terraplenagem", "Pavimentação", "Esgoto Sanitário", "Esgoto Pluvial", "Água Potável", "Energia Elétrica", "Iluminação", "Projeto Aprovado", "Não Possui Benfeitorias"]}}};
+  const CFG = {"tipos": {"apartamento": {"familia": "apartamento", "variante": null, "categoria": "Apartamento", "id": "Apto", "inferir": null}, "apart hotel": {"familia": "apartamento", "variante": "compacto", "categoria": "Apart Hotel", "id": "Apart", "inferir": null}, "apart-hotel": {"familia": "apartamento", "variante": "compacto", "categoria": "Apart Hotel", "id": "Apart", "inferir": null}, "sala comercial": {"familia": "apartamento", "variante": "sala", "categoria": "Sala", "id": "Sala", "inferir": null}, "sala": {"familia": "apartamento", "variante": "sala", "categoria": "Sala", "id": "Sala", "inferir": null}, "kit": {"familia": "apartamento", "variante": "compacto", "categoria": "Kit", "id": "Kit", "inferir": null}, "kitnet": {"familia": "apartamento", "variante": "compacto", "categoria": "Kit", "id": "Kit", "inferir": null}, "conjugado": {"familia": "apartamento", "variante": "compacto", "categoria": "Kit", "id": "Kit", "inferir": null}, "vaga de garagem": {"familia": "apartamento", "variante": "garagem", "categoria": "Vaga de Garagem", "id": "Vaga", "inferir": null}, "garagem": {"familia": "apartamento", "variante": "garagem", "categoria": "Vaga de Garagem", "id": "Vaga", "inferir": null}, "loft": {"familia": "apartamento", "variante": "compacto", "categoria": "Loft", "id": "Loft", "inferir": null}, "flat": {"familia": "apartamento", "variante": "compacto", "categoria": "Flat", "id": "Flat", "inferir": null}, "pavimento": {"familia": "apartamento", "variante": "sala", "categoria": "Pavimento", "id": "Pav", "inferir": null}, "casa": {"familia": "casa", "variante": null, "categoria": "Casa", "id": "Casa", "inferir": null}, "sobrado": {"familia": "casa", "variante": null, "categoria": "Casa", "id": "Casa", "inferir": null}, "casa comercial": {"familia": "casa", "variante": "comercial", "categoria": "Casa", "id": "Casa", "inferir": null}, "sobrado comercial": {"familia": "casa", "variante": "comercial", "categoria": "Casa", "id": "Casa", "inferir": null}, "village": {"familia": "casa", "variante": null, "categoria": "Village", "id": "Villa", "inferir": null}, "shopping": {"familia": "casa", "variante": "loja", "categoria": "Shopping", "id": "Shop", "inferir": null}, "galpao": {"familia": "casa", "variante": "galpao", "categoria": "Galpão", "id": "Galp", "inferir": null}, "galpao industrial": {"familia": "casa", "variante": "galpao", "categoria": "Galpão Industrial", "id": "Galp", "inferir": null}, "loja": {"familia": "casa", "variante": "loja", "categoria": null, "id": "Loja", "inferir": "loja"}, "loja predio": {"familia": "casa", "variante": "loja", "categoria": "Loja Prédio", "id": "Loja", "inferir": null}, "loja galpao": {"familia": "casa", "variante": "loja", "categoria": "Loja Galpão", "id": "Loja", "inferir": null}, "predio": {"familia": "casa", "variante": "comercial", "categoria": "Prédio", "id": "Prédio", "inferir": null}, "lote": {"familia": "lote", "variante": null, "categoria": "Lote", "id": "Lote", "inferir": null}, "terreno": {"familia": "lote", "variante": null, "categoria": "Lote", "id": "Lote", "inferir": null}, "gleba": {"familia": "lote", "variante": "gleba", "categoria": "Gleba", "id": "Gleba", "inferir": null}}, "variantes": {"sala": {"obrigatorios": ["andar", "predioPavimentos", "predioUnidades", "idadeAparente"], "padroes": {"uso": "Comercial/Institucional", "predioDestinacao": "Comercial/Institucional", "cozinhas": "0", "areasServico": "0", "salas": "1", "varandas": "0", "lavabos": "0"}, "ocultar": ["quartos", "banheirosSuite", "varandas"]}, "compacto": {"obrigatorios": ["andar", "predioPavimentos", "predioUnidades", "idadeAparente"], "padroes": {}, "ocultar": []}, "garagem": {"obrigatorios": ["predioPavimentos", "predioUnidades", "idadeAparente"], "padroes": {"salas": "0", "cozinhas": "0", "areasServico": "0", "varandas": "0", "lavabos": "0", "banheirosSociais": "0"}, "ocultar": ["quartos", "banheirosSuite", "banheirosSociais", "salas", "cozinhas", "areasServico", "varandas", "lavabos"]}, "loja": {"obrigatorios": ["idadeAparente"], "padroes": {"uso": "Comercial/Institucional", "cozinhas": "0", "areasServico": "0", "varandas": "0", "lavabos": "0", "pavTerreo": "1"}, "ocultar": ["quartos", "banheirosSuite", "varandas"]}, "comercial": {"obrigatorios": ["idadeAparente"], "padroes": {"uso": "Comercial/Institucional"}, "ocultar": []}, "galpao": {"obrigatorios": ["idadeAparente"], "padroes": {"uso": "Industrial-Comercial/Institucional", "cozinhas": "0", "areasServico": "0", "varandas": "0", "lavabos": "0"}, "ocultar": ["quartos", "banheirosSuite", "varandas"]}, "gleba": {"obrigatorios": ["terrenoArea"], "padroes": {}, "ocultar": ["terrenoLados"]}}};                             // { tipos: rótulo -> {familia, variante, categoria, id}, variantes: nome -> {obrigatorios, padroes, ocultar} } (simil/tipologias.py)
+  let SPEC = SPECS.apartamento, TIP = 'apartamento', VAR = null;
+  // rótulo do dashboard -> família do SIMIL + variante (Sala -> apartamento; Loja e Casa comercial -> casa; Gleba -> lote). Sem suporte (ex.: Obra Residencial): null
+  const norm = t => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+  const tipologiaDe = t => CFG.tipos[norm(t)] || null;
+  function aplicarVariante(spec, nome) {                 // mesma regra de tipologias.aplicar_variante (Python)
+    const s = JSON.parse(JSON.stringify(spec)); s.variante = nome || null;
+    const v = nome && CFG.variantes[nome]; if (!v) return s;
+    const chaves = new Set(s.secoes.flatMap(x => x.campos.map(c => c.chave)));
+    s.obrigatorios = v.obrigatorios.filter(k => chaves.has(k));
+    s.secoes.forEach(sec => sec.campos.forEach(c => { if (c.chave in v.padroes) c.padrao = v.padroes[c.chave]; if (v.ocultar.includes(c.chave)) c.oculto = true; }));
+    return s;
+  }
+  let ENVIADO_EM = 0, POLL = null, ETAPA1 = false, R = null, D = {}, GRUPOS = {}, REGIAO = {}, FOTOS = [], DISPON = [], PASTA = null, STATUS = null, REGREV = false, REQNAO = false;
+  const GRUPOS_CHK = () => ['equipamentos', 'benfeitorias'].filter(g => SPEC[g]);
 
   const h = (tag, attrs, ...filhos) => {
     const e = document.createElement(tag);
@@ -10576,7 +10638,8 @@ async function _uploadFotoParaDrive(file, nome, folderId, barId, onProgress){
   };
   const RAPIDO = { pavimentosUnidade: [1, 2, 3], unidadesAndar: [1, 2, 3, 4, 5, 6, 8], quartos: [1, 2, 3, 4, 5], banheirosSuite: [0, 1, 2, 3], banheirosSociais: [0, 1, 2, 3],
     salas: [0, 1, 2], cozinhas: [1, 2], areasServico: [0, 1, 2], varandas: [0, 1, 2, 3], lavabos: [0, 1, 2], vagasCobertasLivres: [0, 1, 2, 3], vagasDescobertasLivres: [0, 1, 2],
-    predioSubsolos: [0, 1, 2], predioElevadores: [0, 1, 2, 3, 4] };
+    predioSubsolos: [0, 1, 2], predioElevadores: [0, 1, 2, 3, 4],
+    pavSubsolo: [0, 1], pavTerreo: [0, 1], pavMezanino: [0, 1], pavSobreloja: [0, 1], pavSuperiores: [0, 1, 2], pavCobertura: [0, 1], numeroFrentes: [1, 2, 3] };
   const opcoesDe = c => (c.opcoes || (c.lista ? SPEC.listas[c.lista] : [])).slice();
   const hoje = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 
@@ -10614,6 +10677,10 @@ async function _uploadFotoParaDrive(file, nome, folderId, barId, onProgress){
       ctl = h('input', { type: 'date', class: 'sv-in', value: D[c.chave] || hoje() });
       D[c.chave] = ctl.value;
       ctl.addEventListener('change', () => { D[c.chave] = ctl.value; });
+    } else if (c.tipo === 'decimal' || c.tipo === 'texto') {   // medidas (m, m², %) com vírgula; ou texto livre
+      const dec = c.tipo === 'decimal';
+      ctl = h('input', { type: 'text', inputmode: dec ? 'decimal' : 'text', autocomplete: 'off', class: 'sv-in', value: D[c.chave] ?? '', maxlength: c.maxlen || 12 });
+      ctl.addEventListener('input', () => { if (dec) ctl.value = ctl.value.replace(/[^\d,.]/g, '').replace(/\./g, ','); D[c.chave] = ctl.value; atualizarTrava(); });
     } else {                                           // número: botões de toque rápido (contagens pequenas) + campo com teclado numérico
       const inp = h('input', { type: 'text', inputmode: 'numeric', pattern: '[0-9]*', enterkeyhint: 'next', autocomplete: 'off', class: 'sv-in', value: D[c.chave] ?? '', maxlength: c.maxlen || 3 });
       const info = h('span', { class: 'sv-info' });
@@ -10680,7 +10747,9 @@ async function _uploadFotoParaDrive(file, nome, folderId, barId, onProgress){
         sel.addEventListener('change', () => {
           f.legenda = sel.value;
           const mesmos = FOTOS.filter(x => x.legenda === f.legenda);            // repetidos (Quarto, Banheiro...): sugere numeração
-          if (f.legenda && mesmos.length > 1) mesmos.forEach((x, k) => { if (!x.descricao || /^.+ \d+$/.test(x.descricao)) x.descricao = (x.legenda + ' ' + (k + 1)).slice(0, SPEC.fotos.descricao_maxlen); });
+          // o SIMIL monta "Legenda - descrição": a descrição leva só o complemento numérico com dois dígitos (01, 02, 03...)
+          const sugerida = x => { const d = (x.descricao || '').trim(), l = x.legenda.toLowerCase(); return !d || (d.toLowerCase().startsWith(l) && /^\d*$/.test(d.slice(l.length).trim())) || /^\d+$/.test(d); };
+          if (f.legenda && mesmos.length > 1) mesmos.forEach((x, k) => { if (sugerida(x)) x.descricao = String(k + 1).padStart(2, '0'); });
           renderFotos(raiz); atualizarTrava();
         });
         desc.addEventListener('input', () => { f.descricao = desc.value; });
@@ -10691,15 +10760,15 @@ async function _uploadFotoParaDrive(file, nome, folderId, barId, onProgress){
 
   // ---------- trava ----------
   function condicoes() {
-    const obrig = SPEC.secoes.flatMap(s => s.campos).filter(c => ['andar', 'quartos', 'predioPavimentos', 'predioUnidades', 'idadeAparente'].includes(c.chave));
+    const obrig = SPEC.secoes.flatMap(s => s.campos).filter(c => (SPEC.obrigatorios || []).includes(c.chave));
     const faltam = obrig.filter(c => !String(D[c.chave] ?? '').length).map(c => c.rotulo);
     const est = STATUS && STATUS.estado ? STATUS.estado : '';
-    const fotosOk = FOTOS.length === SPEC.fotos.maximo && FOTOS.every(f => f.legenda);
+    const fotosOk = FOTOS.length >= 1 && FOTOS.length <= SPEC.fotos.maximo && FOTOS.every(f => f.legenda);
     return [
       ['Etapa 1 gravada como rascunho no SIMIL', ETAPA1 || /rascunho gravado|etapa 2/i.test(est), ETAPA1 ? 'etapa 1 já gravada anteriormente' : (est ? 'status atual: ' + est : 'sem status do agente ainda')],
       ['Status da OS = Vistoriada e tipo de vistoria definido', /vistori/i.test(String(R.st || '')) && /^(interna|adjudicad)/i.test(String(R.tv || '')), 'status: ' + (R.st || '—') + ' · tipo: ' + (R.tv || '—')],
       ['Campos obrigatórios do formulário', faltam.length === 0, faltam.length ? 'falta: ' + faltam.join(', ') : ''],
-      ['Fotos: ' + SPEC.fotos.maximo + ' escolhidas, todas com legenda', fotosOk, FOTOS.length + ' escolhidas, ' + FOTOS.filter(f => f.legenda).length + ' com legenda']
+      ['Fotos: de 1 até ' + SPEC.fotos.maximo + ', todas com legenda', fotosOk, FOTOS.length + ' escolhidas, ' + FOTOS.filter(f => f.legenda).length + ' com legenda']
     ];
   }
   function atualizarTrava() {
@@ -10732,8 +10801,8 @@ async function _uploadFotoParaDrive(file, nome, folderId, barId, onProgress){
   }
   function montarSaida() {
     return {
-      versao: 1, atualizado_em: new Date().toISOString(), os: R.osp || R.os, tipologia: 'apartamento',
-      dados: D, equipamentos: EQUIP, requisito_nao_atendido: REQNAO,
+      versao: 1, atualizado_em: new Date().toISOString(), os: R.osp || R.os, tipologia: TIP, variante: VAR,
+      dados: D, equipamentos: GRUPOS.equipamentos || [], ...(SPEC.benfeitorias ? { benfeitorias: GRUPOS.benfeitorias || [] } : {}), requisito_nao_atendido: REQNAO,
       fotos: FOTOS.map((f, i) => ({ ordem: i + 1, id: f.id, nome: f.nome, legenda: f.legenda, descricao: f.descricao }))
     };
   }
@@ -10769,17 +10838,20 @@ async function _uploadFotoParaDrive(file, nome, folderId, barId, onProgress){
   window.abrirVistoriaSimil = async function (r) {
     try {
       if (!AUTH) { showToast('Entre com Google primeiro.'); return; }
-      if (!/apart/i.test(String(r.tip || ''))) { showToast('O formulário de vistoria do SIMIL, por enquanto, é só para apartamento.'); return; }
-      for (const k in IDS) delete IDS[k]; R = r; D = {}; EQUIP = []; REGIAO = {}; FOTOS = []; DISPON = []; REQNAO = false; STATUS = null; ETAPA1 = false; ENVIADO_EM = 0;
+      const info = tipologiaDe(r.tip);
+      if (!info || !SPECS[info.familia]) { showToast('Ainda não há formulário de vistoria do SIMIL para esta tipologia (' + (r.tip || 'vazia') + '). Há para: apartamento, sala comercial, casa, casa comercial, loja, lote, terreno e gleba.'); return; }
+      TIP = info.familia; VAR = info.variante; SPEC = aplicarVariante(SPECS[TIP], VAR);
+      for (const k in IDS) delete IDS[k]; R = r; D = {}; GRUPOS = {}; REGIAO = {}; FOTOS = []; DISPON = []; REQNAO = false; STATUS = null; ETAPA1 = false; ENVIADO_EM = 0;
       SPEC.secoes.flatMap(s => s.campos).forEach(c => { if (c.padrao !== undefined) D[c.chave] = c.padrao === 'hoje' ? hoje() : c.padrao; });
             fechar();
       const ov = h('div', { id: 'sv-overlay' }, h('div', { class: 'sv-box' }, h('div', { class: 'sv-load' }, 'Carregando a OS...')));
       document.body.append(ov);
       PASTA = await acharPastaRaizOS(r);
       if (!PASTA) { fechar(); showToast('Pasta da OS não encontrada no Drive.'); return; }
-      const [salvo, status, marca] = await Promise.all([lerJson('simil_vistoria.json').catch(() => null), lerJson('simil_status.json').catch(() => null), lerJson('simil_etapa1_ok.json').catch(() => null)]);
+      let [salvo, status, marca] = await Promise.all([lerJson('simil_vistoria.json').catch(() => null), lerJson('simil_status.json').catch(() => null), lerJson('simil_etapa1_ok.json').catch(() => null)]);
       STATUS = status; ETAPA1 = !!marca;
-      if (salvo) { Object.assign(D, salvo.dados || {}); EQUIP = salvo.equipamentos || []; REQNAO = !!salvo.requisito_nao_atendido; FOTOS = (salvo.fotos || []).map(f => ({ id: f.id, nome: f.nome, legenda: f.legenda, descricao: f.descricao })); }
+      if (salvo && (String(salvo.tipologia || 'apartamento') !== TIP || (salvo.variante || null) !== VAR)) salvo = null;                  // formulário salvo de outra tipologia: não reaproveita
+      if (salvo) { Object.assign(D, salvo.dados || {}); GRUPOS = { equipamentos: salvo.equipamentos || [], benfeitorias: salvo.benfeitorias || [] }; REQNAO = !!salvo.requisito_nao_atendido; FOTOS = (salvo.fotos || []).map(f => ({ id: f.id, nome: f.nome, legenda: f.legenda, descricao: f.descricao })); }
       const pf = await findFolderByRole(PASTA, 'fotos');
       if (pf) {
         const fl = await gapi.client.drive.files.list({ q: "'" + pf + "' in parents and mimeType contains 'image/' and trashed=false", fields: 'files(id,name,thumbnailLink)', pageSize: 200, orderBy: 'name', supportsAllDrives: true, includeItemsFromAllDrives: true });
@@ -10794,8 +10866,9 @@ async function _uploadFotoParaDrive(file, nome, folderId, barId, onProgress){
       box.append(h('div', { class: 'sv-cores' }, 'Cor da seleção:', CORES.map(c => { const bt = h('button', { type: 'button', class: 'sv-cor', 'data-c': c, style: 'background:' + c, title: c }); bt.addEventListener('click', () => { try { localStorage.setItem('sv-cor', c); } catch (e) { /* ok */ } aplicaCor(c); }); return bt; })));
       aplicaCor(cor);
       SPEC.secoes.forEach(s => { const e = secao(s.titulo, s.campos); if (e) box.append(e); });
-      // equipamentos
-      box.append(h('div', { class: 'sv-sec' }, h('h3', null, 'Equipamentos do condomínio/unidade'), chips(SPEC.equipamentos.multi, EQUIP, v => { EQUIP = v; }, true)));
+      // equipamentos (e benfeitorias, no lote)
+      const TIT = { equipamentos: TIP === 'apartamento' ? 'Equipamentos do condomínio/unidade' : TIP === 'lote' ? 'Equipamentos do empreendimento' : 'Equipamentos', benfeitorias: 'Benfeitorias do terreno' };
+      GRUPOS_CHK().forEach(g => box.append(h('div', { class: 'sv-sec' }, h('h3', null, TIT[g]), chips(SPEC[g].multi, GRUPOS[g] || [], v => { GRUPOS[g] = v; }, true))));
       // fotos
       const fotos = h('div', { class: 'sv-sec' }, h('h3', null, 'Fotos do relatório'));
       renderFotos(fotos);
@@ -10828,6 +10901,541 @@ async function _uploadFotoParaDrive(file, nome, folderId, barId, onProgress){
 
 </script>
 <!-- SIMIL-VISTORIA:FIM -->
+<!-- PEPT:INICIO — suspensão do prazo da O.S. enquanto a PEPT está aberta (COT AvaliaBens 075, 3.3.2.5.3) -->
+<script>
+window.PEPT = (function () {
+  const ABA = 'PEPT_HISTORICO';             // aba própria (OS | histórico): não disputa coluna com a aba das OS
+  const api = { mapa: {} };
+
+  // ---------- datas (dias corridos, sem fuso nem horário de verão) ----------
+  const dia = t => {
+    let m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(t || '').trim()), a, me, d;
+    if (m) { d = +m[1]; me = +m[2]; a = +m[3]; }
+    else { m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(t || '').trim()); if (!m) return null; a = +m[1]; me = +m[2]; d = +m[3]; }
+    const x = new Date(Date.UTC(a, me - 1, d));
+    return x.getUTCDate() === d && x.getUTCMonth() === me - 1 ? x.getTime() / 86400000 : null;
+  };
+  const iso = n => new Date(n * 86400000).toISOString().slice(0, 10);
+  const br = t => { const n = dia(t); return n === null ? '—' : iso(n).split('-').reverse().join('/'); };
+  const hojeIso = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+  const dias = n => Math.abs(n) + (Math.abs(n) === 1 ? ' dia' : ' dias');
+  const saldo = n => n === null ? 'sem data de entrega' : n < 0 ? 'já estava atrasada ' + dias(n) : 'faltavam ' + dias(n);
+
+  // ---------- regras por atividade ----------
+  // prazoCliente: dias corridos a partir do registro. "COT AV" = AvaliaBens 075; "CI" = Construção Individual 046.
+  api.TIPOS = {
+    B: [{ id: 'doc', nome: 'Documental (falta de documento)', prazoCliente: 10 },
+        { id: 'analise', nome: 'Da análise ou técnica', prazoCliente: 21 }],      // inclui condição mínima de garantia (decisão Danthi: 21 dias)
+    E: [{ id: 'unica', nome: 'PEPT única (acompanhamento de obra)', prazoCliente: 15 }],
+    A: [{ id: 'av', nome: 'PEPT de avaliação', prazoCliente: null }],
+    G: [{ id: 'geral', nome: 'PEPT (demanda complementar)', prazoCliente: null }]
+  };
+  const codigo = atv => String(atv || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  api.grupo = atv => { const c = codigo(atv); return /^B43[78]/.test(c) ? 'B' : /^E(401|005)/.test(c) ? 'E' : /^A4/.test(c) ? 'A' : 'G'; };
+  const PRAZO_OS = { A413: 6, A417: 10, B437: 15, B438: 15, E401: 6, E005: 6 };
+  const tipoDe = id => Object.values(api.TIPOS).flat().find(t => t.id === id) || null;
+  const somar = (data, n) => { const d = dia(data); return d === null ? null : iso(d + n); };
+
+  // até quando o cliente tem para atender; null quando o caderno não fixa prazo ou o tipo não foi informado
+  api.venceCliente = item => { const t = item && tipoDe(item.tipo); return t && t.prazoCliente ? somar(item.aberta, t.prazoCliente) : null; };
+  api.vencida = (item, hoje) => { const v = api.venceCliente(item); return v !== null && dia(hoje || hojeIso()) > dia(v); };
+
+  // data de emissão da O.S. = campo "Entrada SIOPI" (preenchido a partir do .txt ou do SIOPI). Só se ele estiver vazio
+  // vale a data de abertura (coluna "abr", que em OS em revisão guarda outra coisa).
+  api.emissao = function (r) {
+    const achar = t => { const m = /(\d{4}-\d{2}-\d{2})|(\d{1,2}\/\d{1,2}\/\d{4})/.exec(String(t || '')); return m && dia(m[0]) !== null ? iso(dia(m[0])) : null; };
+    const entrada = achar(r.siopi), abertura = r.rev ? null : achar(r.abr);
+    return { data: entrada || abertura, origem: entrada ? 'entrada' : abertura ? 'abertura' : 'nenhuma' };
+  };
+
+  // lembretes do prazo para REGISTRAR, contados da emissão da O.S.
+  api.lembretes = function (r, hoje, emissao) {
+    const g = api.grupo(r.atv), base = emissao === undefined ? api.emissao(r).data : emissao, ate = n => somar(base, n), L = [];
+    const limite = (rotulo, n) => { const d = ate(n); L.push(d === null ? rotulo + ': até ' + n + (n === 1 ? ' dia' : ' dias') + ' da emissão da O.S.' : rotulo + ': registrar até ' + br(d) + (dia(hoje || hojeIso()) > dia(d) ? ' (prazo de registro já passou)' : '') + '.'); };
+    if (g === 'B') { limite('PEPT documental', 2); L.push('PEPT da análise: registrar até o dia seguinte à vistoria.'); L.push('PEPT por condição mínima de garantia: registrar em até 2 dias.'); }
+    else if (g === 'E') limite('PEPT (é única)', 2);
+    else if (/^A4/.test(codigo(r.atv))) limite('Comparar cadastro e matrícula (24 h)', 1);
+    return L;
+  };
+
+  // aviso se o prazo cadastrado na O.S. não bate com o do caderno (só avisa; não muda a data)
+  api.confereprazo = function (r, hist) {
+    const esperado = PRAZO_OS[codigo(r.atv)], a = dia(api.emissao(r).data), e = dia((hist && hist.original) || r.ent);
+    if (!esperado || a === null || e === null || e - a === esperado) return null;
+    return 'Prazo cadastrado nesta O.S.: ' + dias(e - a) + ' da emissão da O.S. O caderno prevê ' + dias(esperado) + ' para ' + codigo(r.atv) + '. Confira.';
+  };
+
+  // texto da confirmação ao concluir ou cancelar com PEPT aberta (muda conforme a atividade)
+  api.avisoEncerrar = function (r, item, novo, hoje) {
+    const g = api.grupo(r.atv), vence = api.venceCliente(item), venceu = api.vencida(item, hoje);
+    const fim = ' Mudar o status mesmo assim?';
+    if (g === 'A') return 'Há uma PEPT aberta nesta OS. O COT de Avaliação diz para não concluir nem cancelar antes de ela ser solucionada (3.3.2.5.3.1).' + fim;
+    if (novo === 'OS Cancelada') return 'Há uma PEPT aberta nesta OS. Confira se o caso é mesmo de recusa ou cancelamento.' + fim;
+    if (g === 'B') {
+      if (vence === null) return 'Há uma PEPT aberta sem tipo informado. Em análise, concluir como inviável só é permitido depois de vencido o prazo do cliente (CI 4.1.11.5.1).' + fim;
+      return (venceu ? 'O prazo do cliente venceu em ' + br(vence) + '. O caderno permite concluir como INVIÁVEL se a pendência não foi comprovadamente regularizada. Se foi atendida, use antes "PEPT atendida".'
+        : 'O cliente tem até ' + br(vence) + '. O caderno NÃO permite concluir como inviável antes de vencer esse prazo (CI 4.1.11.5.1).') + fim;
+    }
+    if (g === 'E') return 'Há uma PEPT aberta' + (vence ? (venceu ? ', com prazo vencido em ' + br(vence) + '. Comunique a agência e aponte no RAE o que não foi atendido (sem o projeto aprovado, RAE sem aferição).' : '; o cliente tem até ' + br(vence) + '.') : '.') + fim;
+    return 'Há uma PEPT aberta nesta OS. Confira a regra da demanda original.' + fim;
+  };
+
+  // ---------- histórico ----------
+  api.ler = function (texto) {
+    if (!String(texto || '').trim()) return { v: 1, itens: [] };
+    try { const h = JSON.parse(texto); if (h && h.v === 1 && Array.isArray(h.itens)) return h; } catch (e) { /* abaixo */ }
+    return { v: 1, itens: [], ilegivel: true };
+  };
+  api.aberta = r => api.ler(r && r.peptHist).itens.find(i => !i.atendida) || null;
+  api.statusAoAbrir = st => /^OS Vistoriada/.test(st) ? 'OS Vistoriada com PEPT' : /^(Sem vistoria|OS não Vistoriada)/.test(st) ? 'OS não Vistoriada com PEPT' : st;
+  api.statusAoAtender = (st, antes) => st === 'OS Vistoriada com PEPT' ? 'OS Vistoriada'
+    : st === 'OS não Vistoriada com PEPT' ? (antes === 'Sem vistoria - agendado' ? antes : 'Sem vistoria - não agendado') : st;
+
+  api.abrir = function (hist, dados) {
+    if (hist.ilegivel) throw new Error('o histórico de PEPT desta OS está ilegível na planilha; corrija a célula antes');
+    if (hist.itens.some(i => !i.atendida)) throw new Error('já existe uma PEPT aberta nesta OS');
+    const a = dia(dados.data), e = dia(dados.entrega);
+    if (a === null) throw new Error('informe a data de registro da PEPT');
+    if (a > dia(dados.hoje)) throw new Error('a data de registro não pode ser futura');
+    const ultima = hist.itens[hist.itens.length - 1];
+    if (ultima && a < dia(ultima.atendida)) throw new Error('a abertura é anterior ao atendimento da PEPT passada');
+    const item = { aberta: iso(a), restam: e === null ? null : e - a, entregaAntes: e === null ? '' : iso(e), stAntes: dados.st || '', atendida: null };
+    if (dados.tipo) item.tipo = dados.tipo;
+    if (dia(dados.emissao) !== null && a < dia(dados.emissao)) throw new Error('a PEPT não pode ser anterior à emissão da O.S. (' + br(dados.emissao) + ')');
+    return { v: 1, original: hist.original || item.entregaAntes, itens: hist.itens.concat(item) };
+  };
+  api.atender = function (hist, dados) {
+    const item = hist.itens.find(i => !i.atendida);
+    if (!item) throw new Error('não há PEPT aberta nesta OS');
+    const f = dia(dados.data);
+    if (f === null) throw new Error('informe a data do atendimento');
+    if (f < dia(item.aberta)) throw new Error('o atendimento não pode ser anterior à abertura (' + br(item.aberta) + ')');
+    if (f > dia(dados.hoje)) throw new Error('a data do atendimento não pode ser futura');
+    const nova = item.restam === null ? '' : iso(f + item.restam);       // a contagem volta no dia seguinte ao atendimento
+    const feito = Object.assign({}, item, { atendida: iso(f), entregaDepois: nova });
+    return { hist: Object.assign({}, hist, { itens: hist.itens.map(i => i === item ? feito : i) }), entrega: nova, item: feito };
+  };
+  api.desfazer = function (hist) {
+    const item = hist.itens.find(i => !i.atendida);
+    if (!item) throw new Error('não há PEPT aberta nesta OS');
+    return { hist: Object.assign({}, hist, { itens: hist.itens.filter(i => i !== item) }), item: item };
+  };
+
+  api.selo = (n, vencida) => vencida ? '<span class="badge-pept-vencida" title="Prazo suspenso; o prazo do cliente para atender a PEPT venceu">⏸ PEPT vencida</span>'
+    : '<span class="badge-suspenso" title="Prazo suspenso por PEPT">⏸ ' + (n === null || n === undefined ? 'PEPT' : n < 0 ? 'PEPT · atraso ' + (-n) + 'd' : 'PEPT · restam ' + n + 'd') + '</span>';
+
+  // ---------- planilha ----------
+  const planilha = () => gapi.client.sheets.spreadsheets;
+  const ler = async (range) => (await planilha().values.get({ spreadsheetId: CFG.SID, range: range })).result.values || [];
+  const abas = async () => ((await planilha().get({ spreadsheetId: CFG.SID, fields: 'sheets(properties(sheetId,title))' })).result.sheets || []).map(x => x.properties.title);
+  // linhas da aba do histórico: [número da linha, OS, histórico]; a primeira linha é o título
+  const linhasHist = async () => (await ler(ABA + '!A1:B')).map((l, i) => ({ n: i + 1, os: String(l[0] || '').trim(), texto: String(l[1] || '') })).slice(1);
+  const montarMapa = ls => ls.reduce((m, l) => { if (l.os && !(l.os in m)) m[l.os] = l.texto; return m; }, {});
+
+  api.carregar = async function () {
+    try { api.mapa = montarMapa(await linhasHist()); }
+    catch (e) {
+      const msg = String((e.result && e.result.error && e.result.error.message) || e.message || e);
+      if (/unable to parse range/i.test(msg)) api.mapa = {};             // a aba ainda não existe: nenhuma PEPT registrada
+      else { console.warn('[pept] não li o histórico', e); showToast('Não consegui ler o histórico de PEPT; atualize o dashboard.'); }
+    }
+  };
+
+  // cria a aba só no primeiro registro e com autorização; uma aba de mesmo nome com outro conteúdo nunca é usada
+  async function garantirAba() {
+    if ((await abas()).includes(ABA)) {
+      const cab = (await ler(ABA + '!A1:B1'))[0] || [];
+      if (cab.length && !(cab[0] === 'OS' && cab[1] === 'HISTORICO')) throw new Error('já existe uma aba ' + ABA + ' com outro conteúdo');
+      if (!cab.length) {
+        if ((await ler(ABA + '!A1:B')).length) throw new Error('já existe uma aba ' + ABA + ' com outro conteúdo');
+        await planilha().values.update({ spreadsheetId: CFG.SID, range: ABA + '!A1:B1', valueInputOption: 'RAW', resource: { values: [['OS', 'HISTORICO']] } });
+      }
+      return;
+    }
+    if (!confirm(`Primeiro uso da PEPT: vou criar na planilha uma aba nova chamada ${ABA}, para guardar o histórico. As abas atuais não ganham colunas. Continuar?`)) throw new Error('criação da aba cancelada');
+    await planilha().batchUpdate({ spreadsheetId: CFG.SID, resource: { requests: [{ addSheet: { properties: { title: ABA } } }] } });
+    await planilha().values.update({ spreadsheetId: CFG.SID, range: ABA + '!A1:B1', valueInputOption: 'RAW', resource: { values: [['OS', 'HISTORICO']] } });
+  }
+
+  // relê a linha antes de gravar: se OS foi excluída/inserida em outro aparelho, o número da linha mudou
+  async function gravar(r, mudar) {
+    await garantirAba();
+    const linhas = await linhasHist();
+    api.mapa = montarMapa(linhas);
+    const linha = (await ler(`${CFG.SHT}!A${r.ri}:AZ${r.ri}`))[0] || [];
+    const atual = parseRow(linha, r.ri - 2);
+    if (atual.os !== r.os) throw new Error('a planilha mudou (a OS não está mais nesta linha). Atualize o dashboard e tente de novo');
+    const res = mudar(api.ler(api.mapa[r.os]), atual);
+    const texto = JSON.stringify(res.hist), existente = linhas.find(l => l.os === r.os);
+    if (existente) await planilha().values.update({ spreadsheetId: CFG.SID, range: `${ABA}!B${existente.n}`, valueInputOption: 'RAW', resource: { values: [[texto]] } });
+    else await planilha().values.append({ spreadsheetId: CFG.SID, range: ABA + '!A:B', valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS', resource: { values: [[r.os, texto]] } });
+    api.mapa[r.os] = texto;
+    const faixa = campo => `${CFG.SHT}!${_campoToCol(campo)}${r.ri}`;
+    const outros = [];
+    if (res.entrega) outros.push({ range: faixa('ent'), values: [[br(res.entrega)]] });
+    if (res.st && res.st !== atual.st) outros.push({ range: faixa('st'), values: [[res.st]] });
+    outros.push({ range: faixa('pept'), values: [[res.hist.itens.some(i => !i.atendida) ? 'TRUE' : 'FALSE']] });
+    await planilha().values.batchUpdate({ spreadsheetId: CFG.SID, resource: { valueInputOption: 'USER_ENTERED', data: outros } });
+  }
+
+  async function acao(r, mudar, aviso, botao) {
+    if (!AUTH) { showToast('Entre com Google primeiro.'); return; }
+    if (botao) botao.disabled = true;
+    try {
+      await gravar(r, mudar);
+      showToast(aviso);
+      await loadData(); closeD();
+    } catch (e) {
+      console.error('[pept]', e);
+      showToast('PEPT: ' + (e.result && e.result.error ? e.result.error.message : e.message || e));
+      if (botao) botao.disabled = false;
+    }
+  }
+
+  // ---------- tela ----------
+  const el = (t, at, ...fi) => { const e = document.createElement(t); for (const [k, v] of Object.entries(at || {})) { if (k.startsWith('on')) e[k] = v; else e.setAttribute(k, v); } e.append(...fi.filter(f => f !== null && f !== undefined && f !== false)); return e; };
+
+  api.render = function (r) {
+    const cx = document.getElementById('d-pept');
+    if (!cx) return;
+    const hist = api.ler(r.peptHist), aberta = hist.itens.find(i => !i.atendida);
+    const encerrada = ['OS Concluída', 'OS Cancelada'].includes(r.st);
+    const data = el('input', { type: 'date', class: 'pept-data', max: hojeIso(), value: hojeIso() });
+    const previa = el('div', { class: 'pept-nota' });
+    const partes = [];
+    const g = api.grupo(r.atv), tipos = api.TIPOS[g];
+    const nota = (t, c) => el('div', { class: c || 'pept-nota' }, t);
+    const seletor = () => el('select', { class: 'pept-data' }, ...tipos.map(t => el('option', { value: t.id }, t.nome + (t.prazoCliente ? ' — cliente: ' + t.prazoCliente + ' dias' : ''))));
+    const tipo = seletor();
+    const em = api.emissao(r);
+    if (!encerrada && !hist.ilegivel) {
+      const aviso = api.confereprazo(r, hist);
+      if (aviso) partes.push(nota(aviso, 'pept-alerta'));
+      if (!hist.itens.some(i => !i.atendida)) {
+        partes.push(nota(em.data ? 'Emissão da O.S. (' + (em.origem === 'entrada' ? 'Entrada SIOPI' : 'data de abertura') + '): ' + br(em.data) : 'Sem data em "Entrada SIOPI": preencha em ✏️ Editar para calcular os prazos.'));
+        api.lembretes(r).forEach(t => partes.push(nota(t)));
+      }
+    }
+    if (hist.ilegivel) partes.push(el('div', { class: 'pept-alerta' }, 'O histórico de PEPT desta OS está ilegível na planilha. Nada será gravado por cima.'));
+    else if (aberta) {
+      partes.push(el('div', { class: 'pept-estado' }, '⏸ Prazo suspenso desde ' + br(aberta.aberta) + ' — ' + saldo(aberta.restam) + '.'));
+      const dadosTipo = tipoDe(aberta.tipo), vence = api.venceCliente(aberta);
+      if (dadosTipo) partes.push(nota('Tipo: ' + dadosTipo.nome));
+      if (vence) {
+        const falta = dia(vence) - dia(hojeIso());
+        partes.push(api.vencida(aberta)
+          ? nota('⚠️ O prazo do cliente venceu em ' + br(vence) + (g === 'B' ? '. Se a pendência não foi comprovada, a análise pode ser concluída como inviável.' : '. Comunique a agência e aponte no RAE o que não foi atendido.'), 'pept-alerta')
+          : nota('Cliente tem até ' + br(vence) + (falta === 0 ? ' (vence hoje).' : ' (faltam ' + dias(falta) + ').')));
+      } else if (!dadosTipo && (g === 'B' || g === 'E')) {
+        const escolher = seletor();
+        partes.push(el('label', { class: 'pept-rot' }, 'Informe o tipo para ver o prazo do cliente', escolher),
+          el('div', { class: 'pept-acoes' }, el('button', { type: 'button', class: 'pept-btn', onclick: ev => acao(r, h => ({ hist: Object.assign({}, h, { itens: h.itens.map(i => i.atendida ? i : Object.assign({}, i, { tipo: escolher.value })) }) }), 'Tipo da PEPT salvo.', ev.target) }, 'Salvar tipo')));
+      }
+      const atualizar = () => { try { const x = api.atender(hist, { data: data.value, hoje: hojeIso() }); previa.textContent = x.entrega ? 'Nova entrega: ' + br(x.entrega) : 'Sem data de entrega para recalcular.'; } catch (e) { previa.textContent = e.message; } };
+      data.min = aberta.aberta; data.oninput = atualizar; atualizar();
+      partes.push(el('label', { class: 'pept-rot' }, 'Data do atendimento', data), previa,
+        el('div', { class: 'pept-acoes' },
+          el('button', { type: 'button', class: 'pept-btn prim', onclick: ev => acao(r, (h, atual) => { const x = api.atender(h, { data: data.value, hoje: hojeIso() }); return { hist: x.hist, entrega: x.entrega, st: api.statusAoAtender(atual.st, x.item.stAntes) }; }, '▶ PEPT atendida: prazo retomado.', ev.target) }, 'PEPT atendida'),
+          el('button', { type: 'button', class: 'pept-btn', onclick: ev => { if (confirm('Apagar este registro de PEPT (lançado por engano)? A data de entrega não muda.')) acao(r, (h, atual) => { const x = api.desfazer(h); return { hist: x.hist, st: api.statusAoAtender(atual.st, x.item.stAntes) }; }, 'Registro de PEPT desfeito.', ev.target); } }, 'Lançada por engano')));
+    } else if (encerrada) partes.push(el('div', { class: 'pept-nota' }, 'OS encerrada: não há prazo a suspender.'));
+    else {
+      if (/com PEPT/.test(r.st)) partes.push(el('div', { class: 'pept-alerta' }, 'Esta OS está marcada com PEPT, mas sem a data de abertura: o prazo ainda está correndo. Informe a data registrada no SIOPI.'));
+      const atualizar = () => { try { const x = api.abrir(hist, { data: data.value, entrega: r.ent, st: r.st, hoje: hojeIso() }).itens.slice(-1)[0]; const v = api.venceCliente({ aberta: x.aberta, tipo: tipo.value }); previa.textContent = 'Entrega atual: ' + br(r.ent) + ' — no registro, ' + saldo(x.restam) + '.' + (v ? ' Cliente terá até ' + br(v) + '.' : ''); } catch (e) { previa.textContent = e.message; } };
+      data.oninput = atualizar; tipo.onchange = atualizar;
+      if (g === 'B' && hist.itens.some(i => i.tipo === 'doc')) tipo.value = 'analise';
+      atualizar();
+      if (tipos.length > 1) partes.push(el('label', { class: 'pept-rot' }, 'Tipo de PEPT', tipo));
+      partes.push(el('label', { class: 'pept-rot' }, 'Data do registro no SIOPI', data), previa,
+        el('div', { class: 'pept-acoes' }, el('button', { type: 'button', class: 'pept-btn prim', onclick: ev => {
+          const repetida = (g === 'B' || g === 'E') && hist.itens.some(i => i.tipo === tipo.value);
+          if (repetida && !confirm('Já houve uma PEPT deste tipo nesta OS. O caderno prevê ' + (g === 'E' ? 'uma única PEPT' : 'uma de cada tipo') + '. Registrar mesmo assim?')) return;
+          if (!confirm('Registrar a PEPT e suspender o prazo? (A PEPT no SIOPI continua sendo aberta por você.)')) return;
+          acao(r, (h, atual) => ({ hist: api.abrir(h, { data: data.value, entrega: atual.ent, st: atual.st, tipo: tipo.value, emissao: api.emissao(atual).data, hoje: hojeIso() }), st: api.statusAoAbrir(atual.st) }), '⏸ PEPT registrada: prazo suspenso.', ev.target);
+        } }, 'Registrar abertura da PEPT')));
+    }
+    const fechadas = hist.itens.filter(i => i.atendida);
+    if (fechadas.length) partes.push(el('div', { class: 'pept-nota' }, 'Entrega original: ' + br(hist.original)),
+      ...fechadas.map(i => el('div', { class: 'pept-nota' }, 'PEPT ' + (tipoDe(i.tipo) ? '(' + tipoDe(i.tipo).nome + ') ' : '') + br(i.aberta) + ' a ' + br(i.atendida) + (i.entregaDepois ? ' → entrega ' + br(i.entregaDepois) : ''))));
+    cx.replaceChildren(...partes);
+  };
+
+  api.permitirStatus = function (r, novo) {
+    const aberta = api.aberta(r);
+    if (aberta && ['OS Concluída', 'OS Cancelada'].includes(novo)) return confirm(api.avisoEncerrar(r, aberta, novo));
+    if (aberta && !/com PEPT/.test(novo)) return confirm('A PEPT continua aberta e o prazo segue suspenso. Para retomar o prazo, use "PEPT atendida". Mudar só o status?');
+    if (!aberta && /com PEPT/.test(novo)) setTimeout(() => showToast('Para suspender o prazo, abra a OS e registre a data em "PEPT e prazo".'), 3800);
+    return true;
+  };
+
+  const estilo = document.createElement('style');
+  estilo.textContent = '.badge-pept-vencida{background:rgba(249,115,22,.18);border:1px solid rgba(249,115,22,.6);color:#fb923c;font-size:9px;padding:2px 6px;border-radius:10px;font-weight:700;margin-left:4px;white-space:nowrap}body.light-mode .badge-pept-vencida{color:#c2410c}select.pept-data{width:100%;max-width:100%}.badge-suspenso{background:rgba(59,130,246,.14);border:1px solid rgba(59,130,246,.4);color:#60a5fa;font-size:9px;padding:2px 6px;border-radius:10px;font-weight:700;margin-left:4px;white-space:nowrap}body.light-mode .badge-suspenso{color:#1d4ed8}.pept-estado{font-weight:700;font-size:13px;color:#60a5fa}body.light-mode .pept-estado{color:#1d4ed8}.pept-alerta{font-size:12px;border:1px solid rgba(255,159,10,.45);background:rgba(255,159,10,.12);border-radius:8px;padding:8px;margin-bottom:6px}.pept-nota{font-size:12px;color:var(--text-secondary,#aaa);margin-top:4px}.pept-rot{display:block;font-size:12px;color:var(--text-secondary,#aaa);margin-top:8px}.pept-data{display:block;margin-top:4px;padding:9px;font-size:16px;border-radius:8px;border:1px solid var(--mica-border-light,#444);background:var(--mica-surface,#1a1a1c);color:inherit}.pept-acoes{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.pept-btn{padding:10px 12px;border-radius:8px;border:1px solid var(--mica-border-light,#444);background:var(--mica-surface,#1a1a1c);color:var(--text-primary,#f2f2f4);font:inherit;font-size:13px;cursor:pointer}.pept-btn.prim{background:#1d4ed8;border-color:#1d4ed8;color:#fff}.pept-btn:disabled{opacity:.5}';
+  document.head.append(estilo);
+  return api;
+})();
+</script>
+<!-- PEPT:FIM -->
+<!-- ANALISE:INICIO — resultado do agente de análise documental (arquivo analise_status.json na pasta da OS) -->
+<script>
+window.ANALISE = (function () {
+  const CORES = { verde: ['#22c55e', 'Sem erro'], amarelo: ['#eab308', 'Atenção'], vermelho: ['#ef4444', 'Bloqueio ou PEPT'] };
+  let VEZ = 0;
+  const ATV_ANALISADAS = /^(A-?41[37]|B-?43[78]|E-?(401|005)|G-?(402|415|416|006))/i;   // as mesmas de analise/atividades.py
+  const el = (t, at, ...fi) => { const e = document.createElement(t); for (const [k, v] of Object.entries(at || {})) { if (k.startsWith('on')) e[k] = v; else e.setAttribute(k, v); } e.append(...fi.filter(f => f !== null && f !== undefined && f !== false)); return e; };
+  const nota = (t, c) => el('div', { class: c || 'pept-nota' }, t);
+
+  // tudo o que vem do arquivo foi extraído de documentos de terceiros: entra na tela somente como texto
+  function desenhar(cx, d) {
+    const cor = CORES[d.cor] || ['#94a3b8', 'Resultado desconhecido'];
+    const itens = Array.isArray(d.itens) ? d.itens : [];
+    const partes = [
+      el('div', { class: 'an-topo' }, el('span', { class: 'an-bola', style: 'background:' + cor[0] }), el('b', {}, cor[1]), el('span', { class: 'pept-nota' }, ' · ' + String(d.analisado_em || ''))),
+      nota(d.modo === 'observacao' ? 'Analisada no modo observação: nada foi executado.' : 'Etapa 1 do SIMIL: ' + String(d.etapa1 || 'sem informação') + '. A PEPT não é aberta sozinha.'),
+      d.prazos ? nota(String(d.prazos)) : null];
+    itens.forEach(i => {
+      const e = i.evidencia || {};
+      partes.push(el('div', { class: 'an-item ' + (i.nivel === 'alerta' ? 'an-alerta' : 'an-grave') },
+        el('b', {}, String(i.codigo || '') + (i.nivel === 'pept' ? ' · PEPT' : '') + ' — ' + String(i.titulo || '')),
+        i.detalhe ? el('div', {}, String(i.detalhe)) : null,
+        e.documento ? el('div', { class: 'an-onde' }, String(e.documento) + (e.pagina ? ', pág. ' + e.pagina : '') + (e.trecho ? ': “' + e.trecho + '”' : '')) : null));
+    });
+    if (!itens.length) partes.push(nota('Nenhum achado.'));
+    if (d.texto_pept) partes.push(el('div', { class: 'pept-rot' }, 'Texto sugerido para a PEPT'), el('pre', { class: 'an-texto' }, String(d.texto_pept)),
+      el('div', { class: 'pept-acoes' }, el('button', { type: 'button', class: 'pept-btn prim', onclick: async () => {
+        try { await navigator.clipboard.writeText(String(d.texto_pept)); showToast('Texto da PEPT copiado. Registre a abertura em "PEPT e prazo".'); } catch (x) { showToast('Não consegui copiar: selecione o texto.'); }
+      } }, 'Copiar texto')));
+    if (d.texto_conferir) partes.push(el('details', { class: 'pept-nota' }, el('summary', {}, 'Documentos fora da pasta: só pedir se a falta se confirmar no SIOPI'), el('pre', { class: 'an-texto' }, String(d.texto_conferir))));
+    if ((d.nao_verificado || []).length) partes.push(el('details', { class: 'pept-nota' }, el('summary', {}, 'O que o agente não verificou'), ...d.nao_verificado.map(n => nota('• ' + n))));
+    cx.replaceChildren(...partes);
+  }
+
+  async function ler(r) {
+    const pasta = await acharPastaRaizOS(r);
+    if (!pasta) return { erro: 'Pasta da OS não encontrada no Drive.' };
+    const lista = await gapi.client.drive.files.list({ q: "name='analise_status.json' and '" + pasta + "' in parents and trashed=false", fields: 'files(id,modifiedTime)', orderBy: 'modifiedTime desc', pageSize: 1, supportsAllDrives: true, includeItemsFromAllDrives: true });
+    const arq = (lista.result.files || [])[0];
+    if (!arq) return null;
+    const c = await gapi.client.drive.files.get({ fileId: arq.id, alt: 'media', supportsAllDrives: true });
+    return typeof c.result === 'object' && c.result ? c.result : JSON.parse(c.body);
+  }
+
+  // ---------- selo na lista (um arquivo só, na raiz dos laudos) ----------
+  let RESUMO = {}, TEXTO = '', LIDO_EM = 0, LENDO = false;
+  const chave = r => String(r.osp || r.os || '').replace(/\D/g, '');
+  const EMOJI = { verde: '🟢', amarelo: '🟡', vermelho: '🔴' };
+  async function carregarResumo() {
+    if (!AUTH || !CFG.DID || LENDO) return;
+    LENDO = true;
+    try {
+      const lista = await gapi.client.drive.files.list({ q: "name='analise_resumo.json' and '" + CFG.DID + "' in parents and trashed=false", fields: 'files(id,modifiedTime)', orderBy: 'modifiedTime desc', pageSize: 1, supportsAllDrives: true, includeItemsFromAllDrives: true });
+      const arq = (lista.result.files || [])[0];
+      let d = { os: {} };
+      if (arq) { const c = await gapi.client.drive.files.get({ fileId: arq.id, alt: 'media', supportsAllDrives: true }); d = typeof c.result === 'object' && c.result ? c.result : JSON.parse(c.body); }
+      LIDO_EM = Date.now();
+      const texto = JSON.stringify(d.os || {});
+      if (texto !== TEXTO) { TEXTO = texto; RESUMO = d.os || {}; if (ALL.length) applyFilters(); }
+    } catch (e) { console.warn('[analise resumo]', e); LIDO_EM = Date.now(); } finally { LENDO = false; }
+  }
+  setInterval(() => { if (!document.hidden && AUTH && ALL.length && Date.now() - LIDO_EM > 120000) carregarResumo(); }, 3000);
+
+  return {
+    carregarResumo: carregarResumo,
+    // só devolve texto fixo escolhido pela cor: nada do arquivo entra no HTML
+    selo: function (r) {
+      if (!ATV_ANALISADAS.test(String(r.atv || ''))) return '';
+      const x = RESUMO[chave(r)], cor = x && Object.prototype.hasOwnProperty.call(EMOJI, x.cor) ? x.cor : null;
+      return cor ? '<span class="badge-analise an-s-' + cor + '" title="Análise documental: ' + CORES[cor][1] + ' (abra a OS para ver)">📄 ' + EMOJI[cor] + '</span>' : '';
+    },
+    abrir: function (r) {
+      const cx = document.getElementById('d-analise'), sec = document.getElementById('d-analise-sec');
+      if (!cx || !sec) return;
+      const vez = ++VEZ, a413 = ATV_ANALISADAS.test(String(r.atv || ''));
+      sec.style.display = a413 ? '' : 'none';
+      cx.replaceChildren(nota(!a413 ? '' : AUTH ? 'Procurando a análise…' : 'Entre com Google para ver a análise.'));
+      if (!a413 || !AUTH) return;
+      ler(r).then(d => {
+        if (vez !== VEZ) return;                                   // o usuário já abriu outra OS
+        if (!d) cx.replaceChildren(nota('Sem análise para esta OS. O agente analisa as OS novas assim que os documentos chegam ao computador.'));
+        else if (d.erro) cx.replaceChildren(nota(d.erro));
+        else desenhar(cx, d);
+      }).catch(e => { console.warn('[analise]', e); if (vez === VEZ) cx.replaceChildren(nota('Não consegui ler a análise agora. Abra a OS de novo.')); });
+    }
+  };
+})();
+(function () {
+  const css = document.createElement('style');
+  css.textContent = '.badge-analise{font-size:9px;padding:2px 6px;border-radius:10px;margin-left:4px;white-space:nowrap;border:1px solid rgba(148,163,184,.45);background:rgba(148,163,184,.10)}.an-s-vermelho{border-color:rgba(239,68,68,.6)}.an-s-amarelo{border-color:rgba(234,179,8,.6)}.an-s-verde{border-color:rgba(34,197,94,.6)}tbody td .badge-analise{font-size:11px}.an-topo{display:flex;align-items:center;gap:6px;font-size:13px}.an-bola{width:11px;height:11px;border-radius:50%;display:inline-block}.an-item{font-size:12px;border-radius:8px;padding:8px;margin-top:6px;overflow-wrap:anywhere}.an-grave{border:1px solid rgba(239,68,68,.5);background:rgba(239,68,68,.10)}.an-alerta{border:1px solid rgba(234,179,8,.45);background:rgba(234,179,8,.08)}.an-onde{font-size:11px;color:var(--text-muted,#999);margin-top:3px}.an-texto{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;font-size:12px;border:1px solid var(--mica-border-light,#444);border-radius:8px;padding:8px;margin:4px 0 0}';
+  document.head.append(css);
+})();
+</script>
+<!-- ANALISE:FIM -->
+<!-- SIOPI-AGENTE:INICIO — o "Obter dados" do SIOPI é atendido pelo agente do computador (sem extensão) -->
+<script>
+(function () {
+  const ESPERA_AGENTE = 90000, ESPERA_TOTAL = 420000, PASSO = 3000;
+  const pausa = ms => new Promise(r => setTimeout(r, ms));
+  const novoId = () => Date.now().toString(36) + Array.from(crypto.getRandomValues(new Uint8Array(6)), b => (b % 36).toString(36)).join('');
+  // os pedidos do gapi não têm .catch (só .then): usar await. Falhar ao apagar nunca pode perder o resultado da busca.
+  const lixeira = async id => {
+    try { await gapi.client.drive.files.update({ fileId: id, resource: { trashed: true }, supportsAllDrives: true }); }
+    catch (e) { console.warn('[siopi agente] não apaguei o arquivo temporário', e); }
+  };
+
+  async function respostas(nome) {
+    const r = await gapi.client.drive.files.list({ q: "name='" + nome + "' and '" + CFG.DID + "' in parents and trashed=false", fields: 'files(id,modifiedTime)', orderBy: 'modifiedTime desc', pageSize: 5, supportsAllDrives: true, includeItemsFromAllDrives: true });
+    return r.result.files || [];
+  }
+  async function baixar(id) {                      // fetch + json(): acentos corretos mesmo em arquivo grande
+    const r = await fetch('https://www.googleapis.com/drive/v3/files/' + id + '?alt=media&supportsAllDrives=true', { headers: { Authorization: 'Bearer ' + TOKEN }, cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  }
+
+  async function extract(numeroOS, atividade, dataAbertura, opts) {
+    if (!numeroOS) throw new Error('Número de OS obrigatório');
+    if (!AUTH || !CFG.DID) throw new Error('Entre com Google antes de buscar no SIOPI.');
+    const id = novoId(), nome = 'siopi_resposta_' + id + '.json';
+    const pedido = await criarJsonNaPasta('siopi_pedido_' + id + '.json', { versao: 1, id: id, criado_em: new Date().toISOString(), os: String(numeroOS).trim(),
+      atividade: atividade || '', data_abertura: dataAbertura || '', sem_imagem: !!(opts && opts.skipScreenshot) }, CFG.DID);
+    showToast('Pedido enviado ao computador. Aguarde nesta tela.');
+    const inicio = Date.now();
+    let respondeu = false;
+    while (Date.now() - inicio < ESPERA_TOTAL) {
+      await pausa(PASSO);
+      let arqs = [], dados = null;
+      try { arqs = await respostas(nome); if (arqs.length) dados = await baixar(arqs[0].id); }
+      catch (e) { console.warn('[siopi agente] tentando de novo', e); continue; }     // rede do celular ou arquivo ainda subindo
+      if (arqs.length && !respondeu) { respondeu = true; showToast('O computador está buscando no SIOPI...'); }
+      if (dados && dados.id === id && dados.estado === 'pronto' && dados.resultado) {
+        arqs.forEach(a => lixeira(a.id));
+        return dados.resultado;
+      }
+      if (!respondeu && Date.now() - inicio > ESPERA_AGENTE) {
+        if (pedido && pedido.id) await lixeira(pedido.id);                           // não executa depois, sem ninguém esperando
+        throw new Error('O agente do SIOPI não respondeu em 90 s. Em "Agentes" (canto da tela), confira se o SIOPI está online e não pausado, e se o computador está ligado com internet.');
+      }
+    }
+    throw new Error('A busca no SIOPI passou de 7 minutos sem terminar. Veja o cartão SIOPI em "Agentes" e tente de novo.');
+  }
+
+  // fixo: se a extensão antiga ainda estiver instalada no computador, ela não toma o lugar do agente
+  Object.defineProperty(window, 'danthiSIOPI', { value: Object.freeze({ extract: extract, isAvailable: async () => true }), writable: false, configurable: false });
+})();
+</script>
+<!-- SIOPI-AGENTE:FIM -->
+<!-- AGENTES:INICIO — indicador online/offline dos agentes locais (batimento gravado pelo painel no Drive) -->
+<script>
+(function () {
+  let LISTA = null, LIDO_EM = 0, LENDO = null, ABERTO = false;
+  const CORES = { verde: '#22c55e', amarelo: '#eab308', vermelho: '#ef4444', cinza: '#94a3b8' };
+  const el = (t, at, ...fi) => { const e = document.createElement(t); for (const [k, v] of Object.entries(at || {})) { if (k === 'onclick') e.onclick = v; else e.setAttribute(k, v); } e.append(...fi.filter(f => f !== null && f !== undefined)); return e; };
+  const ha = ms => { const s = Math.max(0, Math.round(ms / 1000)); return s < 90 ? s + ' s' : s < 5400 ? Math.round(s / 60) + ' min' : s < 172800 ? Math.round(s / 3600) + ' h' : Math.round(s / 86400) + ' dias'; };
+  const hora = iso => { const d = new Date(iso); return isNaN(d) ? '?' : d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); };
+
+  // o que mostrar: batimento velho vale mais que o estado gravado nele
+  function resumo(a) {
+    const quando = new Date(a.batimento_em).getTime(), idade = Date.now() - quando;
+    const offline = a.estado === 'desligado' || !quando || idade > (Number(a.validade_s) || 180) * 1000;
+    if (offline) return { offline: true, cor: 'vermelho', rotulo: 'Offline', sub: 'desde ' + hora(a.batimento_em) };
+    return { offline: false, cor: CORES[a.cor] ? a.cor : 'cinza', rotulo: String(a.rotulo || '?'), sub: 'online há ' + ha(idade) };
+  }
+
+  async function ler() {
+    if (!AUTH || !CFG.DID) return null;
+    if (LENDO) return LENDO;
+    LENDO = (async () => {
+      const r = await gapi.client.drive.files.list({ q: "name contains 'agente_status_' and '" + CFG.DID + "' in parents and trashed=false", fields: 'files(id,name,modifiedTime)', orderBy: 'modifiedTime desc', pageSize: 20, supportsAllDrives: true, includeItemsFromAllDrives: true });
+      const vistos = new Set(), saida = [];
+      for (const f of r.result.files || []) {
+        if (vistos.has(f.name) || !/^agente_status_[a-z0-9_]+\.json$/.test(f.name)) continue;
+        vistos.add(f.name);
+        try {
+          const c = await gapi.client.drive.files.get({ fileId: f.id, alt: 'media', supportsAllDrives: true });
+          const d = typeof c.result === 'object' && c.result ? c.result : JSON.parse(c.body);
+          if (/^[a-z0-9_]+$/.test(d.agente)) saida.push(d);
+        } catch (e) { console.warn('[agentes] batimento ilegível (sincronizando?)', f.name, e); const antes = (LISTA || []).find(x => 'agente_status_' + x.agente + '.json' === f.name); if (antes) saida.push(antes); }
+      }
+      LISTA = saida.sort((a, b) => String(a.nome).localeCompare(String(b.nome))); LIDO_EM = Date.now();
+      return LISTA;
+    })();
+    try { return await LENDO; } catch (e) { console.warn('[agentes]', e); return null; } finally { LENDO = null; }
+  }
+
+  async function comandar(a, comando, pergunta) {
+    if (pergunta && !confirm(pergunta)) return;
+    try {
+      await criarJsonNaPasta('agente_comando_' + a.agente + '_' + Date.now() + '.json', { comando: comando, criado_em: new Date().toISOString() }, CFG.DID);
+      showToast('Comando enviado. O computador responde em até 1 minuto.');
+    } catch (e) { console.error('[agentes comando]', e); showToast('Não consegui enviar o comando: ' + (e.message || e)); }
+  }
+
+  function cartao(a) {
+    const s = resumo(a), u = a.ultimo, acoes = el('div', { class: 'ag-acoes' });
+    const botao = (txt, comando, pergunta) => acoes.append(el('button', { type: 'button', class: 'ag-btn', onclick: () => comandar(a, comando, pergunta) }, txt));
+    if (!s.offline) {
+      if (a.estado === 'travado') botao('Forçar reinício', 'forcar_reinicio', 'Forçar o reinício interrompe o que o agente estiver fazendo. Continuar?');
+      else botao('Reiniciar', 'reiniciar', a.estado === 'trabalhando' ? 'O agente está numa OS: ele reinicia quando terminar. Continuar?' : 'Reiniciar o agente?');
+      botao(a.pausado ? 'Retomar' : 'Pausar', a.pausado ? 'retomar' : 'pausar');
+      if (a.alerta) botao('Limpar alerta', 'limpar_alerta');
+    }
+    return el('div', { class: 'ag-cartao' },
+      el('div', { class: 'ag-nome' }, el('span', { class: 'ag-bola', style: 'background:' + CORES[s.cor] }), el('b', {}, String(a.nome)), el('span', {}, ' — ' + s.rotulo)),
+      el('div', { class: 'ag-sub' }, s.sub + (!s.offline && a.detalhe ? ' · ' + a.detalhe : '') + (a.reinicio_pendente ? ' · vai reiniciar ao terminar' : '')),
+      s.offline ? el('div', { class: 'ag-sub' }, 'Confira se o computador está ligado, com o Windows logado e a internet ativa. Pedidos enviados agora ficam na fila.') : null,
+      u ? el('div', { class: 'ag-ult' }, 'Último: ' + String(u.os || '') + ' — ' + String(u.estado || '') + ' (' + hora(u.quando) + ')') : null,
+      (a.log || []).length ? el('details', {}, el('summary', {}, 'Log recente'), el('pre', { class: 'ag-log' }, a.log.join('\n'))) : null,
+      acoes);
+  }
+
+  const chip = el('button', { type: 'button', id: 'ag-chip', title: 'Agentes', style: 'display:none', onclick: () => { ABERTO = !ABERTO; desenhar(); if (ABERTO) atualizar(); } });
+  const painel = el('div', { id: 'ag-painel', style: 'display:none' });
+
+  function desenhar() {
+    if (!AUTH) { chip.style.display = 'none'; painel.style.display = 'none'; ABERTO = false; return; }
+    chip.style.display = 'flex';
+    const rs = (LISTA || []).map(resumo);
+    const cor = ['vermelho', 'amarelo', 'cinza', 'verde'].find(c => rs.some(r => r.cor === c)) || 'cinza';
+    const texto = !LISTA ? 'Agentes…' : !LISTA.length ? 'Agentes: sem sinal' : LISTA.length === 1 ? LISTA[0].nome + ': ' + rs[0].rotulo : 'Agentes: ' + rs.filter(r => !r.offline).length + '/' + LISTA.length + ' online';
+    chip.replaceChildren(el('span', { class: 'ag-bola', style: 'background:' + CORES[cor] }), el('span', {}, texto));
+    painel.style.display = ABERTO ? 'block' : 'none';
+    if (!ABERTO) return;
+    const logAberto = !!painel.querySelector('details[open]');
+    painel.replaceChildren(
+      el('div', { class: 'ag-topo' }, el('b', {}, 'Agentes'), el('button', { type: 'button', class: 'ag-x', onclick: () => { ABERTO = false; desenhar(); } }, '✕')),
+      ...((LISTA || []).length ? LISTA.map(cartao) : [el('div', { class: 'ag-sub' }, 'Nenhum batimento encontrado no Drive. O painel dos agentes precisa estar aberto no computador.')]));
+    if (logAberto) painel.querySelectorAll('details').forEach(d => { d.open = true; });
+  }
+
+  async function atualizar() { await ler(); desenhar(); }
+
+  // ao enviar um pedido com o agente offline, avisa que ele vai ficar na fila
+  const criarOriginal = window.criarJsonNaPasta;
+  window.criarJsonNaPasta = async function (nome, objeto, pasta) {
+    const r = await criarOriginal(nome, objeto, pasta);
+    if (String(nome).startsWith('simil_pedido_')) {
+      ler().then(lista => {
+        const a = (lista || []).find(x => x.agente === 'simil'), s = a && resumo(a);
+        desenhar();
+        if (s && (s.offline || a.pausado)) setTimeout(() => showToast('⚠️ Agente SIMIL ' + (s.offline ? 'OFFLINE' : 'PAUSADO') + ': o pedido ficou na fila.'), 4000);
+      });
+    }
+    return r;
+  };
+
+  const estilo = el('style', {}, '#ag-chip{position:fixed;right:14px;bottom:14px;z-index:210;align-items:center;gap:7px;padding:7px 12px;border-radius:999px;border:1px solid var(--mica-border,#333);background:var(--mica-bg,#0e0e10);color:var(--text-primary,#f2f2f4);font:inherit;font-size:12px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.3)}.ag-bola{width:10px;height:10px;border-radius:50%;display:inline-block;flex:0 0 auto}#ag-painel{position:fixed;right:14px;bottom:58px;z-index:211;width:min(380px,calc(100vw - 24px));max-height:70vh;overflow:auto;padding:12px;border-radius:12px;border:1px solid var(--mica-border,#333);background:var(--mica-bg,#0e0e10);color:var(--text-primary,#f2f2f4);box-shadow:0 10px 40px rgba(0,0,0,.5);font-size:13px}.ag-topo{display:flex;justify-content:space-between;align-items:center}.ag-x{background:none;border:0;color:inherit;font-size:18px;cursor:pointer}.ag-cartao{border-top:1px solid var(--mica-border,#333);margin-top:8px;padding-top:8px}.ag-nome{display:flex;align-items:center;gap:6px}.ag-sub,.ag-ult{font-size:12px;color:var(--text-secondary,#aaa);margin-top:3px;overflow-wrap:anywhere}.ag-log{font-size:10px;white-space:pre-wrap;overflow-wrap:anywhere;max-height:180px;overflow:auto;margin:6px 0 0}.ag-acoes{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.ag-btn{padding:9px 12px;border-radius:8px;border:1px solid var(--mica-border-light,#444);background:var(--mica-surface,#1a1a1c);color:inherit;font-size:13px;cursor:pointer}@media(max-width:768px){#ag-chip{right:10px;bottom:calc(76px + env(safe-area-inset-bottom))}#ag-painel{right:12px;bottom:calc(120px + env(safe-area-inset-bottom));max-height:60vh}}');
+  document.head.append(estilo);
+  document.body.append(chip, painel);
+
+  let eraAuth = false;
+  setInterval(() => {
+    if (document.hidden) return;
+    const mudou = AUTH !== eraAuth; eraAuth = AUTH;
+    if (AUTH && (mudou || !LIDO_EM || Date.now() - LIDO_EM > (ABERTO ? 15000 : 60000))) atualizar();
+    else if (mudou || !AUTH) desenhar();
+  }, 3000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && AUTH) atualizar(); });
+})();
+</script>
+<!-- AGENTES:FIM -->
 </body>
 </html>
 
