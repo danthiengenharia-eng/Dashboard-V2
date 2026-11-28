@@ -93,11 +93,16 @@ def main():
     ap.add_argument("--uma-vez", action="store_true")
     ap.add_argument("--loop", action="store_true")
     ap.add_argument("--refazer-siopi", action="store_true", help="refaz o pedido ao SIOPI das OS que ficaram sem os dados")
+    ap.add_argument("--diagnostico", action="store_true", help="mostra versão, caminhos, arquivos e processos (sem senhas)")
     ap.add_argument("--simular", action="store_true", help="mostra o que faria com os e-mails, sem alterar nada")
     ap.add_argument("--testar-email", action="store_true", help="descobre o servidor IMAP e confere as pastas")
     ap.add_argument("--intervalo", type=int, default=5, help="minutos entre rodadas (padrão 5)")
     a = ap.parse_args()
     carregar_env()
+    if a.diagnostico:
+        from .diagnostico import gerar
+        print(gerar())
+        return
     if a.testar_email:
         from .caixa import testar_conexao
         for linha in testar_conexao(exigir("IMAP_USUARIO"), exigir("IMAP_SENHA"), os.environ.get("IMAP_SERVIDOR", ""),
