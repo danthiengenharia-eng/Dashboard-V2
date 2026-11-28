@@ -58,10 +58,10 @@ Indefinido (não decide, avisa). Quando Sim, o município é gravado como "<Muni
   rodada completa e retomável (`agente.py`) e execução (`python -m agente_email --uma-vez|--loop`). 49 testes.
 - Caixa real: servidor `mail.danthiengenharia.com.br` OK (login testado pelo usuário); 628 e-mails na caixa de entrada.
   Proteções: `DESDE` obrigatório, `--simular`, reconhecimento de pastas existentes (INBOX.*) para não duplicar.
-- SIOPI na entrada: ao criar a OS, o agente grava `siopi_pedido_<id>.json` na pasta Laudos (mesmo protocolo do botão
-  'Obter dados' do dashboard), lê `siopi_resposta_<id>.json` nas rodadas seguintes (sem travar), preenche end/bairro/cep/
-  área/tipologia/matrícula/CNM/valor C-V/categoria/abertura e salva os documentos em '02 - Documentos'. 3 tentativas;
-  se o agente do SIOPI estiver offline, avisa. Desligar com SIOPI=0 no .env. 60 testes.
+- SIOPI na entrada (decisão do usuário: uma OS completa por vez): para cada convocação o agente pede os dados ao agente do SIOPI
+  (`siopi_pedido_<id>.json` na pasta Laudos do Drive) e ESPERA a resposta; salva pastas e documentos ('02 - Documentos') e só
+  então insere a linha completa. Offline: não cria a OS, avisa e tenta na rodada seguinte; após 3 tentativas cria sem SIOPI e
+  avisa (SIOPI_OBRIGATORIO=1 desliga isso). 65 testes.
 - Decisão do usuário: o fluxo de entrada é sempre buscar no SIOPI; o botão 'Salvar OS' do dashboard fica para a
   reformulação visual (pode ser removido ou fundido ao 'Obter dados').
 - Próximo: testar numa CÓPIA da planilha com a chave da conta de serviço e o IMAP reais (ver INSTALAR.md);

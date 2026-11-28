@@ -42,6 +42,7 @@ class Resultado:
     avisos: List[str] = field(default_factory=list)       # exigem atenção do usuário
     arquivos: List[str] = field(default_factory=list)      # arquivos a gravar na pasta da OS (feito na camada do Drive)
     pode_mover_email: bool = False
+    resumo: str = ""                                      # texto extra do aviso (ex.: dados do SIOPI)
     nova_os: Optional[NovaOS] = None                       # OS a criar (pastas e anexos são feitos na camada do Drive)
 
 
@@ -102,19 +103,24 @@ def aplicar(c: Classificacao, msg: Mensagem, plan: Planilha, regras: dict, hoje:
     return Resultado(False, c.tipo, avisos=["tipo sem regra"])
 
 
-def _criar_os(c: Classificacao, msg: Mensagem, plan: Planilha, hoje: date, cfg: Optional[Configuracao]) -> Resultado:
+def preparar_os(c: Classificacao, msg: Mensagem, plan: Planilha, hoje: date, cfg: Optional[Configuracao]):
+    """Valida e monta a OS SEM inserir. Devolve (NovaOS, avisos) ou (None, motivos)."""
     if cfg is None:
-        return Resultado(False, "convocacao", avisos=["configuração do dashboard não carregada"])
+        return None, ["configuração do dashboard não carregada"]
     if plan.achar_os(c.os_numero):
-        return Resultado(False, "convocacao", avisos=["OS já existe na planilha: nada foi criado"])
+        return None, ["OS já existe na planilha: nada foi criado"]
     txt = next((decodificar(d) for n, d in msg.anexos if n.lower().endswith(".txt")), msg.corpo)
     conv = interpretar(txt)
     if conv.get("os") and conv["os"].replace("/", "") != c.os_numero.replace("/", ""):
-        return Resultado(False, "convocacao", avisos=["OS do anexo diverge da OS do assunto"])
+        return None, ["OS do anexo diverge da OS do assunto"]
     conv["os"] = conv.get("os") or c.os_numero
     nova, avisos = montar(conv, cfg, [l.get("item", "") for l in plan.listar()], hoje)
+    return (nova, nova.avisos) if nova else (None, avisos)
+
+
+def _criar_os(c: Classificacao, msg: Mensagem, plan: Planilha, hoje: date, cfg: Optional[Configuracao]) -> Resultado:
+    nova, avisos = preparar_os(c, msg, plan, hoje, cfg)
     if nova is None:
         return Resultado(False, "convocacao", avisos=avisos)
-    nova.campos["item"] = nova.campos["item"]
     plan.adicionar(nova.campos)
     return Resultado(True, "criada", nova.campos, nova.avisos, nova_os=nova, pode_mover_email=True)

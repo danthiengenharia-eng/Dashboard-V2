@@ -8,7 +8,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import date, datetime
 from typing import Callable, Dict, Optional
 
-from .acoes import Resultado, aplicar
+from .acoes import Resultado, aplicar, preparar_os
 from .caixa import Caixa
 from .classificador import classificar
 from .config import Configuracao
@@ -43,6 +43,8 @@ class Contexto:
     espera_resposta_s: int = 180                 # o agente do SIOPI precisa pegar o pedido em até 3 min
     espera_total_s: int = 900                    # e terminar a busca em até 15 min
     tentativas_max: int = 3
+    permitir_sem_siopi: bool = True               # depois das tentativas, cria a OS sem SIOPI (e avisa) em vez de perder a demanda
+    siopi_fora: bool = False                      # agente do SIOPI offline nesta rodada: não espera de novo
 
 
 def _avisar(ctx: Contexto, mid: str, chave: str, titulo: str, texto: str, prioridade="high", anexo=None):
@@ -59,12 +61,70 @@ def _notificar_sucesso(ctx: Contexto, tipo: str, os_numero: str, r: Resultado):
         texto = f"{c['atv']} · {c['vt']} · entrega {c['ent']}\n{c['end']}, {c['bairro']}"
         if "Deslocamento especial" in c["mun"]:
             texto += "\nDeslocamento especial"
+        if r.resumo:
+            texto += "\nSIOPI: " + r.resumo
         if c["ent"]:
             dia = datetime.strptime(c["ent"], "%d/%m/%Y").date()
             anexo = (f"OS{c['item']}.ics", evento_ics(os_numero, f"Entrega OS {c['item']} · {c['atv']}", dia, texto))
     if r.avisos:
         texto += "\n⚠ " + "\n⚠ ".join(r.avisos)
     ctx.notif.enviar(titulo, texto, "high" if r.avisos else "default", anexo)
+
+
+
+def _salvar_documentos(ctx: Contexto, pasta, res: dict) -> str:
+    docs = documentos(res)
+    total = len(res.get("documentos") or [])
+    salvos = 0
+    if docs:
+        destino = ctx.drive.subpasta(pasta, ctx.cfg, "docs")
+        existentes = {f.read_bytes() for f in destino.iterdir() if f.is_file()}
+        for nome, dados in docs:
+            if dados not in existentes:          # nunca duplica o mesmo documento
+                ctx.drive.gravar_unico(destino, nome, dados)
+                existentes.add(dados)
+                salvos += 1
+    faltou = f" ({total - len(docs)} não baixaram)" if total and total != len(docs) else ""
+    return (f"{len(docs)} documento(s) salvos" if docs else "sem documentos") + faltou
+
+
+def _convocacao_completa(ctx: Contexto, msg, c, mid: str, est: dict) -> Optional[Resultado]:
+    """Uma OS por vez: busca no SIOPI, salva pastas e documentos e SÓ ENTÃO insere a linha completa na planilha."""
+    nova, avisos = preparar_os(c, msg, ctx.plan, ctx.hoje, ctx.cfg)          # valida antes de gastar uma busca
+    if nova is None:
+        _avisar(ctx, mid, "nao_aplicado", f"Não processei: convocação {c.os_numero}", "; ".join(avisos))
+        return None
+    res, motivo = (None, "offline") if ctx.siopi_fora else ctx.siopi.buscar(c.os_numero, sem_imagem=any(n.lower().endswith(".txt") for n, _ in msg.anexos))
+    sem_siopi = res is None
+    if sem_siopi:
+        if motivo == "offline":
+            ctx.siopi_fora = True
+        tent = est.get("tentativas_siopi", 0) + 1
+        ctx.estado.set(mid, tentativas_siopi=tent)
+        if tent < ctx.tentativas_max or not ctx.permitir_sem_siopi:
+            _avisar(ctx, mid, f"siopi{tent}", f"SIOPI sem resposta: OS {c.os_numero} aguardando",
+                    f"O agente do SIOPI não respondeu ({motivo}). A OS NÃO foi criada; tentarei de novo na próxima rodada.")
+            return None
+    nova, avisos = preparar_os(c, msg, ctx.plan, ctx.hoje, ctx.cfg)          # recalcula o item: a planilha pode ter mudado
+    if nova is None:
+        _avisar(ctx, mid, "nao_aplicado", f"Não processei: convocação {c.os_numero}", "; ".join(avisos))
+        return None
+    resumo = ""
+    if not sem_siopi:
+        novos, av = campos_planilha(res, nova.campos)
+        nova.campos.update(novos)
+        nova.avisos += av
+    else:
+        nova.avisos.append("criada SEM os dados do SIOPI: use 'Obter dados' no dashboard")
+    pasta = ctx.drive.criar_estrutura(nova, ctx.cfg, msg)                    # pastas e documentos antes da linha
+    if not sem_siopi:
+        resumo = " · ".join(x for x in (nova.campos.get("categoria"), nova.campos.get("tip"),
+                                         f"matrícula {nova.campos['matricula']}" if nova.campos.get("matricula") else "",
+                                         _salvar_documentos(ctx, pasta, res)) if x)
+    ctx.plan.adicionar(nova.campos)                                          # a linha só entra quando tudo está pronto
+    if sem_siopi:
+        ctx.estado.set("siopi:" + c.os_numero, etapa="pendente", tentativas=0)
+    return Resultado(True, "criada", nova.campos, nova.avisos, nova_os=nova, pode_mover_email=True, resumo=resumo)
 
 
 def processar(ctx: Contexto, uid: str, msg) -> None:
@@ -82,7 +142,12 @@ def processar(ctx: Contexto, uid: str, msg) -> None:
         r = Resultado(True, est["acao"], avisos=est.get("avisos", []), arquivos=est.get("arquivos", []),
                       nova_os=nova, pode_mover_email=True)
     else:
-        r = aplicar(c, msg, ctx.plan, ctx.regras, ctx.hoje, ctx.cfg)
+        if c.tipo == "convocacao" and ctx.siopi is not None:
+            r = _convocacao_completa(ctx, msg, c, mid, est)
+            if r is None:
+                return
+        else:
+            r = aplicar(c, msg, ctx.plan, ctx.regras, ctx.hoje, ctx.cfg)
         if not r.aplicado:
             _avisar(ctx, mid, "nao_aplicado", f"Não processei: {c.tipo} {c.os_numero or ''}", "; ".join(r.avisos))
             return
@@ -103,8 +168,6 @@ def processar(ctx: Contexto, uid: str, msg) -> None:
         return
 
     ctx.estado.set(mid, etapa="completo")
-    if r.nova_os and ctx.siopi is not None and not ctx.estado.get("siopi:" + c.os_numero):
-        ctx.estado.set("siopi:" + c.os_numero, etapa="pendente", tentativas=0)
     _notificar_sucesso(ctx, c.tipo, c.os_numero, r)
 
 
@@ -171,6 +234,7 @@ def completar_siopi(ctx: Contexto) -> None:
 
 def rodar_uma_vez(ctx: Contexto) -> int:
     n = 0
+    ctx.siopi_fora = False
     for uid, msg in ctx.caixa.listar():
         try:
             processar(ctx, uid, msg)

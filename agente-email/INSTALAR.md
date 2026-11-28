@@ -27,8 +27,11 @@ Registros em `saida/agente.log`; memória do que já foi feito em `saida/estado.
 Se o agente não conseguir fazer algo, ele não altera nada e avisa no celular.
 
 ## Dados do SIOPI (automático)
-Depois de criar cada OS, o agente pede os dados ao **agente do SIOPI** (o mesmo do botão "Obter dados"), que precisa
-estar ligado no computador com o Drive para desktop. Se estiver offline, o agente tenta 3 vezes e avisa no iPhone.
+Para cada convocação, o agente **primeiro** pede os dados ao **agente do SIOPI** (o mesmo do botão "Obter dados") e espera a
+resposta. Só então salva as pastas e os documentos e, por último, insere a linha **já completa** na planilha. Uma OS por vez.
+O agente do SIOPI precisa estar ligado com o Drive para desktop. Se não responder, a OS **não é criada pela metade**: o e-mail
+fica na caixa, você recebe um aviso e a rodada seguinte tenta de novo. Depois de 3 tentativas ele cria a OS sem os dados do SIOPI
+(para não perder a demanda) e avisa; com `SIOPI_OBRIGATORIO=1` ele nunca faz isso e continua tentando.
 Para desligar esse passo: `SIOPI=0` no `.env`.
 
 **Atenção ao testar com pasta local:** os pedidos ao SIOPI precisam ir para a pasta `Laudos` do **Drive**, que é a que o

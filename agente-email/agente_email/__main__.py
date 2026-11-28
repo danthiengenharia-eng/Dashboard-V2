@@ -78,7 +78,8 @@ def montar() -> Contexto:
     pastas = {**PASTAS_PADRAO, **{k: v for k, v in (ajustes.get("pastas_imap") or {}).items() if k in PASTAS_PADRAO}}
     return Contexto(caixa, plan, DriveLocal(exigir("PASTA_LAUDOS")), notif, cfg, Estado(os.environ.get("ESTADO", "saida/estado.json")),
                     ajustes.get("regras", {}), pastas,
-                    siopi=None if os.environ.get("SIOPI", "1") == "0" else SiopiArquivos(os.environ.get("SIOPI_PASTA") or exigir("PASTA_LAUDOS")))
+                    siopi=None if os.environ.get("SIOPI", "1") == "0" else SiopiArquivos(os.environ.get("SIOPI_PASTA") or exigir("PASTA_LAUDOS")),
+                    permitir_sem_siopi=os.environ.get("SIOPI_OBRIGATORIO", "0") != "1")
 
 
 def main():

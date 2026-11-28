@@ -86,8 +86,25 @@ def documentos(r: dict) -> List[Tuple[str, bytes]]:
 class SiopiArquivos:
     """Pedido e resposta por arquivos na pasta Laudos (sincronizada pelo Drive para desktop)."""
 
-    def __init__(self, raiz):
+    def __init__(self, raiz, dormir=time.sleep, relogio=time.monotonic):
         self.raiz = Path(raiz)
+        self.dormir, self.relogio = dormir, relogio
+
+    def buscar(self, os_numero: str, sem_imagem: bool = True, espera_pegar: int = 90, total: int = 420, passo: int = 3):
+        """Pede e ESPERA a resposta desta OS (como o botão do dashboard). Devolve (resultado, motivo_da_falha)."""
+        pid = self.pedir(os_numero, sem_imagem)
+        inicio, viu = self.relogio(), False
+        while True:
+            existe, res = self.resposta(pid)
+            if res:
+                self.limpar(pid)
+                return res, ""
+            viu = viu or existe
+            decorrido = self.relogio() - inicio
+            if decorrido > total or (not viu and decorrido > espera_pegar):
+                self.limpar(pid)
+                return None, ("demorou" if viu else "offline")
+            self.dormir(passo)
 
     def pedir(self, os_numero: str, sem_imagem: bool = True) -> str:
         pid = format(int(time.time() * 1000), "x") + secrets.token_hex(3)
