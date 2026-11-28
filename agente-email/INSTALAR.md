@@ -19,8 +19,10 @@ Pré-requisitos: Python 3.11+, Drive para desktop (com a pasta `Laudos` visível
    `DESDE=AAAA-MM-DD` com o dia a partir do qual o agente deve agir (ex.: `DESDE=2026-11-28`). Sem isso ele não roda.
    Antes de rodar de verdade, use `python -m agente_email --simular`: ele só LISTA o que faria, sem alterar nada.
 6. **Rodar sempre:** `python -m agente_email --loop` (a cada 5 minutos).
-   No Windows, para iniciar sozinho com o computador (Agendador de Tarefas):
-   `schtasks /Create /SC ONSTART /TN "AgenteEmailDanthi" /TR "cmd /c cd /d C:\agente\agente-email && python -m agente_email --loop" /RU SYSTEM`
+   **Uso diário, sem terminal aberto:** clique com o botão direito em `instalar_tarefa_windows.ps1` > *Executar com o PowerShell*.
+   Ele registra o agente para iniciar sozinho ao entrar no Windows, sem janela, e reiniciar se parar. Para remover: `parar_tarefa_windows.ps1`.
+   Requisitos: o PC ligado, **com o seu usuário conectado** (o Drive `G:` só existe depois do login; por isso NÃO usar a conta SYSTEM),
+   com suspensão desativada (*Configurações > Sistema > Energia*: "Nunca" ao ligar na tomada) e o Drive para desktop abrindo com o Windows.
    No Mac Mini: um `launchd` com o mesmo comando (posso escrever o arquivo quando o equipamento chegar).
 
 Registros em `saida/agente.log`; memória do que já foi feito em `saida/estado.json` (não apagar).

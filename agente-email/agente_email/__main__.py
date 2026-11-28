@@ -114,7 +114,7 @@ def main():
     data_inicio()   # exige DESDE antes de qualquer alteração
     Path("saida").mkdir(exist_ok=True)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s",
-                        handlers=[logging.StreamHandler(), logging.FileHandler(os.environ.get("LOG", "saida/agente.log"), encoding="utf-8")])
+                        handlers=([logging.StreamHandler()] if sys.stderr else []) + [logging.FileHandler(os.environ.get("LOG", "saida/agente.log"), encoding="utf-8")])
     while True:
         ctx = None
         try:
