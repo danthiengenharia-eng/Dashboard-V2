@@ -57,9 +57,10 @@ def campos_planilha(r: dict, atuais: Dict[str, str], opcoes_tip: Optional[List[s
     if r.get("area_privativa"):
         a = str(r["area_privativa"])
         novos["area"] = a if re.search("m", a, re.I) else a + " m²"
+    from .tipologia import e_acompanhamento_de_obra
     tip, aviso = tipologia_siopi(r, opcoes_tip or TIPOLOGIAS_PADRAO)
-    if tip:
-        novos["tip"] = tip
+    if tip and not e_acompanhamento_de_obra(str(atuais.get("atv", ""))):
+        novos["tip"] = tip                      # em obra, vale a tipologia da convocação/descrição
     if aviso:
         avisos.append("Tipologia: " + aviso)
     for chave, campo in (("matricula", "matricula"), ("cnm", "cnm"), ("categoria", "categoria"), ("data_abertura", "abr")):

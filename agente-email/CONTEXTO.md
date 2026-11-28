@@ -62,6 +62,8 @@ Indefinido (não decide, avisa). Quando Sim, o município é gravado como "<Muni
   (`siopi_pedido_<id>.json` na pasta Laudos do Drive) e ESPERA a resposta; salva pastas e documentos ('02 - Documentos') e só
   então insere a linha completa. Offline: não cria a OS, avisa e tenta na rodada seguinte; após 3 tentativas cria sem SIOPI e
   avisa (SIOPI_OBRIGATORIO=1 desliga isso). 65 testes.
+- Tipologia: vem do campo 'Tipologia' do .txt; senão, do nome de uma opção no Assunto/Descrição/Observação; em acompanhamento
+  de obra (E-401) assume 'Obra Residencial' (com aviso) e o SIOPI não a sobrescreve. Falta um exemplo real de E-401 para afinar.
 - Decisão do usuário: o fluxo de entrada é sempre buscar no SIOPI; o botão 'Salvar OS' do dashboard fica para a
   reformulação visual (pode ser removido ou fundido ao 'Obter dados').
 - Próximo: testar numa CÓPIA da planilha com a chave da conta de serviço e o IMAP reais (ver INSTALAR.md);

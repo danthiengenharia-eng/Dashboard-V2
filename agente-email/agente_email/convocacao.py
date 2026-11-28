@@ -100,4 +100,7 @@ def interpretar(txt: str) -> Dict[str, Optional[str]]:
         "contato_telefone": _get(txt, r"telefone contato\.*:\s*(.+)"),
         "matricula": _get(txt, r"matr.cula rgi:\s*(\d+)"),
         "demandante": _get(txt, r"demandante\.*:\s*(.+)"),
+        # textos livres onde a CEF costuma dizer o tipo (ex.: acompanhamento de obra residencial)
+        "textos_tipo": " | ".join(x for x in (_get(txt, r"assunto\s*\.*:\s*(.+)"), _get(txt, r"descri..o\s*\.*:\s*(.+)"),
+                                              _get(txt, r"observa..o\s*\.*:\s*(.+)")) if x),
     }

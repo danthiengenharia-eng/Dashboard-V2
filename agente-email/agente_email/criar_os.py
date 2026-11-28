@@ -5,6 +5,8 @@ from typing import Dict, List, Optional
 
 from .config import Configuracao, mes_abreviado, mes_para_pasta, nome_pasta_os
 from .deslocamento import SUFIXO, identificar
+from .siopi import TIPOLOGIAS_PADRAO
+from .tipologia import inferir
 from .texto import normalizar
 
 
@@ -71,11 +73,18 @@ def montar(conv: dict, cfg: Configuracao, itens_existentes: List[str], hoje: dat
     entrega = entrada + timedelta(days=int(a["p"])) if a.get("p") else None
     mes = mes_abreviado(hoje)
 
+    tip = conv.get("tipologia") or ""
+    if not tip:
+        tip, aviso_tip = inferir(conv.get("textos_tipo", ""), atv, TIPOLOGIAS_PADRAO)
+        tip = tip or ""
+        if aviso_tip:
+            avisos.append(aviso_tip)
+
     item = max([int(i) for i in itens_existentes if str(i).isdigit()] + [0]) + 1
     polo = cfg.mun[desloc.municipio].get("polo", "")
     campos = {
         "item": str(item), "os": conv["os"].replace("/", ""), "aceita": "TRUE", "atv": atv, "tv": "Interna",
-        "polo": polo, "mun": mun_gravar, "bairro": conv["bairro"], "tip": conv.get("tipologia") or "",
+        "polo": polo, "mun": mun_gravar, "bairro": conv["bairro"], "tip": tip,
         "end": conv["endereco"], "area": conv.get("area") or "", "cep": conv["cep"], "mes": mes,
         "siopi": entrada.strftime("%d/%m/%Y"), "pept": "FALSE",
         "ent": entrega.strftime("%d/%m/%Y") if entrega else "",
